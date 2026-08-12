@@ -1,0 +1,31 @@
+# Exemple de config.yaml — copiez ce fichier en
+# ~/.config/termdevtools/config.yaml (voir SPEC.md §9.1-§9.2). Propre à
+# chaque utilisateur : deux personnes lançant le même binaire partagé n'ont
+# pas le même historique de connexions. Aucun secret n'y est jamais stocké :
+# mots de passe, API key secrets et passphrases de clé privée sont toujours
+# redemandés à la connexion.
+
+default_timeout_seconds: 120
+
+# Dossiers utilisés pour pré-remplir les champs de certificat lors de la
+# saisie d'une nouvelle connexion (§3.0). Facultatifs.
+default_ca_dir: /etc/pki/termdevtools/ca
+default_client_cert_dir: /etc/pki/termdevtools/certs
+
+# L'ordre de cette liste fait office d'historique d'utilisation : le cluster
+# le plus récemment utilisé est automatiquement replacé en tête (§9.2).
+# Ce fichier est normalement généré/mis à jour automatiquement par le
+# programme après chaque connexion réussie — le modifier à la main reste
+# possible mais optionnel.
+clusters:
+  - url: https://es-prod.example.com:9200
+    auth_type: basic # none | basic | api_key | mtls
+    username: svc_devtools
+    tls:
+      verify: true
+      ca_file: /etc/pki/ca-trust/es-prod-ca.pem
+
+  - url: https://es-staging.example.com:9200
+    auth_type: none
+    tls:
+      verify: false

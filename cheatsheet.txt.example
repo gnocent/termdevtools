@@ -1,0 +1,22 @@
+# Exemple de cheatsheet — copiez ce fichier en cheatsheet.txt, à côté du
+# binaire termdevtools, pour qu'il soit chargé automatiquement dans
+# l'éditeur au démarrage (voir SPEC.md §3.2 et §9.1).
+#
+# Une ligne commençant par # est un commentaire (ignorée).
+# Chaque requête commence par "MÉTHODE endpoint" ; un corps JSON optionnel
+# peut suivre sur les lignes suivantes. Placez le curseur sur une requête
+# et faites Ctrl+Entrée pour l'exécuter.
+
+GET _cluster/health
+
+GET _cat/indices?v
+
+GET _cat/nodes?v
+
+# Exemple de requête avec un corps JSON
+POST _search
+{
+  "query": {
+    "match_all": {}
+  }
+}

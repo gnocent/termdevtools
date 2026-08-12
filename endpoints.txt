@@ -1,0 +1,123 @@
+# Exemple de endpoints.txt — copiez ce fichier en endpoints.txt, à côté du
+# binaire termdevtools (voir SPEC.md §3.2 et §9.1), pour ajuster la liste
+# d'endpoints proposée par l'auto-complétion (Tab, panneau gauche) à votre
+# version d'Elasticsearch, sans recompiler.
+#
+# Un endpoint par ligne. Les lignes vides et celles commençant par # sont
+# ignorées. Si ce fichier est présent (et non vide une fois les commentaires
+# retirés), il remplace entièrement la liste par défaut intégrée au binaire.
+#
+# Liste ci-dessous : celle intégrée par défaut, extraite de la spec OpenAPI
+# officielle (elastic/elasticsearch-specification, branche 9.5), filtrée aux
+# endpoints sans paramètre de chemin (les /{index}/... nécessitent un nom
+# d'index réel — non couvert, cf. SPEC.md §7) et aux domaines
+# "administration de base" : _cat (toutes les commandes, ?v systématique),
+# _cluster, _nodes, index/recherche/snapshot/ILM/SLM/licence. Volontairement
+# écartés : ML, sécurité, watcher, transform, rollup, SQL/ES|QL, CCR,
+# connectors, inference, enrich — hors du périmètre admin de base de cet
+# outil. À élaguer, compléter ou réécrire entièrement selon vos besoins.
+
+# --- _cat/* — verbose (?v) systématique pour les en-têtes de colonnes ---
+_cat/aliases?v
+_cat/allocation?v
+_cat/circuit_breaker?v
+_cat/component_templates?v
+_cat/count?v
+_cat/fielddata?v
+_cat/health?v
+_cat/indices?v
+_cat/master?v
+_cat/ml/anomaly_detectors?v
+_cat/ml/data_frame/analytics?v
+_cat/ml/datafeeds?v
+_cat/ml/trained_models?v
+_cat/nodeattrs?v
+_cat/nodes?v
+_cat/pending_tasks?v
+_cat/plugins?v
+_cat/recovery?v
+_cat/repositories?v
+_cat/segments?v
+_cat/shards?v
+_cat/snapshots?v
+_cat/tasks?v
+_cat/templates?v
+_cat/thread_pool?v
+_cat/transforms?v
+
+# --- _cluster/* ---
+_cluster/allocation/explain
+_cluster/health
+_cluster/pending_tasks
+_cluster/reroute
+_cluster/settings
+_cluster/state
+_cluster/stats
+_cluster/voting_config_exclusions
+
+# --- _nodes/* ---
+_nodes
+_nodes/hot_threads
+_nodes/reload_secure_settings
+_nodes/stats
+_nodes/usage
+
+# --- Index, document, recherche, snapshot, ILM/SLM, licence ---
+_alias
+_aliases
+_analyze
+_bulk
+_cache/clear
+_component_template
+_count
+_data_stream
+_data_stream/_modify
+_data_stream/_stats
+_features
+_features/_reset
+_field_caps
+_flush
+_forcemerge
+_health_report
+_ilm/migrate_to_data_tiers
+_ilm/policy
+_ilm/start
+_ilm/status
+_ilm/stop
+_index_template
+_index_template/_simulate
+_license
+_license/basic_status
+_license/start_basic
+_license/start_trial
+_license/trial_status
+_mapping
+_mget
+_msearch
+_msearch/template
+_mtermvectors
+_recovery
+_refresh
+_reindex
+_remote/info
+_resolve/cluster
+_search
+_search/scroll
+_search/template
+_search_shards
+_segments
+_settings
+_shard_stores
+_slm/_execute_retention
+_slm/policy
+_slm/start
+_slm/stats
+_slm/status
+_slm/stop
+_snapshot
+_snapshot/_status
+_stats
+_tasks
+_tasks/_cancel
+_template
+_validate/query

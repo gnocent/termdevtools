@@ -1,0 +1,27 @@
+# Secrets et configuration locale de l'assistant (peuvent contenir des
+# commandes exécutées, donc potentiellement des IP/identifiants/clés du
+# cluster utilisé pendant le développement) : ne doit jamais être publié.
+.claude/
+
+# Configuration personnelle réelle (l'exemple versionné est config.yaml.example).
+config.yaml
+
+# Binaires compilés, quel que soit le nom de sortie ou la plateforme.
+/termdevtools
+/termdevtools.exe
+/dist/
+
+# Requêtes/résultats exportés à l'exécution (Ctrl+S, F2) : données locales
+# de session, jamais du contenu à publier.
+/exports/
+
+# Artefacts Go standards.
+*.test
+*.out
+
+# Fichiers spécifiques à l'éditeur / l'OS.
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

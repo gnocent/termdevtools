@@ -89,16 +89,18 @@ La langue de l'interface (français par défaut, ou anglais) se règle via `lang
 
 | Action | Touche |
 |---|---|
-| Exécuter la requête sous le curseur | `Ctrl+Entrée` |
-| Basculer focus panneau gauche ↔ droit | `Ctrl+←` / `Ctrl+→` |
+| Exécuter la requête sous le curseur | `Ctrl+Entrée` [^macos] |
+| Basculer focus panneau gauche ↔ droit | `Ctrl+←` / `Ctrl+→` [^macos] |
 | Quitter (sauvegarde automatique du panneau gauche) | `Ctrl+C` |
 | Rechercher dans les requêtes / dans le résultat | `Ctrl+F` (selon le panneau focus) |
-| Redimensionner le split gauche/droite | `Ctrl+Maj+←` / `Ctrl+Maj+→` |
+| Redimensionner le split gauche/droite | `Ctrl+Maj+←` / `Ctrl+Maj+→` [^macos] |
 | Sauvegarder (gauche) / exporter (droite) | `Ctrl+S` (selon le panneau focus) |
 | Compléter un endpoint / une colonne | `Tab` (panneau gauche) |
 | Copier le résultat dans le presse-papier | `F2` |
 | Changer la langue de l'interface (fr/en) | `F3` |
 | Aide | `F1` (`Echap` pour fermer) |
+
+[^macos]: Sur macOS, `Option` fonctionne aussi à la place de `Ctrl` pour ces trois raccourcis — `Ctrl+←/→` est intercepté par le système par défaut (changement d'espace Mission Control), et `Ctrl+Entrée` ne peut pas être distingué d'un simple `Entrée` dans l'encodage terminal classique.
 
 ## Sécurité
 

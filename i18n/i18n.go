@@ -132,9 +132,11 @@ var fr = Strings{
 	// Deliberate order: the most essential commands (help, language, quit)
 	// come first, so they stay visible even on a narrow terminal where the
 	// end of the line gets cut off (only 1 row is allocated for this bar).
+	// "Ctrl(/Opt)" flags the shortcuts where Option also works, on macOS,
+	// as an alternative to Ctrl (see HelpContent for why).
 	ShortcutsHelpBar: "[gray]F1[white] aide   [gray]F3[white] langue   [gray]Ctrl+C[white] quitter   " +
-		"[gray]Ctrl+Entrée[white] exécuter   [gray]Tab[white] compléter   [gray]Ctrl+←/→[white] changer de panneau   " +
-		"[gray]Ctrl+Maj+←/→[white] redimensionner   [gray]Ctrl+F[white] rechercher   [gray]Ctrl+S[white] sauvegarder/exporter   " +
+		"[gray]Ctrl(/Opt)+Entrée[white] exécuter   [gray]Tab[white] compléter   [gray]Ctrl(/Opt)+←/→[white] changer de panneau   " +
+		"[gray]Ctrl(/Opt)+Maj+←/→[white] redimensionner   [gray]Ctrl+F[white] rechercher   [gray]Ctrl+S[white] sauvegarder/exporter   " +
 		"[gray]F2[white] copier",
 
 	ErrLoadFailedFmt:   "échec du chargement de %s : %s",
@@ -157,6 +159,8 @@ sur les lignes suivantes. Lignes [gray]#[white] = commentaires.
 ou texte brut (ex. réponses _cat/*).
 
 [yellow]Raccourcis clavier[white]
+[gray]Sur macOS, Option fonctionne aussi à la place de Ctrl pour Entrée,
+←/→ et Maj+←/→ (souvent interceptés par le système sur cette plateforme).[white]
 
   [aqua]Ctrl+Entrée[white]      Exécuter la requête sous le curseur
   [aqua]Tab[white]              Compléter un endpoint en cours de frappe
@@ -234,9 +238,11 @@ var en = Strings{
 	// Deliberate order: the most essential commands (help, language, quit)
 	// come first, so they stay visible even on a narrow terminal where the
 	// end of the line gets cut off (only 1 row is allocated for this bar).
+	// "Ctrl(/Opt)" flags the shortcuts where Option also works, on macOS,
+	// as an alternative to Ctrl (see HelpContent for why).
 	ShortcutsHelpBar: "[gray]F1[white] help   [gray]F3[white] language   [gray]Ctrl+C[white] quit   " +
-		"[gray]Ctrl+Enter[white] execute   [gray]Tab[white] complete   [gray]Ctrl+←/→[white] switch panel   " +
-		"[gray]Ctrl+Shift+←/→[white] resize   [gray]Ctrl+F[white] search   [gray]Ctrl+S[white] save/export   " +
+		"[gray]Ctrl(/Opt)+Enter[white] execute   [gray]Tab[white] complete   [gray]Ctrl(/Opt)+←/→[white] switch panel   " +
+		"[gray]Ctrl(/Opt)+Shift+←/→[white] resize   [gray]Ctrl+F[white] search   [gray]Ctrl+S[white] save/export   " +
 		"[gray]F2[white] copy",
 
 	ErrLoadFailedFmt:   "failed to load %s: %s",
@@ -259,6 +265,8 @@ on the following lines. Lines starting with [gray]#[white] = comments.
 or plain text (e.g. _cat/* responses).
 
 [yellow]Keyboard shortcuts[white]
+[gray]On macOS, Option also works instead of Ctrl for Enter, ←/→, and
+Shift+←/→ (often intercepted by the system on that platform).[white]
 
   [aqua]Ctrl+Enter[white]       Execute the request under the cursor
   [aqua]Tab[white]              Complete an endpoint while typing

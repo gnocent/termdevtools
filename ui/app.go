@@ -267,21 +267,21 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 		a.SaveQueriesOnExit()
 		a.tapp.Stop()
 		return nil
-	case event.Key() == tcell.KeyEnter && event.Modifiers()&tcell.ModCtrl != 0:
+	case event.Key() == tcell.KeyEnter && hasShortcutModifier(event):
 		if a.focusedIsEditor {
 			a.executeCurrent()
 		}
 		return nil
-	case isCtrlShiftLeft(event):
+	case isResizeLeft(event):
 		a.resizeSplit(-splitStep)
 		return nil
-	case isCtrlShiftRight(event):
+	case isResizeRight(event):
 		a.resizeSplit(splitStep)
 		return nil
-	case event.Key() == tcell.KeyLeft && event.Modifiers()&tcell.ModCtrl != 0:
+	case event.Key() == tcell.KeyLeft && hasShortcutModifier(event):
 		a.focusEditor()
 		return nil
-	case event.Key() == tcell.KeyRight && event.Modifiers()&tcell.ModCtrl != 0:
+	case event.Key() == tcell.KeyRight && hasShortcutModifier(event):
 		a.focusResultPanel()
 		return nil
 	case event.Key() == tcell.KeyCtrlF:
@@ -308,17 +308,31 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
-// isCtrlShiftLeft/isCtrlShiftRight detect Ctrl+Shift+←/→, used to resize
-// the split (SPEC.md §4) — Ctrl++/Ctrl+- initially planned turned out to be
-// intercepted by the terminal/OS (font zoom under Windows Terminal in
-// particular). These cases are tested BEFORE plain Ctrl+←/→ (focus switch)
-// so they aren't shadowed by it.
-func isCtrlShiftLeft(event *tcell.EventKey) bool {
-	return event.Key() == tcell.KeyLeft && event.Modifiers()&tcell.ModCtrl != 0 && event.Modifiers()&tcell.ModShift != 0
+// hasShortcutModifier reports whether event carries the modifier used to
+// trigger the app's Ctrl-style shortcuts (execute, focus switch, resize):
+// Ctrl, or Option/Alt as an additional accepted alternative on top of it.
+// Added for macOS, where Ctrl+←/→ is intercepted at the OS level by default
+// (Mission Control desktop switching) and Ctrl+Enter can't even be
+// distinguished from plain Enter in classic terminal encoding — Ctrl+M
+// *is* Enter's control byte. Deliberately NOT extended to Ctrl+F/Ctrl+S/
+// Ctrl+C: those are raw, universally reliable control bytes with no such
+// conflict, and by default macOS terminals turn Option+letter into an
+// accented character instead of signaling a modifier at all.
+func hasShortcutModifier(event *tcell.EventKey) bool {
+	return event.Modifiers()&tcell.ModCtrl != 0 || event.Modifiers()&tcell.ModAlt != 0
 }
 
-func isCtrlShiftRight(event *tcell.EventKey) bool {
-	return event.Key() == tcell.KeyRight && event.Modifiers()&tcell.ModCtrl != 0 && event.Modifiers()&tcell.ModShift != 0
+// isResizeLeft/isResizeRight detect Ctrl+Shift+←/→ or Option+Shift+←/→,
+// used to resize the split (SPEC.md §4) — Ctrl++/Ctrl+- initially planned
+// turned out to be intercepted by the terminal/OS (font zoom under Windows
+// Terminal in particular). These cases are tested BEFORE the plain
+// Ctrl/Option+←/→ case (focus switch) so they aren't shadowed by it.
+func isResizeLeft(event *tcell.EventKey) bool {
+	return event.Key() == tcell.KeyLeft && hasShortcutModifier(event) && event.Modifiers()&tcell.ModShift != 0
+}
+
+func isResizeRight(event *tcell.EventKey) bool {
+	return event.Key() == tcell.KeyRight && hasShortcutModifier(event) && event.Modifiers()&tcell.ModShift != 0
 }
 
 // resizeSplit moves the divider between the left and right panels by delta

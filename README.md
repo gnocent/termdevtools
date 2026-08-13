@@ -89,16 +89,18 @@ The interface language (French by default, or English) is set via `language: fr`
 
 | Action | Key |
 |---|---|
-| Execute the request under the cursor | `Ctrl+Enter` |
-| Switch focus left ↔ right panel | `Ctrl+←` / `Ctrl+→` |
+| Execute the request under the cursor | `Ctrl+Enter` [^macos] |
+| Switch focus left ↔ right panel | `Ctrl+←` / `Ctrl+→` [^macos] |
 | Quit (auto-saves the left panel) | `Ctrl+C` |
 | Search in requests / in the result | `Ctrl+F` (depending on focused panel) |
-| Resize the left/right split | `Ctrl+Shift+←` / `Ctrl+Shift+→` |
+| Resize the left/right split | `Ctrl+Shift+←` / `Ctrl+Shift+→` [^macos] |
 | Save (left) / export (right) | `Ctrl+S` (depending on focused panel) |
 | Complete an endpoint / a column | `Tab` (left panel) |
 | Copy the result to the clipboard | `F2` |
 | Switch the interface language (fr/en) | `F3` |
 | Help | `F1` (`Esc` to close) |
+
+[^macos]: On macOS, `Option` also works instead of `Ctrl` for these three — `Ctrl+←/→` is intercepted by the system by default (Mission Control desktop switching), and `Ctrl+Enter` can't be distinguished from plain `Enter` in classic terminal encoding.
 
 ## Security
 

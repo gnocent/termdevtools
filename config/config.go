@@ -57,7 +57,15 @@ type Config struct {
 	DefaultClientCertDir  string `yaml:"default_client_cert_dir,omitempty"`
 	// Language selects the interface language: "fr" (default) or "en". See
 	// the i18n package and SPEC.md §3.
-	Language string    `yaml:"language,omitempty"`
+	Language string `yaml:"language,omitempty"`
+	// Mouse enables mouse support (click to focus/select). Off by default —
+	// the zero value already is false, so an absent key naturally means
+	// disabled, no defaulting logic needed unlike Language. Keyboard
+	// navigation fully covers every mouse interaction (SPEC.md §3, §4);
+	// leaving it off keeps the terminal's own native text
+	// selection/copy/paste available, which EnableMouse(true) would
+	// otherwise capture for the app instead.
+	Mouse    bool      `yaml:"mouse,omitempty"`
 	Clusters []Cluster `yaml:"clusters"`
 
 	path string `yaml:"-"`

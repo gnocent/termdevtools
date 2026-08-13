@@ -7,8 +7,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"sync/atomic"
 	"syscall"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -42,6 +44,7 @@ func main() {
 	}
 
 	tapp := tview.NewApplication()
+	defer recoverCrash(tapp, exeDir, msgs)
 	pages := tview.NewPages()
 
 	// Ctrl+C must be able to quit right from the connection screen, before
@@ -85,9 +88,45 @@ func main() {
 		tapp.Stop()
 	}()
 
-	tapp.SetRoot(pages, true).EnableMouse(true)
+	tapp.SetRoot(pages, true).EnableMouse(cfg.Mouse)
 	if err := tapp.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, msgs.ErrFatalFmt+"\n", err)
 		os.Exit(1)
 	}
+}
+
+// recoverCrash catches a panic in the main goroutine — where
+// tview.Application.Run processes events — and writes it, with a full stack
+// trace, to a timestamped file next to the binary: the only way to get a
+// real diagnosis for a crash nobody watching can reproduce or transcribe by
+// hand (same idea as cmd/keydebug, applied to panics instead of raw key
+// events). Best-effort only: a panic inside tcell's own separate
+// input-reading goroutine, rather than in the application code Run() itself
+// processes, would not be caught here — Go's recover only catches panics in
+// the same goroutine as the deferred call.
+func recoverCrash(tapp *tview.Application, exeDir string, msgs *i18n.Strings) {
+	r := recover()
+	if r == nil {
+		return
+	}
+
+	// Best-effort attempt to restore the terminal before printing anything —
+	// guarded so a second panic here (screen state may already be broken)
+	// doesn't hide the original crash report below.
+	func() {
+		defer func() { _ = recover() }()
+		tapp.Stop()
+	}()
+
+	report := fmt.Sprintf("%v\n\n%s", r, debug.Stack())
+	path := filepath.Join(exeDir, fmt.Sprintf("crash-%s.log", time.Now().Format("20060102-150405")))
+
+	fmt.Fprintf(os.Stderr, msgs.ErrCrashedFmt+"\n", r)
+	if err := os.WriteFile(path, []byte(report), 0o600); err != nil {
+		fmt.Fprintf(os.Stderr, msgs.ErrCrashReportWriteFailedFmt+"\n", err)
+		fmt.Fprint(os.Stderr, report)
+	} else {
+		fmt.Fprintf(os.Stderr, msgs.InfoCrashReportFmt+"\n", path)
+	}
+	os.Exit(1)
 }

@@ -85,22 +85,27 @@ No configuration is needed to get started: a connection screen lets you enter a 
 
 The interface language (French by default, or English) is set via `language: fr` / `language: en` in that same `config.yaml` — or switched live from the app with `F3`, which saves the choice for next time.
 
+Mouse support (click to focus a field or select a list entry) is **off by default** — set `mouse: true` in `config.yaml` to enable it. Every mouse interaction has a full keyboard equivalent (see [Keyboard shortcuts](#keyboard-shortcuts)); leaving it off keeps the terminal's own native text selection/copy/paste available, since enabling it captures mouse events for the app instead (`F2` still copies the result either way).
+
 ## Keyboard shortcuts
 
 | Action | Key |
 |---|---|
-| Execute the request under the cursor | `Ctrl+Enter` [^macos] |
-| Switch focus left ↔ right panel | `Ctrl+←` / `Ctrl+→` [^macos] |
+| Execute the request under the cursor | `Ctrl+E` [^enter] |
+| Switch focus left ↔ right panel | `Ctrl+←` / `Ctrl+→` [^focus] |
 | Quit (auto-saves the left panel) | `Ctrl+C` |
 | Search in requests / in the result | `Ctrl+F` (depending on focused panel) |
-| Resize the left/right split | `Ctrl+Shift+←` / `Ctrl+Shift+→` [^macos] |
+| Resize the left/right split | `F5` / `F6` [^resize] |
 | Save (left) / export (right) | `Ctrl+S` (depending on focused panel) |
-| Complete an endpoint / a column | `Tab` (left panel) |
+| Complete an endpoint / a column | `Tab` or `F10` (left panel) [^tab] |
 | Copy the result to the clipboard | `F2` |
 | Switch the interface language (fr/en) | `F3` |
 | Help | `F1` (`Esc` to close) |
 
-[^macos]: On macOS, `Option` also works instead of `Ctrl` for these three — `Ctrl+←/→` is intercepted by the system by default (Mission Control desktop switching), and `Ctrl+Enter` can't be distinguished from plain `Enter` in classic terminal encoding.
+[^enter]: `Ctrl+Enter` also works, on terminals that report it as distinct from plain `Enter` — many don't (`Ctrl+M` *is* `Enter`'s control byte, confirmed unreported on a real macOS terminal even with Option/Alt held too), which is why `Ctrl+E` is the primary, always-reliable shortcut.
+[^focus]: On macOS, `Option`/`Alt` also works instead of `Ctrl` — `Ctrl+←/→` is intercepted by the system by default (Mission Control desktop switching).
+[^resize]: `Ctrl+Shift+←/→` (`Option`/`Alt` included, on macOS) also works, on terminals that report it as distinct from an unmodified arrow key — confirmed unreported that way on a real macOS terminal, which is why `F5`/`F6` are the primary, always-reliable shortcuts.
+[^tab]: On some older terminals, `Tab` is swallowed entirely — no key event at all reaches the app (confirmed on both Windows `cmd.exe` and PuTTY on the same real machine), unlike the modifier-only ambiguity affecting the shortcuts above. `F10` is a guaranteed-reliable alternative for exactly that case.
 
 ## Security
 

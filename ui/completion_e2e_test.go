@@ -73,6 +73,45 @@ func injectText(screen tcell.SimulationScreen, s string) {
 	}
 }
 
+// TestF10TriggersCompletionLikeTab checks that F10 — the guaranteed-
+// reliable alternative added after Tab was confirmed swallowed entirely by
+// two unrelated terminals (Windows cmd.exe and PuTTY) on the same real
+// machine — completes an endpoint exactly like Tab (see isCompletionShortcut
+// in app.go).
+func TestF10TriggersCompletionLikeTab(t *testing.T) {
+	app, screen := newTestApp(t)
+
+	injectText(screen, "GET _cat/pl")
+	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyF10, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	got := app.editor.Text()
+	want := "GET _cat/plugins?v"
+	if got != want {
+		t.Errorf("expected F10 to complete like Tab, got %q want %q", got, want)
+	}
+}
+
+// TestF10OutsideCompletionContextIsSwallowed checks that F10, unlike Tab,
+// never inserts a literal character when there's nothing to complete — it
+// has no "normal typing key" fallback meaning.
+func TestF10OutsideCompletionContextIsSwallowed(t *testing.T) {
+	app, screen := newTestApp(t)
+
+	injectText(screen, "POST _search")
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
+	injectText(screen, "{")
+	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyF10, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	want := "POST _search\n{"
+	if got := app.editor.Text(); got != want {
+		t.Errorf("expected F10 to be swallowed with no effect outside a completion context, got %q want %q", got, want)
+	}
+}
+
 func TestCompletionSingleMatchAppliesInline(t *testing.T) {
 	app, screen := newTestApp(t)
 

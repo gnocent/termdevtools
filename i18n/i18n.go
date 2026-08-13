@@ -78,9 +78,12 @@ type Strings struct {
 	HelpContent string
 
 	// Startup errors shown before the UI is up (main.go)
-	ErrConfigLoadFmt string
-	ErrExecDirFmt    string
-	ErrFatalFmt      string
+	ErrConfigLoadFmt             string
+	ErrExecDirFmt                string
+	ErrFatalFmt                  string
+	ErrCrashedFmt                string // "%v" — the recovered panic value
+	InfoCrashReportFmt           string // "%s" — path to the written crash log
+	ErrCrashReportWriteFailedFmt string // "%s" — the write error
 
 	// Language switch (F3, app.go)
 	LanguageName            string // this catalog's own language, in its own language ("Français"/"English")
@@ -133,10 +136,10 @@ var fr = Strings{
 	// come first, so they stay visible even on a narrow terminal where the
 	// end of the line gets cut off (only 1 row is allocated for this bar).
 	// "Ctrl(/Opt)" flags the shortcuts where Option also works, on macOS,
-	// as an alternative to Ctrl (see HelpContent for why).
+	// as an alternative to Ctrl (see HelpContent for why and its limits).
 	ShortcutsHelpBar: "[gray]F1[white] aide   [gray]F3[white] langue   [gray]Ctrl+C[white] quitter   " +
-		"[gray]Ctrl(/Opt)+Entrée[white] exécuter   [gray]Tab[white] compléter   [gray]Ctrl(/Opt)+←/→[white] changer de panneau   " +
-		"[gray]Ctrl(/Opt)+Maj+←/→[white] redimensionner   [gray]Ctrl+F[white] rechercher   [gray]Ctrl+S[white] sauvegarder/exporter   " +
+		"[gray]Ctrl+E[white] exécuter   [gray]Tab/F10[white] compléter   [gray]Ctrl(/Opt)+←/→[white] changer de panneau   " +
+		"[gray]F5/F6[white] redimensionner   [gray]Ctrl+F[white] rechercher   [gray]Ctrl+S[white] sauvegarder/exporter   " +
 		"[gray]F2[white] copier",
 
 	ErrLoadFailedFmt:   "échec du chargement de %s : %s",
@@ -159,13 +162,18 @@ sur les lignes suivantes. Lignes [gray]#[white] = commentaires.
 ou texte brut (ex. réponses _cat/*).
 
 [yellow]Raccourcis clavier[white]
-[gray]Sur macOS, Option fonctionne aussi à la place de Ctrl pour Entrée,
-←/→ et Maj+←/→ (souvent interceptés par le système sur cette plateforme).[white]
+[gray]Ctrl+Entrée et Ctrl+Maj+←/→ dépendent du terminal (parfois
+indiscernables d'Entrée/←/→ non modifiés, y compris avec Option/Alt) :
+Ctrl+E et F5/F6 fonctionnent partout, sans cette ambiguïté — à
+privilégier. Sur macOS, Option/Alt remplace aussi Ctrl pour changer de
+panneau (←/→), souvent interceptés par le système sur cette plateforme.
+Sur certains terminaux anciens, Tab est intercepté avant d'atteindre
+l'appli (aucun signal reçu, pas juste ambigu) : F10 fait la même chose.[white]
 
-  [aqua]Ctrl+Entrée[white]      Exécuter la requête sous le curseur
-  [aqua]Tab[white]              Compléter un endpoint en cours de frappe
+  [aqua]Ctrl+E[white]           Exécuter la requête sous le curseur
+  [aqua]Tab/F10[white]          Compléter un endpoint en cours de frappe
   [aqua]Ctrl+←/→[white]         Changer de panneau
-  [aqua]Ctrl+Maj+←/→[white]     Redimensionner le split gauche/droite
+  [aqua]F5/F6[white]            Redimensionner le split gauche/droite
   [aqua]Ctrl+F[white]           Rechercher dans le panneau actif
   [aqua]Ctrl+S[white]           Sauvegarder (gauche) / exporter (droite)
   [aqua]F2[white]               Copier le résultat (panneau droit) dans le presse-papier
@@ -185,9 +193,12 @@ ou texte brut (ex. réponses _cat/*).
 
 [gray]Echap pour fermer cette aide.[white]`,
 
-	ErrConfigLoadFmt: "Erreur de chargement de config.yaml : %s",
-	ErrExecDirFmt:    "Impossible de déterminer le dossier de l'exécutable : %s",
-	ErrFatalFmt:      "Erreur fatale : %s",
+	ErrConfigLoadFmt:             "Erreur de chargement de config.yaml : %s",
+	ErrExecDirFmt:                "Impossible de déterminer le dossier de l'exécutable : %s",
+	ErrFatalFmt:                  "Erreur fatale : %s",
+	ErrCrashedFmt:                "TermDevTools a planté : %v",
+	InfoCrashReportFmt:           "Rapport complet écrit dans : %s",
+	ErrCrashReportWriteFailedFmt: "Impossible d'écrire le rapport de plantage : %s",
 
 	LanguageName:            "Français",
 	InfoLanguageSwitchedFmt: "Langue : %s",
@@ -239,10 +250,10 @@ var en = Strings{
 	// come first, so they stay visible even on a narrow terminal where the
 	// end of the line gets cut off (only 1 row is allocated for this bar).
 	// "Ctrl(/Opt)" flags the shortcuts where Option also works, on macOS,
-	// as an alternative to Ctrl (see HelpContent for why).
+	// as an alternative to Ctrl (see HelpContent for why and its limits).
 	ShortcutsHelpBar: "[gray]F1[white] help   [gray]F3[white] language   [gray]Ctrl+C[white] quit   " +
-		"[gray]Ctrl(/Opt)+Enter[white] execute   [gray]Tab[white] complete   [gray]Ctrl(/Opt)+←/→[white] switch panel   " +
-		"[gray]Ctrl(/Opt)+Shift+←/→[white] resize   [gray]Ctrl+F[white] search   [gray]Ctrl+S[white] save/export   " +
+		"[gray]Ctrl+E[white] execute   [gray]Tab/F10[white] complete   [gray]Ctrl(/Opt)+←/→[white] switch panel   " +
+		"[gray]F5/F6[white] resize   [gray]Ctrl+F[white] search   [gray]Ctrl+S[white] save/export   " +
 		"[gray]F2[white] copy",
 
 	ErrLoadFailedFmt:   "failed to load %s: %s",
@@ -265,13 +276,18 @@ on the following lines. Lines starting with [gray]#[white] = comments.
 or plain text (e.g. _cat/* responses).
 
 [yellow]Keyboard shortcuts[white]
-[gray]On macOS, Option also works instead of Ctrl for Enter, ←/→, and
-Shift+←/→ (often intercepted by the system on that platform).[white]
+[gray]Ctrl+Enter and Ctrl+Shift+←/→ are terminal-dependent (sometimes
+indistinguishable from unmodified Enter/←/→, even with Option/Alt
+held too): Ctrl+E and F5/F6 work everywhere with no such ambiguity —
+prefer them. On macOS, Option/Alt also works instead of Ctrl to switch
+panel (←/→), often intercepted by the system on that platform. On some
+older terminals, Tab is swallowed before it even reaches the app (no
+signal received at all, not just ambiguous): F10 does the same thing.[white]
 
-  [aqua]Ctrl+Enter[white]       Execute the request under the cursor
-  [aqua]Tab[white]              Complete an endpoint while typing
+  [aqua]Ctrl+E[white]           Execute the request under the cursor
+  [aqua]Tab/F10[white]          Complete an endpoint while typing
   [aqua]Ctrl+←/→[white]         Switch panel
-  [aqua]Ctrl+Shift+←/→[white]   Resize the left/right split
+  [aqua]F5/F6[white]            Resize the left/right split
   [aqua]Ctrl+F[white]           Search in the active panel
   [aqua]Ctrl+S[white]           Save (left) / export (right)
   [aqua]F2[white]               Copy the result (right panel) to the clipboard
@@ -291,9 +307,12 @@ Shift+←/→ (often intercepted by the system on that platform).[white]
 
 [gray]Esc to close this help.[white]`,
 
-	ErrConfigLoadFmt: "Error loading config.yaml: %s",
-	ErrExecDirFmt:    "Could not determine the executable's directory: %s",
-	ErrFatalFmt:      "Fatal error: %s",
+	ErrConfigLoadFmt:             "Error loading config.yaml: %s",
+	ErrExecDirFmt:                "Could not determine the executable's directory: %s",
+	ErrFatalFmt:                  "Fatal error: %s",
+	ErrCrashedFmt:                "TermDevTools crashed: %v",
+	InfoCrashReportFmt:           "Full report written to: %s",
+	ErrCrashReportWriteFailedFmt: "Could not write crash report: %s",
 
 	LanguageName:            "English",
 	InfoLanguageSwitchedFmt: "Language: %s",

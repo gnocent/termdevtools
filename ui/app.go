@@ -267,21 +267,21 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 		a.SaveQueriesOnExit()
 		a.tapp.Stop()
 		return nil
-	case event.Key() == tcell.KeyEnter && hasShortcutModifier(event):
+	case isExecuteShortcut(event):
 		if a.focusedIsEditor {
 			a.executeCurrent()
 		}
 		return nil
-	case isResizeLeft(event):
+	case isShrinkShortcut(event):
 		a.resizeSplit(-splitStep)
 		return nil
-	case isResizeRight(event):
+	case isGrowShortcut(event):
 		a.resizeSplit(splitStep)
 		return nil
-	case event.Key() == tcell.KeyLeft && hasShortcutModifier(event):
+	case isFocusLeftShortcut(event):
 		a.focusEditor()
 		return nil
-	case event.Key() == tcell.KeyRight && hasShortcutModifier(event):
+	case isFocusRightShortcut(event):
 		a.focusResultPanel()
 		return nil
 	case event.Key() == tcell.KeyCtrlF:
@@ -290,8 +290,13 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 	case event.Key() == tcell.KeyCtrlS:
 		a.handleSave()
 		return nil
-	case event.Key() == tcell.KeyTab && a.focusedIsEditor:
+	case isCompletionShortcut(event) && a.focusedIsEditor:
 		if a.tryCompletion() {
+			return nil
+		}
+		if event.Key() == tcell.KeyF10 {
+			// Unlike Tab, F10 has no "insert a literal character" fallback
+			// meaning outside a completion context — just swallow it.
 			return nil
 		}
 		return event // outside a completion context: Tab inserts a tab, standard behavior
@@ -308,6 +313,37 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
+// isExecuteShortcut reports whether event should trigger request execution.
+// Ctrl+E is the primary, guaranteed-reliable trigger: a raw control byte,
+// just like Ctrl+F/Ctrl+S, with no modifier-flag ambiguity whatsoever.
+// Ctrl+Enter (and, on macOS, Option/Alt+Enter — see hasShortcutModifier) is
+// kept as a best-effort alternative for terminals that do report it, but
+// cannot be relied on in general: confirmed on a real macOS terminal (via
+// cmd/keydebug) that Enter is reported identically — same Key, same zero
+// Modifiers — whether or not Ctrl, Option, or Alt is held. Ctrl+M *is*
+// Enter's control byte; some terminals just never attach modifier
+// information to it at all, for any modifier.
+func isExecuteShortcut(event *tcell.EventKey) bool {
+	if event.Key() == tcell.KeyCtrlE {
+		return true
+	}
+	return event.Key() == tcell.KeyEnter && hasShortcutModifier(event)
+}
+
+// isCompletionShortcut reports whether event should trigger endpoint/column
+// completion (SPEC.md §3.2). Tab is the natural, expected trigger and stays
+// the primary one — but it's a plain, unmodified single key, exactly the
+// category confirmed reliable in every terminal tested so far (unlike
+// Ctrl/Shift/Option combinations), so its failure to reach the app at all
+// on a real, unrelated pair of terminals (Windows cmd.exe and PuTTY, both
+// on the same machine) isn't a decodable encoding quirk to work around —
+// something ahead of the app (terminal or OS) is swallowing Tab itself,
+// most likely for its own focus-navigation purposes. F10 is added as a
+// guaranteed-reliable alternative for exactly that case.
+func isCompletionShortcut(event *tcell.EventKey) bool {
+	return event.Key() == tcell.KeyTab || event.Key() == tcell.KeyF10 || event.Key() == tcell.KeyCtrlSpace
+}
+
 // hasShortcutModifier reports whether event carries the modifier used to
 // trigger the app's Ctrl-style shortcuts (execute, focus switch, resize):
 // Ctrl, or Option/Alt as an additional accepted alternative on top of it.
@@ -322,17 +358,67 @@ func hasShortcutModifier(event *tcell.EventKey) bool {
 	return event.Modifiers()&tcell.ModCtrl != 0 || event.Modifiers()&tcell.ModAlt != 0
 }
 
-// isResizeLeft/isResizeRight detect Ctrl+Shift+←/→ or Option+Shift+←/→,
-// used to resize the split (SPEC.md §4) — Ctrl++/Ctrl+- initially planned
-// turned out to be intercepted by the terminal/OS (font zoom under Windows
-// Terminal in particular). These cases are tested BEFORE the plain
-// Ctrl/Option+←/→ case (focus switch) so they aren't shadowed by it.
-func isResizeLeft(event *tcell.EventKey) bool {
+// isShrinkShortcut/isGrowShortcut detect the resize-split shortcuts
+// (SPEC.md §4): F5 (shrink the left panel) / F6 (grow it) are the primary,
+// guaranteed-reliable triggers — plain function keys, no modifier encoding
+// involved at all, in the same spirit as Ctrl+E for execute. Ctrl+Shift+←/→
+// (or Option/Alt+Shift+←/→, via hasShortcutModifier) is kept as a
+// best-effort alternative, but confirmed unreliable on at least one real
+// macOS terminal: Shift+Alt+←/→ arrives there as a *plain* KeyLeft/KeyRight
+// with zero modifiers (via cmd/keydebug) — identical to an unmodified arrow
+// key press, with no way to tell the two apart at the key-event level, so
+// it can never be relied on there. These cases are tested BEFORE the plain
+// Ctrl/Option+←/→ case (focus switch) so Ctrl+Shift+←/→ isn't shadowed by it.
+func isShrinkShortcut(event *tcell.EventKey) bool {
+	if event.Key() == tcell.KeyF5 {
+		return true
+	}
 	return event.Key() == tcell.KeyLeft && hasShortcutModifier(event) && event.Modifiers()&tcell.ModShift != 0
 }
 
-func isResizeRight(event *tcell.EventKey) bool {
+func isGrowShortcut(event *tcell.EventKey) bool {
+	if event.Key() == tcell.KeyF6 {
+		return true
+	}
 	return event.Key() == tcell.KeyRight && hasShortcutModifier(event) && event.Modifiers()&tcell.ModShift != 0
+}
+
+// isAltWordBack/isAltWordForward detect the classic Meta-b / Meta-f
+// word-navigation encoding (ESC b / ESC f) — confirmed, via cmd/keydebug on
+// a real macOS terminal, to be what that terminal actually sends for
+// Option/Alt+Left and Option/Alt+Right, instead of a modified arrow-key
+// sequence: Key ends up KeyRune (not KeyLeft/KeyRight at all), with Rune
+// 'b'/'f' and only ModAlt set. Without this, hasShortcutModifier's
+// Ctrl/Option fallback for arrow keys never fires on that terminal — the
+// event it produces doesn't even look like an arrow key to begin with. The
+// tradeoff: literally typing Option+B or Option+F (not the arrow keys) in
+// the editor is swallowed as a focus switch instead of inserting a
+// character — accepted as unlikely in practice, the same kind of tradeoff
+// already made for Ctrl+Enter vs plain Enter.
+func isAltWordBack(event *tcell.EventKey) bool {
+	return event.Key() == tcell.KeyRune && event.Rune() == 'b' && event.Modifiers()&tcell.ModAlt != 0
+}
+
+func isAltWordForward(event *tcell.EventKey) bool {
+	return event.Key() == tcell.KeyRune && event.Rune() == 'f' && event.Modifiers()&tcell.ModAlt != 0
+}
+
+// isFocusLeftShortcut/isFocusRightShortcut detect Ctrl/Option+←/→ (focus
+// switch, SPEC.md §4), accepting either encoding a terminal might use for
+// Option/Alt+arrow: a modified KeyLeft/KeyRight (hasShortcutModifier), or
+// the Meta-b/Meta-f rune encoding above.
+func isFocusLeftShortcut(event *tcell.EventKey) bool {
+	if event.Key() == tcell.KeyLeft && hasShortcutModifier(event) {
+		return true
+	}
+	return isAltWordBack(event)
+}
+
+func isFocusRightShortcut(event *tcell.EventKey) bool {
+	if event.Key() == tcell.KeyRight && hasShortcutModifier(event) {
+		return true
+	}
+	return isAltWordForward(event)
 }
 
 // resizeSplit moves the divider between the left and right panels by delta
@@ -576,10 +662,11 @@ func (a *App) exportResult() {
 }
 
 // copyResult implements F2: copies the entire displayed result to the local
-// clipboard via OSC 52 (SPEC.md §3.3) — needed because EnableMouse(true)
-// prevents native terminal selection in this panel. Best-effort: neither
-// tcell nor OSC 52 return confirmation that the copy actually succeeded on
-// the terminal side.
+// clipboard via OSC 52 (SPEC.md §3.3) — the only way to copy from this
+// panel when config.Mouse is enabled, since that captures mouse events for
+// the app instead of letting the terminal handle native text selection.
+// Available either way, mouse or not. Best-effort: neither tcell nor OSC 52
+// return confirmation that the copy actually succeeded on the terminal side.
 func (a *App) copyResult() {
 	text := a.result.PlainText()
 	if text == "" {

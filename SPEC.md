@@ -41,7 +41,7 @@ On launch, a connection screen lists the URLs of known clusters (no separate nam
 
 ### 3.1 General layout
 
-- Screen split into two vertical panels, with a relative width adjustable during the session via `Ctrl+Shift+←/→` (see §4):
+- Screen split into two vertical panels, with a relative width adjustable during the session via `F5`/`F6` (see §4):
   - **Left panel**: request editor (free-form text, one or more lines, e.g. `GET _cat/indices`). Default content is loaded from a `cheatsheet.txt` file (same directory as the binary) if it exists.
   - **Right panel**: JSON result of the last executed request (so empty on startup).
   - **Automatic word wrap** in both panels (a line too long for the display width is visually folded on screen) — this affects neither the editor's actual text (so not request parsing, see §3.2), nor the content exported/copied from the result (see §3.3). Implementation note worth keeping in mind: `TextArea.GetCursor()` and `TextView.ScrollTo()` both reason in terms of **displayed line** (post-wrap), not logical line, as soon as wrap is active — relying on them directly would have broken request targeting (`Ctrl+Enter`), completion (`Tab`), and search scrolling (`Ctrl+F` on the right). Worked around respectively via `TextArea.GetSelection()` (absolute offset position in the text, independent of display) and tview's region mechanism (`Highlight`/`ScrollToHighlight`, anchored to content rather than a line number).
@@ -52,7 +52,7 @@ On launch, a connection screen lists the URLs of known clusters (no separate nam
 
 - tview component: `TextArea` (multi-line, natively handles cursor/selection).
 - Content: text containing one or more API requests (starting with GET, PUT, POST, or DELETE, followed by the endpoint and parameters, and on the following lines, the JSON payload to send). The editor detects the end of the JSON under a request (brace balancing) to understand the separation with the next request. Any line starting with `#` is a comment, and is therefore ignored.
-- Execution: `Ctrl+Enter` executes the request the cursor is in, **only if the left panel is focused** (no effect if the right panel is focused, see §4). The call is launched asynchronously; the status bar switches to "request in progress...", then the right panel and status bar are updated once the response is received.
+- Execution: `Ctrl+E` (also `Ctrl+Enter` where the terminal reports it — see §4) executes the request the cursor is in, **only if the left panel is focused** (no effect if the right panel is focused, see §4). The call is launched asynchronously; the status bar switches to "request in progress...", then the right panel and status bar are updated once the response is received.
 - Default file: `cheatsheet.txt`, loaded at startup if it exists (same directory as the binary).
 - **Per-cluster save**: the editor content save is specific to the **cluster you're connected to** (identified by its URL) **and to the current user** — one `~/.config/termdevtools/queries_<sanitized URL>.txt` file per cluster already used by that user (next to `config.yaml`, see §9.1 for the detail of filename sanitization).
 - **Save triggers**:
@@ -60,7 +60,7 @@ On launch, a connection screen lists the URLs of known clusters (no separate nam
   - **Automatic on program exit**: content is saved with no explicit action on close (`Ctrl+C`, or an external `SIGTERM`/`SIGHUP` signal — e.g. a dropped SSH session), in addition to explicit `Ctrl+S`. Best-effort, silent (no confirmation possible at that point). `SIGKILL`, as with any program, remains impossible to intercept.
 - **Loading at startup**, once connected to a cluster: if a save already exists **for this cluster (URL) and this user**, it's loaded first; otherwise, `cheatsheet.txt` serves as the default content.
 - **Syntax highlighting: dropped, not just deferred** — `tview.TextArea` (the library's only widget supporting multi-line editing: cursor, selection, undo, clipboard) explicitly does not support multi-color text (official documentation: *"Multi-color text is not supported"*), unlike the read-only `TextView` used on the right (§3.3). Getting it would require rebuilding a custom editor on top of a colorable `TextView` (cursor/selection/editing reimplemented by hand) — judged disproportionate for an internal v1 tool. Confirmed that no newer version of tview lifts this limitation (v0.42.0 = latest version as of 2026-08-12).
-- **Auto-completion (`Tab`, left panel focused)**: offered only when the cursor is in the middle of typing a `METHOD partial_endpoint` line (not in a JSON body or anywhere else — `Tab` keeps its standard tab-insertion behavior there). Case-insensitive comparison of the typed prefix against a **list of known endpoints**, centered on administration/operations (`_cat/*`, `_cluster/*`, `_nodes/*`, index admin endpoints...) — no dynamic discovery of real index names (noted as an idea for a future version, see §7).
+- **Auto-completion (`Tab` or `F10`, left panel focused)**: offered only when the cursor is in the middle of typing a `METHOD partial_endpoint` line (not in a JSON body or anywhere else — `Tab` keeps its standard tab-insertion behavior there; `F10` has no such fallback meaning and is simply swallowed). `F10` was added after confirming Tab itself gets swallowed before reaching the app on some older terminals (see §4) — unlike the Enter/arrow-key findings above, this isn't a decodable encoding ambiguity, so no fallback modifier detection can work around it. Case-insensitive comparison of the typed prefix against a **list of known endpoints**, centered on administration/operations (`_cat/*`, `_cluster/*`, `_nodes/*`, index admin endpoints...) — no dynamic discovery of real index names (noted as an idea for a future version, see §7).
   - 0 match → message in the status bar, nothing else.
   - 1 match → direct completion, no further interaction.
   - Several matches → a dropdown list to choose from (arrows then Enter to confirm, Esc to cancel); an extra `Tab` while the list is open cycles through the suggestions.
@@ -81,34 +81,43 @@ On launch, a connection screen lists the URLs of known clusters (no separate nam
 - Handling large responses: manual scroll with up/down keys.
 - Displaying errors (invalid request, unreachable cluster, timeout): in the status bar.
 - **Export (`Ctrl+S`, right panel focused)**: writes the currently displayed result into the binary's `exports/` subfolder (created if needed), a timestamped filename (`YYYYMMDD-HHMMSS`), `.json` extension if it's valid JSON, `.txt` otherwise. Confirmation (with path) shown in the status bar; error (e.g. nothing to export) shown the same way.
-- **Copy to clipboard (`F2`)**: `tview.Application.EnableMouse(true)` prevents native terminal text selection (the app captures mouse events) — no mouse selection possible in this panel. `F2` therefore copies the entire displayed result, via the standard terminal mechanism **OSC 52** (`tcell.Screen.SetClipboard`): the local terminal receives an escape sequence asking it to copy to *its own* clipboard, which works even over SSH (the clipboard is never the remote server's). Confirmation shown in the status bar, but **with no guarantee the copy actually happened**: neither tcell nor the OSC 52 protocol return a confirmation, and support depends on the terminal (works on most modern terminals — Windows Terminal, iTerm2, recent GNOME Terminal/VTE... — but not on plain PuTTY, nor in tmux/screen without specific passthrough configuration). To be verified in real-world use.
+- **Copy to clipboard (`F2`)**: when `config.Mouse` is enabled, `tview.Application.EnableMouse(true)` prevents native terminal text selection (the app captures mouse events instead) — no mouse selection possible in this panel in that case. `F2` copies the entire displayed result regardless of the mouse setting, via the standard terminal mechanism **OSC 52** (`tcell.Screen.SetClipboard`): the local terminal receives an escape sequence asking it to copy to *its own* clipboard, which works even over SSH (the clipboard is never the remote server's). Confirmation shown in the status bar, but **with no guarantee the copy actually happened**: neither tcell nor the OSC 52 protocol return a confirmation, and support depends on the terminal (works on most modern terminals — Windows Terminal, iTerm2, recent GNOME Terminal/VTE... — but not on plain PuTTY, nor in tmux/screen without specific passthrough configuration). To be verified in real-world use.
 
 ## 4. Keyboard shortcuts
 
 Put a help bar under the status bar as a shortcut reminder.
 | Action | Key | Status |
 |---|---|---|
-| Execute the request under the cursor | `Ctrl+Enter` | Defined |
+| Execute the request under the cursor | `Ctrl+E` (`Ctrl+Enter` also works on terminals that report it) | Defined |
 | Switch focus left ↔ right panel | `Ctrl+←`/`Ctrl+→` | Defined |
 | Quit the application (auto-saves the left panel, §3.2) | `Ctrl+C` | Defined |
 | New request / clear the editor | Free-form editing of the left panel text | Defined |
 | Open/change the cluster connection | Quit the program and relaunch it | Defined |
 | Search in requests | `Ctrl+F` in the left panel | Defined |
 | Search in the JSON result | `Ctrl+F` in the right panel | Defined |
-| Resize the left/right split | `Ctrl+Shift+←` (shrink the left) / `Ctrl+Shift+→` (grow it) | Defined |
+| Resize the left/right split | `F5` (shrink the left) / `F6` (grow it) — `Ctrl+Shift+←/→` also works on terminals that report it | Defined |
 | Save (left) / export (right) | `Ctrl+S`, behavior depends on the focused panel (§3.2, §3.3) | Defined |
-| Complete an endpoint while typing | `Tab` in the left panel, on a `METHOD endpoint` line (§3.2) | Defined |
+| Complete an endpoint while typing | `Tab` or `F10` in the left panel, on a `METHOD endpoint` line (§3.2) | Defined |
 | Show help (how it works + shortcuts) | `F1`, `Esc` to close | Defined |
 | Copy the result to the clipboard | `F2` (§3.3) | Defined |
 | Switch the interface language (fr/en) | `F3` | Defined |
 
-> `Ctrl+Enter` is only active when the left panel (request editing) is focused — no effect from the right panel.
+> `Ctrl+E` (and `Ctrl+Enter`, where the terminal reports it) is only active when the left panel (request editing) is focused — no effect from the right panel.
 >
 > **History of attempts**: `Ctrl+Esc` (quit) and `Ctrl++`/`Ctrl+-` (resize), initially planned, turned out to be intercepted in practice — `Ctrl+Esc` by Windows itself (a system shortcut on the team's machines), `Ctrl++`/`Ctrl+-` by the terminal (font zoom, notably under Windows Terminal). Kept instead: `Ctrl+C` (the only exit shortcut, universally available at the terminal level) and `Ctrl+Shift+←/→` for the split. `Ctrl+H`, considered for help, was dropped in favor of `F1`: `Ctrl+H` corresponds to the historical control code `0x08` (BS), documented by tview as an alternate Backspace shortcut in `TextArea`/`InputField` — using it globally would have broken character deletion via `Ctrl+H` in the editor and the connection form. This still needs confirming across all of the team's terminals/machines — should a new conflict show up, plan to switch to other function keys (F5...), which are exempt from this kind of clash. Same logic for copying the result: `Ctrl+Shift+C` (the "copy" convention on many modern terminals, chosen to avoid colliding with `Ctrl+C` already taken by Quit) was dropped — that's exactly the risk: this combination is itself frequently intercepted by the terminal *before* reaching the app. `F2` was kept instead.
 >
 > `Ctrl+S` is a classic control code (like `Ctrl+F`), so a priori reliable everywhere — the only historical caveat is the XON/XOFF flow control of some terminals (`Ctrl+S` freezes output until `Ctrl+Q`), normally disabled by the raw mode the program enables. To be reported if such a freeze is nonetheless observed.
 >
-> **macOS**: `Ctrl+←/→` is intercepted at the OS level by default (Mission Control desktop switching), and `Ctrl+Enter` can't even be distinguished from plain `Enter` in classic terminal encoding — `Ctrl+M` *is* `Enter`'s control byte. `Option`/`Alt` is therefore accepted as an additional modifier, on top of `Ctrl`, for exactly the three shortcuts affected: execute (`Ctrl+Enter` / `Option+Enter`), focus switch (`Ctrl+←/→` / `Option+←/→`), and resize (`Ctrl+Shift+←/→` / `Option+Shift+←/→`) — see `hasShortcutModifier` in `ui/app.go`. Deliberately **not** extended to `Ctrl+F`/`Ctrl+S`/`Ctrl+C`: those are raw, universally reliable control bytes with no such conflict, and by default macOS terminals turn `Option`+letter into an accented character instead of signaling a modifier at all (unless "Use Option as Meta key" is enabled in the terminal's own preferences).
+> **macOS**: `Ctrl+←/→` is intercepted at the OS level by default (Mission Control desktop switching). `Option`/`Alt` is accepted as an additional modifier, on top of `Ctrl`, for focus switch (`Ctrl+←/→` / `Option+←/→`) — see `hasShortcutModifier` in `ui/app.go`. Deliberately **not** extended to `Ctrl+F`/`Ctrl+S`/`Ctrl+C`: those are raw, universally reliable control bytes with no such conflict, and by default macOS terminals turn `Option`+letter into an accented character instead of signaling a modifier at all (unless "Use Option as Meta key" is enabled in the terminal's own preferences).
+>
+> `Ctrl+Enter` (execute) and `Ctrl+Shift+←/→` (resize) got a dedicated investigation, each initially assumed fixable the same way as the arrow keys above (`Option`/`Alt` as an extra modifier). A small diagnostic tool ([`cmd/keydebug`](cmd/keydebug/main.go)) built to check this instead found, on a real macOS terminal:
+> - for Enter: **no modifier reaches the app at all** — `Ctrl+Enter`, `Option+Enter`, and `Alt+Enter` are all reported as plain `Enter` (identical key, identical zero modifiers). Not fixable by picking a different modifier: `Ctrl+M` *is* `Enter`'s control byte, and this terminal attaches no extended encoding to it whatsoever, for any modifier.
+> - for `Option`/`Alt+←/→` specifically: reported not as a modified arrow key at all, but as the classic Meta-b/Meta-f word-navigation encoding (`ESC b` / `ESC f`) — a plain rune `'b'`/`'f'` with only the Alt modifier set, and a completely different `Key` value than `KeyLeft`/`KeyRight`. Handled by additionally recognizing that encoding (`isAltWordBack`/`isAltWordForward` in `ui/app.go`) — without it, the `Option`/`Alt` fallback above never fires for arrows on that terminal, since the event doesn't even look like an arrow key to begin with.
+> - for `Shift+Alt+←/→` (attempting to reach resize via `Option`): reported as a **plain, unmodified** `KeyLeft`/`KeyRight` — indistinguishable, at the key-event level, from an unmodified arrow key press. No encoding exists on that terminal to convey this combination at all.
+>
+> Given the last two findings, resize can't be reliably reached via any Enter- or arrow-based combination on every terminal. The fix for both shortcuts was the same: stop depending on the ambiguous key entirely. `Ctrl+E` (execute) and `F5`/`F6` (resize) are now the primary, guaranteed-reliable triggers — plain control byte and function keys, with no modifier-encoding ambiguity whatsoever. `Ctrl+Enter` and `Ctrl+Shift+←/→` (`Option`/`Alt` included) are kept only as a best-effort extra, for terminals that do report them.
+>
+> **`Tab` swallowed entirely on some terminals**: unlike every case above — all a matter of *ambiguous* or *missing modifier* encoding, with the base key itself still reaching the app — plain `Tab` was reported, on a real machine, to reach the app **not at all** in either of two unrelated terminals (Windows `cmd.exe` and PuTTY, both on that same machine): no key event at all, of any kind, confirmed via `cmd/keydebug`. `Tab` is otherwise about as simple and universally reliable a key as `Ctrl+E`/`Ctrl+F`/`Ctrl+S`/`Ctrl+C` (all confirmed fine on the very same machines) — this isn't a decodable encoding quirk `hasShortcutModifier`-style logic could work around, something ahead of the app is swallowing it outright, most plausibly for its own focus-navigation purposes. `F10` was added as a guaranteed-reliable alternative (`isCompletionShortcut` in `ui/app.go`) — plain `Tab` is kept as the primary, expected trigger.
 
 ## 5. Connecting to the Elasticsearch cluster
 
@@ -152,12 +161,14 @@ Connection history is specific to the user (two people launching the same shared
   - `endpoints.txt` — list of endpoints offered by `Tab` auto-completion, replaces the default list built into the binary if present (§3.2). **Checked into the repository** (unlike `cheatsheet.txt`/`config.yaml`, which remain plain `.example` templates): since it changes rarely, it's treated as a standard project input rather than a template to copy. Still optional at runtime, though — without it (e.g. a deployment where only the binary is copied), the default list built into the binary takes over. Lets the list be adjusted to the team's Elasticsearch version without recompiling; to be regenerated from the OpenAPI spec (§3.2) if it diverges too much from a future version.
   - `cat_columns.txt` — `h=`/`s=` columns offered by auto-completion for each `_cat/*` command (§3.2), same treatment as `endpoints.txt` (checked into the repository, replaces the default table built into the binary if present, optional at runtime). Format: `# _cat/command` sections followed by one column per line. Generated on 2026-08-12 from `GET _cat/<command>?help` against a real Elasticsearch 9.5.0 cluster — to be regenerated the same way if the columns diverge too much from a future version.
   - `exports/` — results exported via `Ctrl+S` from the right panel, one timestamped file per export (created on demand, §3.3).
+  - `crash-<timestamp>.log` — written only if the program panics: the recovered value and a full stack trace (`recoverCrash` in `main.go`), for diagnosing a crash on a terminal nobody watching can reproduce or transcribe by hand. Best-effort — a panic in tcell's own input-reading goroutine, rather than in code `tview.Application.Run` processes itself, isn't caught this way.
 
 ### 9.2 `config.yaml` schema (`~/.config/termdevtools/config.yaml`)
 
 ```yaml
 default_timeout_seconds: 120
 language: fr  # interface language: "fr" (default) or "en" — see the i18n package; also switchable live with F3, which rewrites this line
+mouse: false  # mouse support, off by default (see §3.3) — everything has a keyboard equivalent
 default_ca_dir: /etc/pki/termdevtools/ca              # pre-fills the CA field for a new connection
 default_client_cert_dir: /etc/pki/termdevtools/certs  # pre-fills the client cert/key fields (mTLS)
 
@@ -209,7 +220,7 @@ termdevtools/
 
 ### 9.4 Request execution flow
 
-1. Left panel focused, cursor positioned on a request, `Ctrl+Enter`.
+1. Left panel focused, cursor positioned on a request, `Ctrl+E` (or `Ctrl+Enter`).
 2. `parser` extracts method + endpoint + JSON payload around the cursor and validates the JSON.
 3. Invalid JSON → error message in the status bar, nothing is sent.
 4. Valid JSON → HTTP call launched in a goroutine; status bar → "request in progress...".

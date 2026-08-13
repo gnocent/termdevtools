@@ -10,6 +10,14 @@ default_timeout_seconds: 120
 # Langue de l'interface : "fr" (défaut) ou "en". Facultatif.
 language: fr
 
+# Support de la souris (cliquer pour donner le focus à un champ/une entrée
+# de liste). Désactivé par défaut : toute interaction souris a un
+# équivalent clavier complet (SPEC.md §3-4), et la laisser désactivée
+# garde la sélection/collage natifs du terminal disponibles (activer la
+# souris les capte pour l'appli à la place — voir F2 pour copier malgré
+# tout). Facultatif.
+mouse: false
+
 # Dossiers utilisés pour pré-remplir les champs de certificat lors de la
 # saisie d'une nouvelle connexion (§3.0). Facultatifs.
 default_ca_dir: /etc/pki/termdevtools/ca

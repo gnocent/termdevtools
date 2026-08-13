@@ -85,22 +85,27 @@ Aucune configuration n'est nécessaire pour démarrer : un écran de connexion p
 
 La langue de l'interface (français par défaut, ou anglais) se règle via `language: fr` / `language: en` dans ce même `config.yaml` — ou se change à la volée dans l'appli avec `F3`, qui enregistre le choix pour la prochaine fois.
 
+Le support de la souris (cliquer pour donner le focus à un champ ou sélectionner une entrée de liste) est **désactivé par défaut** — mettre `mouse: true` dans `config.yaml` pour l'activer. Toute interaction souris a un équivalent clavier complet (voir [Raccourcis clavier](#raccourcis-clavier)) ; le laisser désactivé garde la sélection/collage natifs du terminal disponibles, puisque l'activer capte les événements souris pour l'appli à la place (`F2` copie toujours le résultat, avec ou sans souris).
+
 ## Raccourcis clavier
 
 | Action | Touche |
 |---|---|
-| Exécuter la requête sous le curseur | `Ctrl+Entrée` [^macos] |
-| Basculer focus panneau gauche ↔ droit | `Ctrl+←` / `Ctrl+→` [^macos] |
+| Exécuter la requête sous le curseur | `Ctrl+E` [^entree] |
+| Basculer focus panneau gauche ↔ droit | `Ctrl+←` / `Ctrl+→` [^focus] |
 | Quitter (sauvegarde automatique du panneau gauche) | `Ctrl+C` |
 | Rechercher dans les requêtes / dans le résultat | `Ctrl+F` (selon le panneau focus) |
-| Redimensionner le split gauche/droite | `Ctrl+Maj+←` / `Ctrl+Maj+→` [^macos] |
+| Redimensionner le split gauche/droite | `F5` / `F6` [^redim] |
 | Sauvegarder (gauche) / exporter (droite) | `Ctrl+S` (selon le panneau focus) |
-| Compléter un endpoint / une colonne | `Tab` (panneau gauche) |
+| Compléter un endpoint / une colonne | `Tab` ou `F10` (panneau gauche) [^tab] |
 | Copier le résultat dans le presse-papier | `F2` |
 | Changer la langue de l'interface (fr/en) | `F3` |
 | Aide | `F1` (`Echap` pour fermer) |
 
-[^macos]: Sur macOS, `Option` fonctionne aussi à la place de `Ctrl` pour ces trois raccourcis — `Ctrl+←/→` est intercepté par le système par défaut (changement d'espace Mission Control), et `Ctrl+Entrée` ne peut pas être distingué d'un simple `Entrée` dans l'encodage terminal classique.
+[^entree]: `Ctrl+Entrée` fonctionne aussi, sur les terminaux qui le rapportent distinctement d'un simple `Entrée` — beaucoup ne le font pas (`Ctrl+M` *est* le code de contrôle d'`Entrée`, confirmé non rapporté sur un vrai terminal macOS même avec Option/Alt tenu en même temps), d'où `Ctrl+E` comme raccourci principal, toujours fiable.
+[^focus]: Sur macOS, `Option`/`Alt` fonctionne aussi à la place de `Ctrl` — `Ctrl+←/→` est intercepté par le système par défaut (changement d'espace Mission Control).
+[^redim]: `Ctrl+Maj+←/→` (`Option`/`Alt` inclus, sur macOS) fonctionne aussi, sur les terminaux qui le rapportent distinctement d'une flèche non modifiée — confirmé non rapporté ainsi sur un vrai terminal macOS, d'où `F5`/`F6` comme raccourcis principaux, toujours fiables.
+[^tab]: Sur certains terminaux anciens, `Tab` est absorbé entièrement — aucun événement clavier n'atteint l'appli (confirmé à la fois sur `cmd.exe` Windows et PuTTY, sur une même machine réelle), contrairement à la simple ambiguïté de modificateur touchant les raccourcis ci-dessus. `F10` est une alternative garantie fiable pour ce cas précis.
 
 ## Sécurité
 

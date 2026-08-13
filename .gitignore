@@ -15,6 +15,10 @@ config.yaml
 # de session, jamais du contenu à publier.
 /exports/
 
+# Rapports de plantage (recoverCrash, main.go) : diagnostic local, peut
+# contenir des détails d'exécution propres à la machine.
+crash-*.log
+
 # Artefacts Go standards.
 *.test
 *.out

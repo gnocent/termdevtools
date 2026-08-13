@@ -7,52 +7,53 @@ import (
 	"strings"
 
 	"github.com/rivo/tview"
+
+	"termdevtools/i18n"
 )
 
-// Editor est le panneau gauche : l'éditeur de requêtes. Voir SPEC.md §3.2.
+// Editor is the left panel: the request editor. See SPEC.md §3.2.
 type Editor struct {
 	view *tview.TextArea
 }
 
-// NewEditor crée un éditeur vide.
-func NewEditor() *Editor {
+// NewEditor creates an empty editor.
+func NewEditor(msgs *i18n.Strings) *Editor {
 	area := tview.NewTextArea().SetWrap(true)
-	area.SetBorder(true).SetTitle(" Requêtes ")
+	area.SetBorder(true).SetTitle(msgs.EditorTitle)
 	return &Editor{view: area}
 }
 
-// Widget renvoie le composant tview à insérer dans le layout.
+// Widget returns the tview component to insert into the layout.
 func (e *Editor) Widget() tview.Primitive {
 	return e.view
 }
 
-// Primitive renvoie le TextArea sous-jacent (pour SetFocus, comparaisons de focus...).
+// Primitive returns the underlying TextArea (for SetFocus, focus comparisons...).
 func (e *Editor) Primitive() tview.Primitive {
 	return e.view
 }
 
-// Text renvoie le contenu intégral de l'éditeur.
+// Text returns the editor's full content.
 func (e *Editor) Text() string {
 	return e.view.GetText()
 }
 
-// CursorOffset renvoie la position du curseur en décalage absolu (runes)
-// dans le texte complet. Contrairement à TextArea.GetCursor (dont la
-// "ligne" devient une ligne d'affichage, pas une ligne logique, dès que le
-// retour à la ligne automatique est actif — cf. SPEC.md §3.1), GetSelection
-// renvoie une position indépendante du rendu visuel : "si aucune sélection,
-// start et end valent la position du curseur" (doc officielle de tview).
-// En cas de sélection active, renvoie l'extrémité la plus proche de la
-// borne mouvante — sans incidence en pratique puisque Ctrl+Entrée et Tab ne
-// s'en servent qu'en l'absence de sélection.
+// CursorOffset returns the cursor position as an absolute (rune) offset in
+// the full text. Unlike TextArea.GetCursor (whose "line" becomes a display
+// line, not a logical line, as soon as automatic word wrap is active — see
+// SPEC.md §3.1), GetSelection returns a position independent of visual
+// rendering: "if there is no selection, start and end are the cursor
+// position" (tview's official documentation). With an active selection,
+// returns the end closest to the moving bound — no practical impact since
+// Ctrl+Enter and Tab only use it when there's no selection.
 func (e *Editor) CursorOffset() int {
 	_, _, end := e.view.GetSelection()
 	return end
 }
 
-// lineColAt renvoie la ligne logique (0-indexée, séparée par de vrais "\n")
-// et la colonne (en runes) correspondant à l'offset absolu offset dans
-// text. Purement textuel, donc indépendant du retour à la ligne visuel.
+// lineColAt returns the logical line (0-indexed, split on real "\n") and
+// column (in runes) corresponding to the absolute offset offset in text.
+// Purely textual, so independent of visual word wrap.
 func lineColAt(text string, offset int) (row, col int) {
 	lines := strings.Split(text, "\n")
 	consumed := 0
@@ -61,24 +62,24 @@ func lineColAt(text string, offset int) (row, col int) {
 		if offset <= consumed+lineLen {
 			return i, offset - consumed
 		}
-		consumed += lineLen + 1 // +1 pour le "\n" séparateur
+		consumed += lineLen + 1 // +1 for the "\n" separator
 	}
 	last := len(lines) - 1
 	return last, len([]rune(lines[last]))
 }
 
-// CursorLine renvoie l'index (0-indexé) de la ligne logique où se trouve le
-// curseur — la ligne du texte réel, pas la ligne d'affichage après retour
-// à la ligne automatique (SetWrap, cf. SPEC.md §3.1).
+// CursorLine returns the (0-indexed) index of the logical line the cursor
+// is on — the actual text's line, not the display line after automatic
+// word wrap (SetWrap, see SPEC.md §3.1).
 func (e *Editor) CursorLine() int {
 	row, _ := lineColAt(e.Text(), e.CursorOffset())
 	return row
 }
 
-// LoadFile charge path dans l'éditeur s'il existe et renvoie true si un
-// contenu a effectivement été chargé. Son absence n'est pas une erreur —
-// utilisé aussi bien pour la cheatsheet que pour la sauvegarde personnelle
-// (Ctrl+S), toutes deux optionnelles (cf. SPEC.md §3.2 et §9.1).
+// LoadFile loads path into the editor if it exists, and returns true if
+// content was actually loaded. Its absence is not an error — used both for
+// the cheatsheet and for the personal save (Ctrl+S), both optional (see
+// SPEC.md §3.2 and §9.1).
 func (e *Editor) LoadFile(path string) (bool, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -91,8 +92,8 @@ func (e *Editor) LoadFile(path string) (bool, error) {
 	return true, nil
 }
 
-// SaveToFile écrit l'intégralité du contenu de l'éditeur dans path,
-// créant le dossier parent si besoin (Ctrl+S, cf. SPEC.md §3.2).
+// SaveToFile writes the editor's full content to path, creating the parent
+// directory if needed (Ctrl+S, see SPEC.md §3.2).
 func (e *Editor) SaveToFile(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
@@ -100,30 +101,29 @@ func (e *Editor) SaveToFile(path string) error {
 	return os.WriteFile(path, []byte(e.Text()), 0o600)
 }
 
-// SelectRange positionne le curseur/la sélection entre les offsets (en
-// runes) start et end du texte complet — utilisé par la recherche (Ctrl+F).
+// SelectRange positions the cursor/selection between the (rune) offsets
+// start and end of the full text — used by search (Ctrl+F).
 func (e *Editor) SelectRange(start, end int) {
 	e.view.Select(start, end)
 }
 
-// FindNext cherche la prochaine occurrence (insensible à la casse) de query
-// après l'offset in-rune after, avec retour au début si nécessaire. Renvoie
-// (start, end, true) si trouvé.
+// FindNext looks for the next (case-insensitive) occurrence of query after
+// the rune offset after, wrapping back to the start if needed. Returns
+// (start, end, true) if found.
 func (e *Editor) FindNext(query string, after int) (int, int, bool) {
 	return findNext(e.Text(), query, after)
 }
 
-// completionLineRe détecte une ligne "MÉTHODE chemin_partiel" en cours de
-// frappe, jusqu'au curseur (pas de fin de ligne ancrée : ce qui suit le
-// curseur, s'il y a quelque chose, n'entre pas en jeu).
+// completionLineRe detects a "METHOD partial_path" line being typed, up to
+// the cursor (no end-of-line anchor: whatever follows the cursor, if
+// anything, doesn't come into play).
 var completionLineRe = regexp.MustCompile(`(?i)^(GET|POST|PUT|DELETE)[ \t]+(\S*)$`)
 
-// CompletionPrefix renvoie, si le curseur est en train de taper un endpoint
-// (ligne "MÉTHODE chemin_partiel", cf. SPEC.md §3.2), le préfixe à
-// compléter ainsi que ses bornes (en runes, texte complet — utilisables
-// avec ApplyCompletion). ok=false en dehors de ce contexte (ex. dans un
-// corps JSON), auquel cas Tab garde son comportement standard (insérer une
-// tabulation).
+// CompletionPrefix returns, if the cursor is in the middle of typing an
+// endpoint ("METHOD partial_path" line, see SPEC.md §3.2), the prefix to
+// complete along with its bounds (in runes, full text — usable with
+// ApplyCompletion). ok=false outside of this context (e.g. inside a JSON
+// body), in which case Tab keeps its standard behavior (inserting a tab).
 func (e *Editor) CompletionPrefix() (prefix string, start, end int, ok bool) {
 	text := e.Text()
 	offset := e.CursorOffset()
@@ -148,14 +148,14 @@ func (e *Editor) CompletionPrefix() (prefix string, start, end int, ok bool) {
 	}
 	prefix = m[2]
 
-	lineStart := offset - col // décalage absolu du début de la ligne logique
+	lineStart := offset - col // absolute offset of the logical line's start
 	end = lineStart + col
 	start = end - len([]rune(prefix))
 	return prefix, start, end, true
 }
 
-// ApplyCompletion remplace le texte entre start et end (offsets en runes,
-// cf. CompletionPrefix) par replacement, et place le curseur juste après.
+// ApplyCompletion replaces the text between start and end (rune offsets,
+// see CompletionPrefix) with replacement, and places the cursor right after.
 func (e *Editor) ApplyCompletion(start, end int, replacement string) {
 	e.view.Replace(start, end, replacement)
 	newPos := start + len([]rune(replacement))

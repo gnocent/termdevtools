@@ -9,7 +9,7 @@ import (
 func TestCatColumnCompletionEndToEnd(t *testing.T) {
 	app, screen := newTestApp(t)
 
-	// Complétion h= : préfixe unique parmi les colonnes réelles de _cat/indices.
+	// h= completion: unique prefix among _cat/indices' real columns.
 	injectText(screen, "GET _cat/indices?h=heal")
 	waitForDraw(t, screen)
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
@@ -19,10 +19,10 @@ func TestCatColumnCompletionEndToEnd(t *testing.T) {
 		t.Fatalf("expected %q after h= completion, got %q", want, got)
 	}
 
-	// Une deuxième colonne, séparée par une virgule : seule la partie après
-	// la dernière virgule doit être complétée, le reste préservé. Les alias
-	// courts (ex. "storeSize") ne sont plus dans la liste par défaut, donc
-	// "sto" ne correspond plus qu'à "store.size" : complétion directe.
+	// A second column, comma-separated: only the part after the last comma
+	// should be completed, the rest preserved. Short aliases (e.g.
+	// "storeSize") are no longer in the default list, so "sto" now only
+	// matches "store.size": direct completion.
 	injectText(screen, ",sto")
 	waitForDraw(t, screen)
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
@@ -46,10 +46,10 @@ func TestCatColumnSortDirectionCompletionEndToEnd(t *testing.T) {
 	}
 }
 
-// TestCatColumnCompletionWithFilterSegmentEndToEnd couvre le cas signalé :
-// un filtre (nom d'index, de nœud...) entre la commande _cat et les
-// paramètres, ex. "_cat/shards/monindex?h=...". La commande _cat doit
-// toujours être reconnue malgré ce segment supplémentaire.
+// TestCatColumnCompletionWithFilterSegmentEndToEnd covers the reported
+// case: a filter (index name, node name...) between the _cat command and
+// the parameters, e.g. "_cat/shards/myindex?h=...". The _cat command must
+// still be recognized despite this extra segment.
 func TestCatColumnCompletionWithFilterSegmentEndToEnd(t *testing.T) {
 	app, screen := newTestApp(t)
 

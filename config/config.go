@@ -1,8 +1,7 @@
-// Package config lit et écrit config.yaml, dans le dossier de configuration
-// de l'utilisateur courant (l'historique de connexions est personnel, pas
-// lié à l'installation du binaire). Aucun secret (mot de passe, API key
-// secret, passphrase de clé privée) n'y est jamais stocké — voir SPEC.md §5
-// et §9.2.
+// Package config reads and writes config.yaml, in the current user's
+// configuration directory (connection history is personal, not tied to the
+// binary's installation). No secret (password, API key secret, private key
+// passphrase) is ever stored there — see SPEC.md §5 and §9.2.
 package config
 
 import (
@@ -27,12 +26,12 @@ const (
 	appDirName            = "termdevtools"
 )
 
-// unsafeFilenameChars couvre tout ce qu'une URL peut contenir et qu'un nom
-// de fichier ne supporte pas forcément (":", "/", espaces...) — remplacé
-// par "_" dans QueriesPathForURL.
+// unsafeFilenameChars covers everything a URL can contain that a filename
+// can't necessarily support (":", "/", spaces...) — replaced with "_" in
+// QueriesPathForURL.
 var unsafeFilenameChars = regexp.MustCompile(`[^A-Za-z0-9._-]`)
 
-// TLS regroupe les options TLS d'un cluster.
+// TLS groups a cluster's TLS options.
 type TLS struct {
 	Verify     bool   `yaml:"verify"`
 	CAFile     string `yaml:"ca_file,omitempty"`
@@ -40,9 +39,9 @@ type TLS struct {
 	ClientKey  string `yaml:"client_key,omitempty"`
 }
 
-// Cluster décrit une connexion connue, sans aucun secret. L'URL sert
-// d'identifiant (pas de nom séparé : l'URL est déjà l'information la plus
-// explicite pour reconnaître un cluster dans l'historique).
+// Cluster describes a known connection, with no secret whatsoever. The URL
+// serves as the identifier (no separate name: the URL is already the most
+// explicit piece of information to recognize a cluster in the history).
 type Cluster struct {
 	URL      string `yaml:"url"`
 	AuthType string `yaml:"auth_type"`
@@ -51,17 +50,20 @@ type Cluster struct {
 	TLS      TLS    `yaml:"tls"`
 }
 
-// Config est le contenu complet de config.yaml.
+// Config is the full content of config.yaml.
 type Config struct {
-	DefaultTimeoutSeconds int       `yaml:"default_timeout_seconds"`
-	DefaultCADir          string    `yaml:"default_ca_dir,omitempty"`
-	DefaultClientCertDir  string    `yaml:"default_client_cert_dir,omitempty"`
-	Clusters              []Cluster `yaml:"clusters"`
+	DefaultTimeoutSeconds int    `yaml:"default_timeout_seconds"`
+	DefaultCADir          string `yaml:"default_ca_dir,omitempty"`
+	DefaultClientCertDir  string `yaml:"default_client_cert_dir,omitempty"`
+	// Language selects the interface language: "fr" (default) or "en". See
+	// the i18n package and SPEC.md §3.
+	Language string    `yaml:"language,omitempty"`
+	Clusters []Cluster `yaml:"clusters"`
 
 	path string `yaml:"-"`
 }
 
-// ExecutableDir renvoie le dossier contenant le binaire termdevtools.
+// ExecutableDir returns the directory containing the termdevtools binary.
 func ExecutableDir() (string, error) {
 	exe, err := os.Executable()
 	if err != nil {
@@ -74,8 +76,9 @@ func ExecutableDir() (string, error) {
 	return filepath.Dir(resolved), nil
 }
 
-// ConfigDir renvoie le dossier de configuration de l'utilisateur courant
-// (~/.config/termdevtools, ou $XDG_CONFIG_HOME/termdevtools s'il est défini).
+// ConfigDir returns the current user's configuration directory
+// (~/.config/termdevtools, or $XDG_CONFIG_HOME/termdevtools if that variable
+// is set).
 func ConfigDir() (string, error) {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
 		return filepath.Join(xdg, appDirName), nil
@@ -87,7 +90,7 @@ func ConfigDir() (string, error) {
 	return filepath.Join(home, ".config", appDirName), nil
 }
 
-// Path renvoie le chemin attendu de config.yaml, dans ConfigDir().
+// Path returns the expected path of config.yaml, inside ConfigDir().
 func Path() (string, error) {
 	dir, err := ConfigDir()
 	if err != nil {
@@ -96,14 +99,13 @@ func Path() (string, error) {
 	return filepath.Join(dir, fileName), nil
 }
 
-// QueriesPathForURL renvoie le chemin de la sauvegarde personnelle du
-// contenu de l'éditeur pour le cluster d'URL url : un fichier par cluster,
-// par utilisateur (Ctrl+S et sauvegarde automatique en sortie de programme,
-// cf. SPEC.md §3.2 et §9.1), à côté de config.yaml. Les caractères non
-// compatibles avec un nom de fichier sont remplacés par "_" ; deux URLs
-// distinctes qui se ressembleraient au point de produire le même nom après
-// cette normalisation partageraient (rare) le même fichier — limite admise
-// pour garder des noms de fichiers simples et lisibles.
+// QueriesPathForURL returns the path to the personal save of the editor
+// content for the cluster at url: one file per cluster, per user (Ctrl+S and
+// automatic save on program exit, see SPEC.md §3.2 and §9.1), next to
+// config.yaml. Characters not compatible with a filename are replaced with
+// "_"; two distinct URLs similar enough to produce the same name after this
+// normalization would (rarely) share the same file — an accepted limitation
+// to keep filenames simple and readable.
 func QueriesPathForURL(url string) (string, error) {
 	dir, err := ConfigDir()
 	if err != nil {
@@ -113,12 +115,12 @@ func QueriesPathForURL(url string) (string, error) {
 	return filepath.Join(dir, queriesFilePrefix+safe+queriesFileSuffix), nil
 }
 
-// Load lit config.yaml. Si le fichier n'existe pas encore (premier lancement),
-// une configuration vide avec les valeurs par défaut est renvoyée sans erreur.
+// Load reads config.yaml. If the file doesn't exist yet (first launch), an
+// empty configuration with default values is returned with no error.
 func Load() (*Config, error) {
 	path, err := Path()
 	if err != nil {
-		return nil, fmt.Errorf("résolution du chemin de config.yaml: %w", err)
+		return nil, fmt.Errorf("resolving config.yaml path: %w", err)
 	}
 
 	cfg := &Config{DefaultTimeoutSeconds: defaultTimeoutSeconds, path: path}
@@ -128,11 +130,11 @@ func Load() (*Config, error) {
 		return cfg, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("lecture de %s: %w", path, err)
+		return nil, fmt.Errorf("reading %s: %w", path, err)
 	}
 
 	if err := yaml.Unmarshal(data, cfg); err != nil {
-		return nil, fmt.Errorf("parsing de %s: %w", path, err)
+		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 	cfg.path = path
 	if cfg.DefaultTimeoutSeconds <= 0 {
@@ -141,10 +143,10 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// Save écrit la configuration dans config.yaml (permissions restreintes :
-// le fichier ne contient pas de secret mais autant limiter sa visibilité).
-// Le dossier de configuration est créé s'il n'existe pas encore (premier
-// lancement de cet utilisateur).
+// Save writes the configuration to config.yaml (restricted permissions: the
+// file contains no secret, but its visibility is still worth limiting). The
+// configuration directory is created if it doesn't exist yet (this user's
+// first launch).
 func (c *Config) Save() error {
 	if c.path == "" {
 		path, err := Path()
@@ -155,20 +157,20 @@ func (c *Config) Save() error {
 	}
 
 	if err := os.MkdirAll(filepath.Dir(c.path), 0o700); err != nil {
-		return fmt.Errorf("création de %s: %w", filepath.Dir(c.path), err)
+		return fmt.Errorf("creating %s: %w", filepath.Dir(c.path), err)
 	}
 
 	data, err := yaml.Marshal(c)
 	if err != nil {
-		return fmt.Errorf("sérialisation de config.yaml: %w", err)
+		return fmt.Errorf("serializing config.yaml: %w", err)
 	}
 	if err := os.WriteFile(c.path, data, 0o600); err != nil {
-		return fmt.Errorf("écriture de %s: %w", c.path, err)
+		return fmt.Errorf("writing %s: %w", c.path, err)
 	}
 	return nil
 }
 
-// FindByURL renvoie une copie du cluster d'URL url, s'il existe.
+// FindByURL returns a copy of the cluster at url, if it exists.
 func (c *Config) FindByURL(url string) (Cluster, bool) {
 	for _, cl := range c.Clusters {
 		if cl.URL == url {
@@ -178,10 +180,9 @@ func (c *Config) FindByURL(url string) (Cluster, bool) {
 	return Cluster{}, false
 }
 
-// Promote insère ou met à jour cluster (identifié par son URL) puis le
-// place en tête de la liste — l'ordre de Clusters fait office d'historique
-// d'utilisation (le plus récent en premier). À appeler uniquement après une
-// connexion réussie.
+// Promote inserts or updates cluster (identified by its URL) then moves it
+// to the front of the list — the order of Clusters acts as usage history
+// (most recent first). Must only be called after a successful connection.
 func (c *Config) Promote(cluster Cluster) {
 	filtered := make([]Cluster, 0, len(c.Clusters)+1)
 	filtered = append(filtered, cluster)

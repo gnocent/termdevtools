@@ -7,6 +7,9 @@
 
 default_timeout_seconds: 120
 
+# Langue de l'interface : "fr" (défaut) ou "en". Facultatif.
+language: fr
+
 # Dossiers utilisés pour pré-remplir les champs de certificat lors de la
 # saisie d'une nouvelle connexion (§3.0). Facultatifs.
 default_ca_dir: /etc/pki/termdevtools/ca

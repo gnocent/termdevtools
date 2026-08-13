@@ -23,7 +23,7 @@ func TestQueriesPathForURL(t *testing.T) {
 	if !strings.HasPrefix(base, queriesFilePrefix) || !strings.HasSuffix(base, queriesFileSuffix) {
 		t.Errorf("unexpected filename shape: %q", base)
 	}
-	// Aucun caractère problématique pour un nom de fichier (":", "/", ...).
+	// No character that's problematic for a filename (":", "/", ...).
 	for _, r := range base {
 		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '.' || r == '_' || r == '-' {
 			continue

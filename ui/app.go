@@ -11,30 +11,30 @@ import (
 
 	"termdevtools/config"
 	"termdevtools/esclient"
+	"termdevtools/i18n"
 	"termdevtools/parser"
 )
 
-// CheatsheetFileName est le fichier optionnel chargé par défaut dans
-// l'éditeur au démarrage, situé à côté du binaire. Voir SPEC.md §9.1.
+// CheatsheetFileName is the optional file loaded into the editor by default
+// on startup, located next to the binary. See SPEC.md §9.1.
 const CheatsheetFileName = "cheatsheet.txt"
 
-// ExportsDirName est le sous-dossier (à côté du binaire) où Ctrl+S exporte
-// le résultat affiché depuis le panneau droit. Voir SPEC.md §3.3 et §9.1.
+// ExportsDirName is the subfolder (next to the binary) where Ctrl+S exports
+// the result displayed in the right panel. See SPEC.md §3.3 and §9.1.
 const ExportsDirName = "exports"
 
-// EndpointsFileName est le fichier optionnel (à côté du binaire) listant
-// les endpoints proposés par l'auto-complétion Tab — permet à l'équipe de
-// l'ajuster à sa version d'Elasticsearch sans recompiler. Voir SPEC.md
-// §3.2 et §9.1.
+// EndpointsFileName is the optional file (next to the binary) listing the
+// endpoints offered by Tab auto-completion — lets the team adjust it to
+// their Elasticsearch version without recompiling. See SPEC.md §3.2 and §9.1.
 const EndpointsFileName = "endpoints.txt"
 
-// CatColumnsFileName est le fichier optionnel (à côté du binaire) listant
-// les colonnes h=/s= proposées par l'auto-complétion Tab pour les
-// commandes _cat/*. Voir SPEC.md §3.2 et §9.1.
+// CatColumnsFileName is the optional file (next to the binary) listing the
+// h=/s= columns offered by Tab auto-completion for _cat/* commands. See
+// SPEC.md §3.2 and §9.1.
 const CatColumnsFileName = "cat_columns.txt"
 
-// Paths regroupe les emplacements de fichiers résolus par l'appelant
-// (main.go) — voir SPEC.md §9.1 pour le détail de chacun.
+// Paths gathers the file locations resolved by the caller (main.go) — see
+// SPEC.md §9.1 for the detail of each.
 type Paths struct {
 	Cheatsheet string
 	Exports    string
@@ -42,8 +42,8 @@ type Paths struct {
 	CatColumns string
 }
 
-// Bornes du ratio de largeur entre panneau gauche et droit (sur un total de
-// splitTotalWeight), ajustable via Ctrl++/Ctrl+- (SPEC.md §4).
+// Bounds of the width ratio between the left and right panels (out of a
+// total of splitTotalWeight), adjustable via Ctrl+Shift+←/→ (SPEC.md §4).
 const (
 	splitTotalWeight = 10
 	splitMinWeight   = 1
@@ -51,8 +51,8 @@ const (
 	splitStep        = 1
 )
 
-// App assemble le layout principal (éditeur, résultat, barre de statut) et
-// gère le focus ainsi que les raccourcis clavier globaux. Voir SPEC.md §3-4.
+// App assembles the main layout (editor, result, status bar) and manages
+// focus as well as global keyboard shortcuts. See SPEC.md §3-4.
 type App struct {
 	tapp        *tview.Application
 	client      *esclient.Client
@@ -61,6 +61,7 @@ type App struct {
 	queriesPath string
 	endpoints   []string
 	catColumns  map[string][]string
+	msgs        *i18n.Strings
 
 	editor *Editor
 	result *ResultView
@@ -79,29 +80,31 @@ type App struct {
 	helpView    *tview.TextView
 	helpVisible bool
 
-	// screen sert à la copie presse-papier (F2, OSC 52, cf. SPEC.md §3.3) ;
-	// capturé au premier rendu via SetAfterDrawFunc (tview.Application n'a
-	// pas d'accesseur direct vers l'écran qu'il crée lui-même).
+	// screen is used for clipboard copy (F2, OSC 52, see SPEC.md §3.3);
+	// captured on the first render via SetAfterDrawFunc (tview.Application
+	// has no direct accessor to the screen it creates itself).
 	screen tcell.Screen
 
 	focusedIsEditor  bool
-	searchTarget     string // "editor" ou "result"
+	searchTarget     string // "editor" or "result"
 	editorSearchPos  int
 	resultSearchLine int
 }
 
-// NewApp construit l'écran principal pour une connexion déjà établie.
-// paths est résolu par l'appelant (main.go) — voir SPEC.md §9.1 pour le
-// détail des emplacements.
+// NewApp builds the main screen for an already-established connection.
+// paths is resolved by the caller (main.go) — see SPEC.md §9.1 for the
+// detail of the locations.
 func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths Paths) *App {
+	msgs := i18n.For(cfg.Language)
 	a := &App{
 		tapp:             tapp,
 		client:           cr.Client,
 		timeout:          time.Duration(cfg.DefaultTimeoutSeconds) * time.Second,
 		exportsDir:       paths.Exports,
-		editor:           NewEditor(),
-		result:           NewResultView(),
-		status:           NewStatusBar(cr.Cluster.URL, cr.DisplayUser),
+		msgs:             msgs,
+		editor:           NewEditor(msgs),
+		result:           NewResultView(msgs),
+		status:           NewStatusBar(cr.Cluster.URL, cr.DisplayUser, msgs),
 		focusedIsEditor:  true,
 		editorSearchPos:  -1,
 		resultSearchLine: -1,
@@ -116,7 +119,7 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 
 	endpoints, err := LoadEndpointsFile(paths.Endpoints)
 	if err != nil {
-		a.status.SetError(fmt.Sprintf("échec du chargement de %s : %s", paths.Endpoints, err))
+		a.status.SetError(fmt.Sprintf(msgs.ErrLoadFailedFmt, paths.Endpoints, err))
 	}
 	if len(endpoints) == 0 {
 		endpoints = knownEndpoints
@@ -125,7 +128,7 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 
 	catCols, err := LoadCatColumnsFile(paths.CatColumns)
 	if err != nil {
-		a.status.SetError(fmt.Sprintf("échec du chargement de %s : %s", paths.CatColumns, err))
+		a.status.SetError(fmt.Sprintf(msgs.ErrLoadFailedFmt, paths.CatColumns, err))
 	}
 	if len(catCols) == 0 {
 		catCols = catColumns
@@ -134,11 +137,11 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 
 	a.loadInitialQueries(paths.Cheatsheet)
 
-	a.searchBar = tview.NewInputField().SetLabel("Rechercher : ")
+	a.searchBar = tview.NewInputField().SetLabel(msgs.SearchLabel)
 	a.searchBar.SetDoneFunc(a.handleSearchDone)
 
 	a.completionList = tview.NewList().ShowSecondaryText(false)
-	a.completionList.SetBorder(true).SetTitle(" Compléter (Entrée, Echap pour annuler) ")
+	a.completionList.SetBorder(true).SetTitle(msgs.CompletionTitle)
 	a.completionList.SetSelectedFunc(func(_ int, mainText, _ string, _ rune) {
 		a.editor.ApplyCompletion(a.completionStart, a.completionEnd, mainText)
 		a.closeCompletion()
@@ -149,8 +152,8 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 			a.closeCompletion()
 			return nil
 		case tcell.KeyTab:
-			// Un Tab de plus fait défiler les suggestions, comme des Tab
-			// répétés en complétion shell classique.
+			// One more Tab cycles through the suggestions, like repeated
+			// Tabs in classic shell completion.
 			next := a.completionList.GetCurrentItem() + 1
 			if next >= a.completionList.GetItemCount() {
 				next = 0
@@ -172,14 +175,14 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 		AddItem(a.status.Widget(), 2, 0, false)
 
 	a.helpView = tview.NewTextView().SetDynamicColors(true).SetWrap(true)
-	a.helpView.SetBorder(true).SetTitle(" Aide (Echap pour fermer) ")
-	a.helpView.SetText(helpContent)
+	a.helpView.SetBorder(true).SetTitle(msgs.HelpViewTitle)
+	a.helpView.SetText(msgs.HelpContent)
 
-	// Popup centré, marges autour pour laisser voir l'appli en arrière-plan
-	// (idiome tview classique : Flex imbriqués avec des espaceurs nil).
-	// Hauteur proportionnelle (pas fixe) pour s'adapter à la taille du
-	// terminal ; le TextView reste scrollable si le contenu déborde quand
-	// même sur un terminal très bas.
+	// Centered popup, margins around it to let the app show through in the
+	// background (classic tview idiom: nested Flex with nil spacers).
+	// Proportional (not fixed) height to adapt to the terminal size; the
+	// TextView stays scrollable if the content still overflows on a very
+	// short terminal.
 	helpOverlay := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().
@@ -196,15 +199,14 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 	return a
 }
 
-// loadInitialQueries charge la sauvegarde personnelle propre à ce cluster
-// (a.queriesPath, Ctrl+S ou sauvegarde automatique en sortie de programme)
-// si elle existe ; sinon, se rabat sur la cheatsheet d'équipe. Voir
-// SPEC.md §3.2 et §9.1.
+// loadInitialQueries loads the personal save specific to this cluster
+// (a.queriesPath, Ctrl+S or automatic save on program exit) if it exists;
+// otherwise, falls back to the team cheatsheet. See SPEC.md §3.2 and §9.1.
 func (a *App) loadInitialQueries(cheatsheetPath string) {
 	if a.queriesPath != "" {
 		loaded, err := a.editor.LoadFile(a.queriesPath)
 		if err != nil {
-			a.status.SetError(fmt.Sprintf("échec du chargement de %s : %s", a.queriesPath, err))
+			a.status.SetError(fmt.Sprintf(a.msgs.ErrLoadFailedFmt, a.queriesPath, err))
 			return
 		}
 		if loaded {
@@ -213,17 +215,17 @@ func (a *App) loadInitialQueries(cheatsheetPath string) {
 	}
 
 	if _, err := a.editor.LoadFile(cheatsheetPath); err != nil {
-		a.status.SetError(fmt.Sprintf("échec du chargement de %s : %s", cheatsheetPath, err))
+		a.status.SetError(fmt.Sprintf(a.msgs.ErrLoadFailedFmt, cheatsheetPath, err))
 	}
 }
 
-// Root renvoie le composant racine à afficher.
+// Root returns the root component to display.
 func (a *App) Root() tview.Primitive {
 	return a.pages
 }
 
-// Start branche les raccourcis clavier globaux et donne le focus initial à
-// l'éditeur. À appeler une fois Root() affiché (SetRoot/SwitchToPage).
+// Start wires up the global keyboard shortcuts and gives the editor initial
+// focus. Must be called once Root() is displayed (SetRoot/SwitchToPage).
 func (a *App) Start() {
 	a.tapp.SetInputCapture(a.handleGlobalKeys)
 	a.tapp.SetAfterDrawFunc(func(screen tcell.Screen) {
@@ -238,21 +240,21 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 			a.closeHelp()
 			return nil
 		}
-		return event // laisse le TextView de l'aide défiler si le contenu déborde
+		return event // let the help TextView scroll if content overflows
 	}
 	if a.tapp.GetFocus() == a.searchBar {
-		return event // la barre de recherche gère elle-même Entrée/Échap
+		return event // the search bar handles Enter/Escape itself
 	}
 	if a.tapp.GetFocus() == a.completionList {
-		return event // la liste de complétion gère elle-même Entrée/Echap/Tab
+		return event // the completion list handles Enter/Escape/Tab itself
 	}
 
 	switch {
 	case event.Key() == tcell.KeyCtrlC:
-		// Seul raccourci de sortie : Ctrl+Echap s'est avéré intercepté par
-		// Windows lui-même sur les postes de l'équipe (raccourci OS), donc
-		// abandonné. Ctrl+C reste universellement disponible au niveau
-		// terminal et ne doit jamais pouvoir bloquer l'utilisateur.
+		// The only exit shortcut: Ctrl+Esc turned out to be intercepted by
+		// Windows itself on the team's machines (an OS shortcut), so it was
+		// dropped. Ctrl+C stays universally available at the terminal level
+		// and must never be able to lock the user out.
 		a.SaveQueriesOnExit()
 		a.tapp.Stop()
 		return nil
@@ -283,7 +285,7 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 		if a.tryCompletion() {
 			return nil
 		}
-		return event // hors contexte de complétion : Tab insère une tabulation, comportement standard
+		return event // outside a completion context: Tab inserts a tab, standard behavior
 	case event.Key() == tcell.KeyF1:
 		a.showHelp()
 		return nil
@@ -294,11 +296,11 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
-// isCtrlShiftLeft/isCtrlShiftRight détectent Ctrl+Maj+←/→, utilisé pour
-// redimensionner le split (SPEC.md §4) — Ctrl++/Ctrl+- initialement prévus
-// se sont révélés interceptés par le terminal/l'OS (zoom de police sous
-// Windows Terminal notamment). Ces cas sont testés AVANT le Ctrl+←/→ simple
-// (changement de focus) pour ne pas être masqués par lui.
+// isCtrlShiftLeft/isCtrlShiftRight detect Ctrl+Shift+←/→, used to resize
+// the split (SPEC.md §4) — Ctrl++/Ctrl+- initially planned turned out to be
+// intercepted by the terminal/OS (font zoom under Windows Terminal in
+// particular). These cases are tested BEFORE plain Ctrl+←/→ (focus switch)
+// so they aren't shadowed by it.
 func isCtrlShiftLeft(event *tcell.EventKey) bool {
 	return event.Key() == tcell.KeyLeft && event.Modifiers()&tcell.ModCtrl != 0 && event.Modifiers()&tcell.ModShift != 0
 }
@@ -307,8 +309,8 @@ func isCtrlShiftRight(event *tcell.EventKey) bool {
 	return event.Key() == tcell.KeyRight && event.Modifiers()&tcell.ModCtrl != 0 && event.Modifiers()&tcell.ModShift != 0
 }
 
-// resizeSplit déplace la séparation entre panneau gauche et droit de delta
-// crans (positif = agrandit la gauche, négatif = la rétrécit), borné à
+// resizeSplit moves the divider between the left and right panels by delta
+// steps (positive = grows the left, negative = shrinks it), clamped to
 // [splitMinWeight, splitMaxWeight].
 func (a *App) resizeSplit(delta int) {
 	newWeight := a.leftWeight + delta
@@ -347,8 +349,8 @@ func (a *App) openSearch() {
 	a.tapp.SetFocus(a.searchBar)
 }
 
-// showHelp affiche le popup d'aide (F1, SPEC.md §3.1) par-dessus le layout
-// courant, sans perturber le contenu de l'éditeur ni du résultat.
+// showHelp displays the help popup (F1, SPEC.md §3.1) over the current
+// layout, without disturbing the editor's or result's content.
 func (a *App) showHelp() {
 	a.helpVisible = true
 	a.pages.ShowPage("help")
@@ -389,7 +391,7 @@ func (a *App) handleSearchDone(key tcell.Key) {
 				a.editorSearchPos = start
 				a.status.SetIdle()
 			} else {
-				a.status.SetError("aucune occurrence trouvée")
+				a.status.SetError(a.msgs.ErrNoMatchFound)
 			}
 		} else {
 			line, found := a.result.FindNext(query, a.resultSearchLine)
@@ -398,10 +400,10 @@ func (a *App) handleSearchDone(key tcell.Key) {
 				a.resultSearchLine = line
 				a.status.SetIdle()
 			} else {
-				a.status.SetError("aucune occurrence trouvée")
+				a.status.SetError(a.msgs.ErrNoMatchFound)
 			}
 		}
-		// Le champ reste ouvert : Entrée à nouveau = occurrence suivante.
+		// The field stays open: pressing Enter again = next occurrence.
 	case tcell.KeyEscape:
 		a.closeSearch()
 	}
@@ -438,15 +440,15 @@ func (a *App) executeCurrent() {
 	}()
 }
 
-// tryCompletion implémente Tab dans le panneau gauche (SPEC.md §3.2, §4) :
-// complète directement s'il n'y a qu'une seule correspondance, ouvre une
-// liste à choisir s'il y en a plusieurs. Renvoie false si le curseur n'est
-// pas en train de taper un endpoint (Tab garde alors son comportement
-// standard, cf. handleGlobalKeys).
+// tryCompletion implements Tab in the left panel (SPEC.md §3.2, §4):
+// completes directly if there's only a single match, opens a list to
+// choose from if there are several. Returns false if the cursor isn't in
+// the middle of typing an endpoint (Tab then keeps its standard behavior,
+// see handleGlobalKeys).
 //
-// Deux contextes de complétion sont reconnus : les colonnes h=/s= d'une
-// commande _cat/* en cours de frappe (catColumnCompletion, prioritaire car
-// plus spécifique), sinon un nom d'endpoint classique.
+// Two completion contexts are recognized: the h=/s= columns of a _cat/*
+// command being typed (catColumnCompletion, takes priority since it's more
+// specific), otherwise a regular endpoint name.
 func (a *App) tryCompletion() bool {
 	prefix, start, end, ok := a.editor.CompletionPrefix()
 	if !ok {
@@ -458,26 +460,26 @@ func (a *App) tryCompletion() bool {
 		return true
 	}
 
-	// Le "/" final avant les paramètres (ou en toute fin de chemin) est
-	// optionnel en HTTP — "_cat/indices/?h=..." équivaut à
-	// "_cat/indices?h=...". Aucun endpoint connu n'en stocke un : sans le
-	// retirer avant la comparaison, un "/" de fin ne matcherait jamais rien.
-	// La complétion remplace tout le segment tapé (start..end, donc le "/"
-	// avec), pas seulement le texte qui le précède — pas besoin d'ajuster
-	// les bornes pour ça.
+	// The trailing "/" before the parameters (or at the very end of the
+	// path) is optional in HTTP — "_cat/indices/?h=..." is equivalent to
+	// "_cat/indices?h=...". No known endpoint stores one: without removing
+	// it before comparison, a trailing "/" would never match anything. The
+	// completion replaces the whole typed segment (start..end, so the "/"
+	// included), not just the text preceding it — no need to adjust the
+	// bounds for this.
 	endpointPrefix := strings.TrimSuffix(prefix, "/")
 	a.offerCompletions(start, end, matchPrefix(endpointPrefix, a.endpoints))
 	return true
 }
 
-// offerCompletions applique le résultat d'une recherche de complétion,
-// quel que soit son contexte (endpoint ou colonne _cat) : complète
-// directement s'il n'y a qu'une seule correspondance, ouvre la liste à
-// choisir s'il y en a plusieurs, signale l'absence de correspondance sinon.
+// offerCompletions applies the result of a completion search, regardless of
+// its context (endpoint or _cat column): completes directly if there's only
+// a single match, opens the list to choose from if there are several,
+// otherwise reports no match.
 func (a *App) offerCompletions(start, end int, matches []string) {
 	switch len(matches) {
 	case 0:
-		a.status.SetError("aucune complétion")
+		a.status.SetError(a.msgs.ErrNoCompletion)
 	case 1:
 		a.editor.ApplyCompletion(start, end, matches[0])
 		a.status.SetIdle()
@@ -499,7 +501,7 @@ func (a *App) openCompletion(start, end int, matches []string) {
 	if height > 8 {
 		height = 8
 	}
-	a.root.ResizeItem(a.completionList, height+2, 0) // +2 : bordure haut/bas
+	a.root.ResizeItem(a.completionList, height+2, 0) // +2: top/bottom border
 	a.tapp.SetFocus(a.completionList)
 }
 
@@ -508,9 +510,9 @@ func (a *App) closeCompletion() {
 	a.focusEditor()
 }
 
-// handleSave implémente Ctrl+S, dont le comportement dépend du panneau
-// ayant le focus (SPEC.md §3.2, §3.3, §4) : sauvegarde des requêtes depuis
-// la gauche, export du résultat depuis la droite.
+// handleSave implements Ctrl+S, whose behavior depends on which panel has
+// focus (SPEC.md §3.2, §3.3, §4): saves the requests from the left,
+// exports the result from the right.
 func (a *App) handleSave() {
 	if a.focusedIsEditor {
 		a.saveQueries()
@@ -521,16 +523,16 @@ func (a *App) handleSave() {
 
 func (a *App) saveQueries() {
 	if err := a.editor.SaveToFile(a.queriesPath); err != nil {
-		a.status.SetError(fmt.Sprintf("échec de sauvegarde : %s", err))
+		a.status.SetError(fmt.Sprintf(a.msgs.ErrSaveFailedFmt, err))
 		return
 	}
-	a.status.SetInfo(fmt.Sprintf("requêtes sauvegardées dans %s", a.queriesPath))
+	a.status.SetInfo(fmt.Sprintf(a.msgs.InfoSavedFmt, a.queriesPath))
 }
 
-// SaveQueriesOnExit sauvegarde silencieusement (best-effort, pas de retour
-// utilisateur possible à ce stade) le contenu de l'éditeur avant fermeture
-// du programme — Ctrl+C ou signal externe (SIGTERM/SIGHUP, cf. main.go).
-// Complète la sauvegarde explicite Ctrl+S. Voir SPEC.md §3.2.
+// SaveQueriesOnExit silently saves (best-effort, no user feedback possible
+// at this point) the editor content before the program closes — Ctrl+C or
+// an external signal (SIGTERM/SIGHUP, see main.go). Complements the
+// explicit Ctrl+S save. See SPEC.md §3.2.
 func (a *App) SaveQueriesOnExit() {
 	if a.queriesPath == "" {
 		return
@@ -541,25 +543,25 @@ func (a *App) SaveQueriesOnExit() {
 func (a *App) exportResult() {
 	path, err := a.result.Export(a.exportsDir)
 	if err != nil {
-		a.status.SetError(fmt.Sprintf("échec d'export : %s", err))
+		a.status.SetError(fmt.Sprintf(a.msgs.ErrExportFailedFmt, err))
 		return
 	}
-	a.status.SetInfo(fmt.Sprintf("résultat exporté dans %s", path))
+	a.status.SetInfo(fmt.Sprintf(a.msgs.InfoExportedFmt, path))
 }
 
-// copyResult implémente F2 : copie l'intégralité du résultat affiché vers
-// le presse-papier local via OSC 52 (SPEC.md §3.3) — nécessaire car
-// EnableMouse(true) empêche la sélection native du terminal dans ce
-// panneau. Best-effort : ni tcell ni OSC 52 ne renvoient de confirmation
-// que la copie a réellement abouti côté terminal.
+// copyResult implements F2: copies the entire displayed result to the local
+// clipboard via OSC 52 (SPEC.md §3.3) — needed because EnableMouse(true)
+// prevents native terminal selection in this panel. Best-effort: neither
+// tcell nor OSC 52 return confirmation that the copy actually succeeded on
+// the terminal side.
 func (a *App) copyResult() {
 	text := a.result.PlainText()
 	if text == "" {
-		a.status.SetError("aucun résultat à copier")
+		a.status.SetError(a.msgs.ErrNothingToCopy)
 		return
 	}
 	if a.screen != nil {
 		a.screen.SetClipboard([]byte(text))
 	}
-	a.status.SetInfo("résultat copié (OSC 52 — nécessite un terminal compatible)")
+	a.status.SetInfo(a.msgs.InfoCopied)
 }

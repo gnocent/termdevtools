@@ -2,10 +2,10 @@ package ui
 
 import "strings"
 
-// findNext cherche la prochaine occurrence de query (insensible à la casse)
-// dans text, à partir de l'offset en runes after (exclu), avec retour au
-// début du texte si rien n'est trouvé après. Les offsets renvoyés sont en
-// runes, compatibles avec TextArea.Select.
+// findNext looks for the next occurrence of query (case-insensitive) in
+// text, starting from the rune offset after (exclusive), wrapping back to
+// the start of the text if nothing is found afterwards. The returned
+// offsets are in runes, compatible with TextArea.Select.
 func findNext(text, query string, after int) (start, end int, found bool) {
 	if query == "" {
 		return 0, 0, false

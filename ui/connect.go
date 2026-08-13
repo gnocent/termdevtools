@@ -11,12 +11,11 @@ import (
 
 	"termdevtools/config"
 	"termdevtools/esclient"
+	"termdevtools/i18n"
 )
 
-const newConnectionLabel = "+ Nouvelle connexion"
-
-// ConnectResult regroupe ce qu'il faut pour démarrer l'application principale
-// après une connexion réussie.
+// ConnectResult gathers what's needed to start the main application after a
+// successful connection.
 type ConnectResult struct {
 	Client      *esclient.Client
 	Cluster     config.Cluster
@@ -29,13 +28,13 @@ type connectSecrets struct {
 	keyPassphrase string
 }
 
-// highlightForm enrobe tview.Form pour faire ressortir le champ ayant le
-// focus. tview.Form réapplique son propre style uniforme (fond/texte) à
-// TOUS ses champs à chaque frame (dans Form.Draw, via SetFormAttributes) —
-// une personnalisation par champ posée ailleurs (ex. via SetFocusFunc) est
-// donc systématiquement écrasée dès le rafraîchissement suivant. On
-// redessine ici, après coup, uniquement le champ focalisé avec des couleurs
-// inversées, ce qui survit au prochain frame car répété à chaque Draw().
+// highlightForm wraps tview.Form to make the focused field stand out.
+// tview.Form reapplies its own uniform style (background/text) to ALL its
+// fields on every frame (in Form.Draw, via SetFormAttributes) — a
+// per-field customization set elsewhere (e.g. via SetFocusFunc) is therefore
+// systematically overwritten on the next refresh. Here, we redraw only the
+// focused field afterwards, with inverted colors, which survives the next
+// frame since it's repeated on every Draw().
 type highlightForm struct {
 	*tview.Form
 }
@@ -58,11 +57,12 @@ func (h *highlightForm) Draw(screen tcell.Screen) {
 	}
 }
 
-// connectScreen implémente l'écran de connexion : liste des clusters connus
-// (§3.0) + formulaire de nouvelle connexion / secrets. Voir SPEC.md §3.0, §5.
+// connectScreen implements the connection screen: list of known clusters
+// (§3.0) + new-connection/secrets form. See SPEC.md §3.0, §5.
 type connectScreen struct {
 	tapp *tview.Application
 	cfg  *config.Config
+	msgs *i18n.Strings
 	on   func(ConnectResult)
 
 	pages   *tview.Pages
@@ -70,18 +70,19 @@ type connectScreen struct {
 	message *tview.TextView
 }
 
-// BuildConnectPage construit l'écran de connexion. onConnected est appelé
-// (depuis le thread UI) une fois une connexion établie avec succès.
+// BuildConnectPage builds the connection screen. onConnected is called
+// (from the UI thread) once a connection has been successfully established.
 func BuildConnectPage(tapp *tview.Application, cfg *config.Config, onConnected func(ConnectResult)) tview.Primitive {
 	cs := &connectScreen{
 		tapp:    tapp,
 		cfg:     cfg,
+		msgs:    i18n.For(cfg.Language),
 		on:      onConnected,
 		pages:   tview.NewPages(),
 		list:    tview.NewList().ShowSecondaryText(true),
 		message: tview.NewTextView().SetDynamicColors(true),
 	}
-	cs.list.SetBorder(true).SetTitle(" TermDevTools — connexion ")
+	cs.list.SetBorder(true).SetTitle(cs.msgs.ConnectListTitle)
 	cs.refreshList()
 	cs.pages.AddPage("list", cs.listLayout(), true, true)
 	return cs.pages
@@ -100,8 +101,8 @@ func (cs *connectScreen) refreshList() {
 		secondary := fmt.Sprintf("auth: %s", cl.AuthType)
 		cs.list.AddItem(cl.URL, secondary, 0, func() { cs.openForm(&cl) })
 	}
-	cs.list.AddItem(newConnectionLabel, "saisir une nouvelle connexion", 0, func() { cs.openForm(nil) })
-	cs.list.AddItem("Quitter", "", 0, func() { cs.tapp.Stop() })
+	cs.list.AddItem(cs.msgs.NewConnectionLabel, cs.msgs.NewConnectionSecondary, 0, func() { cs.openForm(nil) })
+	cs.list.AddItem(cs.msgs.QuitLabel, "", 0, func() { cs.tapp.Stop() })
 }
 
 func (cs *connectScreen) openForm(existing *config.Cluster) {
@@ -117,14 +118,15 @@ func (cs *connectScreen) formLayout(form tview.Primitive) tview.Primitive {
 }
 
 func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
+	msgs := cs.msgs
 	cluster := config.Cluster{
 		AuthType: config.AuthNone,
 		TLS:      config.TLS{Verify: true, CAFile: cs.cfg.DefaultCADir, ClientCert: cs.cfg.DefaultClientCertDir, ClientKey: cs.cfg.DefaultClientCertDir},
 	}
-	title := " Nouvelle connexion "
+	title := msgs.NewConnectionFormTitle
 	if existing != nil {
 		cluster = *existing
-		title = fmt.Sprintf(" Connexion à %s ", existing.URL)
+		title = fmt.Sprintf(msgs.ConnectFormTitleFmt, existing.URL)
 	}
 
 	url := cluster.URL
@@ -135,7 +137,7 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 	var password, apiKeySecret, keyPassphrase string
 
 	authOptions := []string{config.AuthNone, config.AuthBasic, config.AuthAPIKey, config.AuthMTLS}
-	authLabels := []string{"aucune", "Basic Auth", "API Key", "certificat client (mTLS)"}
+	authLabels := []string{msgs.AuthNone, msgs.AuthBasic, msgs.AuthAPIKey, msgs.AuthMTLS}
 	authIndex := indexOf(authOptions, authType)
 	if authIndex < 0 {
 		authIndex = 0
@@ -143,24 +145,24 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 
 	form := newHighlightForm()
 	form.SetBorder(true).SetTitle(title)
-	// Sans SetCancelFunc, tview.Form retombe sur un comportement par défaut
-	// (retour au premier champ) qui s'est avéré geler le focus en pratique
-	// (ex. Echap sur la liste déroulante d'authentification). On donne donc
-	// à Echap un comportement explicite et déjà testé : retour à la liste.
+	// Without SetCancelFunc, tview.Form falls back to a default behavior
+	// (return to the first field) that turned out to freeze focus in
+	// practice (e.g. Esc on the authentication dropdown). So we give Esc an
+	// explicit, already-tested behavior instead: return to the list.
 	form.SetCancelFunc(func() { cs.pages.SwitchToPage("list") })
 
-	// Les 2 premiers champs (URL, Authentification) sont statiques et ne
-	// sont jamais reconstruits, pour ne pas perdre le focus/curseur pendant
-	// la saisie. Tout ce qui suit (auth spécifique + TLS) est reconstruit
-	// dynamiquement par refreshDynamicFields, en ne montrant que les champs
-	// pertinents pour le schéma d'URL et le type d'auth courants.
+	// The first 2 fields (URL, Authentication) are static and never
+	// rebuilt, so as not to lose focus/cursor while typing. Everything
+	// after that (auth-specific + TLS) is dynamically rebuilt by
+	// refreshDynamicFields, showing only the fields relevant to the current
+	// URL scheme and auth type.
 	const staticItemCount = 2
 	const authDropdownIndex = 1
 	lastIsHTTPS := urlLooksHTTPS(url)
 	var refreshDynamicFields func()
 
 	if existing == nil {
-		form.AddInputField("URL (https://host:port)", url, 60, nil, func(v string) {
+		form.AddInputField(msgs.FieldURL, url, 60, nil, func(v string) {
 			url = v
 			if isHTTPS := urlLooksHTTPS(url); isHTTPS != lastIsHTTPS {
 				lastIsHTTPS = isHTTPS
@@ -168,14 +170,14 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 			}
 		})
 	} else {
-		form.AddTextView("URL", url, 60, 1, true, false)
+		form.AddTextView(msgs.FieldURLReadOnly, url, 60, 1, true, false)
 	}
 
-	form.AddDropDown("Authentification", authLabels, authIndex, func(_ string, index int) {
+	form.AddDropDown(msgs.AuthFieldLabel, authLabels, authIndex, func(_ string, index int) {
 		authType = authOptions[index]
-		// AddDropDown appelle ce callback une première fois de façon
-		// synchrone, à la construction, pour fixer la valeur initiale —
-		// refreshDynamicFields n'est pas encore assignée à ce moment-là.
+		// AddDropDown calls this callback once synchronously, at
+		// construction time, to set the initial value —
+		// refreshDynamicFields isn't assigned yet at that point.
 		if refreshDynamicFields == nil {
 			return
 		}
@@ -192,29 +194,29 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 
 		switch authType {
 		case config.AuthBasic:
-			form.AddInputField("Username", username, 40, nil, func(v string) { username = v })
-			form.AddPasswordField("Mot de passe", "", 40, '*', func(v string) { password = v })
+			form.AddInputField(msgs.FieldUsername, username, 40, nil, func(v string) { username = v })
+			form.AddPasswordField(msgs.FieldPassword, "", 40, '*', func(v string) { password = v })
 		case config.AuthAPIKey:
-			form.AddInputField("API Key ID", apiKeyID, 40, nil, func(v string) { apiKeyID = v })
-			form.AddPasswordField("API Key secret", "", 40, '*', func(v string) { apiKeySecret = v })
+			form.AddInputField(msgs.FieldAPIKeyID, apiKeyID, 40, nil, func(v string) { apiKeyID = v })
+			form.AddPasswordField(msgs.FieldAPIKeySecret, "", 40, '*', func(v string) { apiKeySecret = v })
 		case config.AuthMTLS:
-			// Un certificat client fait partie de la poignée de main TLS :
-			// pas de sens si la connexion n'est pas en https.
+			// A client certificate is part of the TLS handshake: doesn't
+			// make sense if the connection isn't over https.
 			if isHTTPS {
-				form.AddInputField("Certificat client", clientCert, 60, nil, func(v string) { clientCert = v })
-				form.AddInputField("Clé privée client", clientKey, 60, nil, func(v string) { clientKey = v })
-				form.AddPasswordField("Passphrase de la clé (si chiffrée)", "", 40, '*', func(v string) { keyPassphrase = v })
+				form.AddInputField(msgs.FieldClientCert, clientCert, 60, nil, func(v string) { clientCert = v })
+				form.AddInputField(msgs.FieldClientKey, clientKey, 60, nil, func(v string) { clientKey = v })
+				form.AddPasswordField(msgs.FieldKeyPassphrase, "", 40, '*', func(v string) { keyPassphrase = v })
 			}
 		}
 
 		if isHTTPS {
-			form.AddInputField("Fichier CA", caFile, 60, nil, func(v string) { caFile = v })
-			form.AddCheckbox("Vérifier le certificat serveur (TLS)", verify, func(v bool) { verify = v })
+			form.AddInputField(msgs.FieldCAFile, caFile, 60, nil, func(v string) { caFile = v })
+			form.AddCheckbox(msgs.FieldVerifyTLS, verify, func(v bool) { verify = v })
 		}
 	}
 	refreshDynamicFields()
 
-	form.AddButton("Se connecter", func() {
+	form.AddButton(msgs.ButtonConnect, func() {
 		cl := config.Cluster{
 			URL: url, AuthType: authType,
 			Username: username, APIKeyID: apiKeyID,
@@ -222,7 +224,7 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 		}
 		cs.attemptConnect(cl, connectSecrets{password: password, apiKeySecret: apiKeySecret, keyPassphrase: keyPassphrase})
 	})
-	form.AddButton("Annuler", func() {
+	form.AddButton(msgs.ButtonCancel, func() {
 		cs.pages.SwitchToPage("list")
 	})
 
@@ -230,11 +232,12 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 }
 
 func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecrets) {
+	msgs := cs.msgs
 	if cl.URL == "" {
-		cs.setMessage("L'URL est obligatoire.", "red")
+		cs.setMessage(msgs.ErrURLRequired, "red")
 		return
 	}
-	cs.setMessage("Connexion en cours...", "yellow")
+	cs.setMessage(msgs.StatusConnecting, "yellow")
 
 	timeout := time.Duration(cs.cfg.DefaultTimeoutSeconds) * time.Second
 	params := esclient.Params{
@@ -257,25 +260,25 @@ func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecret
 
 		cs.tapp.QueueUpdateDraw(func() {
 			if err != nil {
-				cs.setMessage(fmt.Sprintf("Échec de connexion : %s", err), "red")
+				cs.setMessage(fmt.Sprintf(msgs.ErrConnectFailedFmt, err), "red")
 				return
 			}
 			if result.StatusCode >= 400 {
-				cs.setMessage(fmt.Sprintf("Le cluster a répondu HTTP %d", result.StatusCode), "red")
+				cs.setMessage(fmt.Sprintf(msgs.ErrClusterHTTPFmt, result.StatusCode), "red")
 				return
 			}
 
 			cs.cfg.Promote(cl)
 			if err := cs.cfg.Save(); err != nil {
-				cs.setMessage(fmt.Sprintf("Connecté, mais échec de sauvegarde de config.yaml : %s", err), "yellow")
+				cs.setMessage(fmt.Sprintf(msgs.WarnConnectedSaveFailedFmt, err), "yellow")
 			}
 
-			cs.on(ConnectResult{Client: client, Cluster: cl, DisplayUser: displayUserFor(cl)})
+			cs.on(ConnectResult{Client: client, Cluster: cl, DisplayUser: displayUserFor(cl, msgs)})
 		})
 	}()
 }
 
-func displayUserFor(cl config.Cluster) string {
+func displayUserFor(cl config.Cluster, msgs *i18n.Strings) string {
 	switch cl.AuthType {
 	case config.AuthBasic:
 		return cl.Username
@@ -284,7 +287,7 @@ func displayUserFor(cl config.Cluster) string {
 	case config.AuthMTLS:
 		return "mTLS"
 	default:
-		return "(aucune auth)"
+		return msgs.DisplayUserNoAuth
 	}
 }
 
@@ -292,10 +295,9 @@ func (cs *connectScreen) setMessage(msg, color string) {
 	cs.message.SetText(fmt.Sprintf("[%s]%s[white]", color, tview.Escape(msg)))
 }
 
-// setFieldColors change les couleurs de champ d'un FormItem — pas de
-// méthode commune pour ça dans tview (chaque type renvoie son propre type
-// concret), d'où le switch. Utilisé par highlightForm.Draw pour faire
-// ressortir le champ ayant le focus.
+// setFieldColors changes a FormItem's field colors — tview has no common
+// method for this (each type returns its own concrete type), hence the
+// switch. Used by highlightForm.Draw to make the focused field stand out.
 func setFieldColors(item tview.FormItem, bg, text tcell.Color) {
 	switch w := item.(type) {
 	case *tview.InputField:
@@ -307,9 +309,9 @@ func setFieldColors(item tview.FormItem, bg, text tcell.Color) {
 	}
 }
 
-// urlLooksHTTPS détermine si les champs liés au TLS doivent être proposés :
-// seule une URL explicitement en http:// les masque, tout le reste
-// (https://, url encore incomplète/vide...) les affiche par défaut.
+// urlLooksHTTPS determines whether TLS-related fields should be offered:
+// only a URL explicitly in http:// hides them, everything else (https://,
+// a still-incomplete/empty URL...) shows them by default.
 func urlLooksHTTPS(url string) bool {
 	return !strings.HasPrefix(strings.ToLower(strings.TrimSpace(url)), "http://")
 }

@@ -12,8 +12,8 @@ var testColumns = map[string][]string{
 }
 
 func TestMatchCatCommandTrailingSlashBeforeQuery(t *testing.T) {
-	// "_cat/indices/?h=..." : le "/" final avant les paramètres est
-	// optionnel en HTTP et équivaut à "_cat/indices?h=...".
+	// "_cat/indices/?h=...": the trailing "/" before the parameters is
+	// optional in HTTP and is equivalent to "_cat/indices?h=...".
 	cmd, ok := matchCatCommand("indices/", testColumns)
 	if !ok || cmd != "indices" {
 		t.Errorf("expected (\"indices\", true), got (%q, %v)", cmd, ok)
@@ -39,8 +39,8 @@ func TestMatchCatCommandExact(t *testing.T) {
 }
 
 func TestMatchCatCommandWithFilterSegment(t *testing.T) {
-	// "_cat/shards/monindex" filtre sur l'index "monindex" — la commande
-	// reconnue doit rester "shards".
+	// "_cat/shards/monindex" filters on index "monindex" — the recognized
+	// command must stay "shards".
 	cmd, ok := matchCatCommand("shards/monindex", testColumns)
 	if !ok || cmd != "shards" {
 		t.Errorf("expected (\"shards\", true), got (%q, %v)", cmd, ok)
@@ -69,8 +69,8 @@ func TestMatchCatCommandMultiSegmentCommand(t *testing.T) {
 }
 
 func TestMatchCatCommandNoWordBoundary(t *testing.T) {
-	// "shardsxyz" ne doit pas matcher "shards" : ce n'est pas un filtre
-	// après une frontière '/', juste un nom de commande différent/inconnu.
+	// "shardsxyz" must not match "shards": it's not a filter after a '/'
+	// boundary, just a different/unknown command name.
 	if cmd, ok := matchCatCommand("shardsxyz", testColumns); ok {
 		t.Errorf("expected no match for 'shardsxyz', got (%q, %v)", cmd, ok)
 	}
@@ -83,13 +83,13 @@ func TestMatchCatCommandUnknown(t *testing.T) {
 }
 
 func TestCatColumnCompletionWithFilterSegment(t *testing.T) {
-	// "_cat/shards/monindex?h=st" doit se comporter comme "_cat/shards?h=st".
+	// "_cat/shards/monindex?h=st" must behave like "_cat/shards?h=st".
 	candidates, subLen, ok := catColumnCompletion("_cat/shards/monindex?h=st", testColumns)
 	if !ok {
 		t.Fatal("expected ok=true despite the filter segment before '?'")
 	}
-	// "st" est lui-même un alias de "state" dans testColumns : les deux
-	// correspondent au préfixe "st".
+	// "st" is itself an alias for "state" in testColumns: both match the
+	// "st" prefix.
 	want := []string{"st", "state"}
 	if len(candidates) != len(want) || candidates[0] != want[0] || candidates[1] != want[1] {
 		t.Errorf("expected %v, got %v", want, candidates)
@@ -114,8 +114,8 @@ func TestCatColumnCompletionHParam(t *testing.T) {
 }
 
 func TestCatColumnCompletionMultipleColumnsOnlyLastOneCompleted(t *testing.T) {
-	// "health," est déjà tapé et ne doit pas être pris en compte dans le
-	// préfixe à compléter : seul "s" (après la dernière virgule) l'est.
+	// "health," is already typed and must not be taken into account in the
+	// prefix to complete: only "s" (after the last comma) is.
 	candidates, subLen, ok := catColumnCompletion("_cat/indices?h=health,s", testColumns)
 	if !ok {
 		t.Fatal("expected ok=true")
@@ -144,8 +144,8 @@ func TestCatColumnCompletionSParam(t *testing.T) {
 }
 
 func TestCatColumnCompletionSortDirection(t *testing.T) {
-	// Une fois ":" tapé après une colonne dans s=, on complète asc/desc,
-	// pas un nom de colonne.
+	// Once ":" is typed after a column in s=, we complete asc/desc, not a
+	// column name.
 	candidates, subLen, ok := catColumnCompletion("_cat/shards?s=index:de", testColumns)
 	if !ok {
 		t.Fatal("expected ok=true for a sort-direction completion")
@@ -160,10 +160,10 @@ func TestCatColumnCompletionSortDirection(t *testing.T) {
 }
 
 func TestCatColumnCompletionColonOnlySpecialForS(t *testing.T) {
-	// Pour h= (contrairement à s=), un ':' ne déclenche pas la complétion
-	// de direction de tri : il fait partie du texte de colonne à comparer
-	// tel quel. Le contexte reste reconnu (ok=true) même si, comme ici,
-	// aucune colonne de test ne s'appelle littéralement "status:de".
+	// For h= (unlike s=), a ':' does not trigger sort-direction completion:
+	// it's part of the column text to compare as-is. The context stays
+	// recognized (ok=true) even though, as here, no test column is
+	// literally named "status:de".
 	candidates, subLen, ok := catColumnCompletion("_cat/indices?h=status:de", testColumns)
 	if !ok {
 		t.Fatal("expected ok=true: still a recognized _cat h= context")
@@ -178,11 +178,11 @@ func TestCatColumnCompletionColonOnlySpecialForS(t *testing.T) {
 
 func TestCatColumnCompletionIgnoredCases(t *testing.T) {
 	cases := []string{
-		"_search",                  // pas une commande _cat
-		"_cat/indices",             // pas de '?'
-		"_cat/indices?v",           // pas h= ni s=
-		"_cat/unknown_cmd?h=st",    // commande _cat inconnue de la table
-		"_cat/indices?format=json", // paramètre non pertinent en dernière position
+		"_search",                  // not a _cat command
+		"_cat/indices",             // no '?'
+		"_cat/indices?v",           // neither h= nor s=
+		"_cat/unknown_cmd?h=st",    // _cat command unknown to the table
+		"_cat/indices?format=json", // irrelevant parameter in last position
 	}
 	for _, prefix := range cases {
 		if _, _, ok := catColumnCompletion(prefix, testColumns); ok {
@@ -192,7 +192,7 @@ func TestCatColumnCompletionIgnoredCases(t *testing.T) {
 }
 
 func TestCatColumnCompletionMultipleParams(t *testing.T) {
-	// Le paramètre en cours de frappe est celui après le dernier '&'.
+	// The parameter currently being typed is the one after the last '&'.
 	candidates, _, ok := catColumnCompletion("_cat/indices?v&h=st", testColumns)
 	if !ok {
 		t.Fatal("expected ok=true")

@@ -1,10 +1,14 @@
 package ui
 
-import "testing"
+import (
+	"testing"
+
+	"termdevtools/i18n"
+)
 
 func TestCompletionPrefixAtEndOfLine(t *testing.T) {
-	e := NewEditor()
-	e.view.SetText("GET _cat/s", true) // curseur en fin de texte
+	e := NewEditor(i18n.For(""))
+	e.view.SetText("GET _cat/s", true) // cursor at end of text
 
 	prefix, start, end, ok := e.CompletionPrefix()
 	if !ok {
@@ -19,7 +23,7 @@ func TestCompletionPrefixAtEndOfLine(t *testing.T) {
 }
 
 func TestCompletionPrefixEmpty(t *testing.T) {
-	e := NewEditor()
+	e := NewEditor(i18n.For(""))
 	e.view.SetText("GET ", true)
 
 	prefix, _, _, ok := e.CompletionPrefix()
@@ -36,10 +40,10 @@ func TestCompletionPrefixNotAMethodLine(t *testing.T) {
 		"# un commentaire",
 		`{"query": {}}`,
 		"  ",
-		"GETX _cat/s", // pas une méthode reconnue
+		"GETX _cat/s", // not a recognized method
 	}
 	for _, text := range cases {
-		e := NewEditor()
+		e := NewEditor(i18n.For(""))
 		e.view.SetText(text, true)
 		if _, _, _, ok := e.CompletionPrefix(); ok {
 			t.Errorf("expected ok=false for %q", text)
@@ -48,7 +52,7 @@ func TestCompletionPrefixNotAMethodLine(t *testing.T) {
 }
 
 func TestCompletionPrefixSecondLine(t *testing.T) {
-	e := NewEditor()
+	e := NewEditor(i18n.For(""))
 	e.view.SetText("# cheatsheet\nGET _cat/sh", true)
 
 	prefix, start, end, ok := e.CompletionPrefix()
@@ -58,7 +62,7 @@ func TestCompletionPrefixSecondLine(t *testing.T) {
 	if prefix != "_cat/sh" {
 		t.Errorf("expected prefix %q, got %q", "_cat/sh", prefix)
 	}
-	// "# cheatsheet\n" fait 13 runes ; "GET " en fait 4 de plus.
+	// "# cheatsheet\n" is 13 runes; "GET " adds 4 more.
 	if start != 13+4 {
 		t.Errorf("expected start %d, got %d", 13+4, start)
 	}
@@ -68,7 +72,7 @@ func TestCompletionPrefixSecondLine(t *testing.T) {
 }
 
 func TestApplyCompletion(t *testing.T) {
-	e := NewEditor()
+	e := NewEditor(i18n.For(""))
 	e.view.SetText("GET _cat/s", true)
 
 	_, start, end, ok := e.CompletionPrefix()

@@ -11,11 +11,19 @@ import (
 	"termdevtools/esclient"
 )
 
-// newTestApp démarre une App complète sur un écran simulé (aucun terminal
-// ni cluster réel requis : esclient.New ne se connecte pas tant qu'aucune
-// requête n'est exécutée). Sert à vérifier, sans pty, le câblage du popup
-// de complétion Tab qu'aucun test unitaire pur ne peut couvrir.
+// newTestApp starts a full App on a simulated screen (no real terminal or
+// cluster required: esclient.New doesn't connect until a request is
+// executed). Used to check, without a pty, the Tab completion popup's
+// wiring, which no pure unit test can cover.
 func newTestApp(t *testing.T) (*App, tcell.SimulationScreen) {
+	t.Helper()
+	return newTestAppLang(t, "")
+}
+
+// newTestAppLang is newTestApp with an explicit interface language ("fr",
+// "en", or "" for the default), to verify config.Config.Language is
+// actually honored end-to-end (see TestInterfaceLanguageEnglish).
+func newTestAppLang(t *testing.T, lang string) (*App, tcell.SimulationScreen) {
 	t.Helper()
 
 	client, err := esclient.New(esclient.Params{URL: "http://127.0.0.1:1"})
@@ -23,7 +31,7 @@ func newTestApp(t *testing.T) (*App, tcell.SimulationScreen) {
 		t.Fatalf("esclient.New: %v", err)
 	}
 	cr := ConnectResult{Client: client, Cluster: config.Cluster{URL: "http://127.0.0.1:1"}, DisplayUser: "test"}
-	cfg := &config.Config{DefaultTimeoutSeconds: 5}
+	cfg := &config.Config{DefaultTimeoutSeconds: 5, Language: lang}
 
 	screen := tcell.NewSimulationScreen("")
 	if err := screen.Init(); err != nil {
@@ -51,8 +59,8 @@ func newTestApp(t *testing.T) (*App, tcell.SimulationScreen) {
 	return app, screen
 }
 
-// waitForDraw laisse le temps à la goroutine de l'Application de traiter
-// les événements déjà injectés et de redessiner.
+// waitForDraw gives the Application's goroutine time to process the
+// already-injected events and redraw.
 func waitForDraw(t *testing.T, screen tcell.SimulationScreen) {
 	t.Helper()
 	time.Sleep(30 * time.Millisecond)
@@ -79,10 +87,11 @@ func TestCompletionSingleMatchAppliesInline(t *testing.T) {
 	}
 }
 
-// TestCompletionTrailingSlashIsIgnored couvre le cas signalé : le "/" final
-// avant les paramètres (ou en toute fin de chemin) est optionnel en HTTP —
-// "_cat/plugins/" doit se compléter comme "_cat/plugins", pas échouer faute
-// de correspondance exacte (aucun endpoint connu ne stocke de "/" final).
+// TestCompletionTrailingSlashIsIgnored covers the reported case: the
+// trailing "/" before the parameters (or at the very end of the path) is
+// optional in HTTP — "_cat/plugins/" must complete like "_cat/plugins",
+// not fail for lack of an exact match (no known endpoint stores a
+// trailing "/").
 func TestCompletionTrailingSlashIsIgnored(t *testing.T) {
 	app, screen := newTestApp(t)
 

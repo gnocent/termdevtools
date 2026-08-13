@@ -28,7 +28,7 @@ func TestCopyResultSendsPlainTextToClipboard(t *testing.T) {
 func TestCopyResultEmptyShowsError(t *testing.T) {
 	app, screen := newTestApp(t)
 
-	// Rien n'a encore été affiché dans le panneau droit.
+	// Nothing has been displayed in the right panel yet.
 	screen.InjectKey(tcell.KeyF2, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 

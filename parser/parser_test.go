@@ -37,7 +37,7 @@ func TestParseAll(t *testing.T) {
 }
 
 func TestRequestAtLine(t *testing.T) {
-	// Ligne du corps JSON de la deuxième requête (index 5 = `"query": ...`)
+	// Line of the second request's JSON body (index 5 = `"query": ...`)
 	r, err := RequestAtLine(sample, 5)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -46,7 +46,7 @@ func TestRequestAtLine(t *testing.T) {
 		t.Errorf("expected POST request at line 5, got %+v", r)
 	}
 
-	// Ligne vide entre deux requêtes (index 2) -> doit retomber sur la requête précédente (GET)
+	// Blank line between two requests (index 2) -> should fall back to the previous request (GET)
 	r, err = RequestAtLine(sample, 2)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

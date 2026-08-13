@@ -1,5 +1,5 @@
-// Command termdevtools est un client Elasticsearch en mode terminal, inspiré
-// de la vue DevTools de Kibana. Voir SPEC.md pour le détail des choix.
+// Command termdevtools is a terminal-mode Elasticsearch client, inspired by
+// Kibana's DevTools view. See SPEC.md for the detail of design choices.
 package main
 
 import (
@@ -14,19 +14,24 @@ import (
 	"github.com/rivo/tview"
 
 	"termdevtools/config"
+	"termdevtools/i18n"
 	"termdevtools/ui"
 )
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Erreur de chargement de config.yaml :", err)
+		// cfg (and so cfg.Language) isn't available yet at this point —
+		// i18n.For("") falls back to French, matching the interface's
+		// original default language.
+		fmt.Fprintf(os.Stderr, i18n.For("").ErrConfigLoadFmt+"\n", err)
 		os.Exit(1)
 	}
+	msgs := i18n.For(cfg.Language)
 
 	exeDir, err := config.ExecutableDir()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Impossible de déterminer le dossier de l'exécutable :", err)
+		fmt.Fprintf(os.Stderr, msgs.ErrExecDirFmt+"\n", err)
 		os.Exit(1)
 	}
 	paths := ui.Paths{
@@ -39,10 +44,10 @@ func main() {
 	tapp := tview.NewApplication()
 	pages := tview.NewPages()
 
-	// Ctrl+C doit pouvoir quitter dès l'écran de connexion, avant même que
-	// App (et son propre SetInputCapture plus complet) n'existe — sinon
-	// aucun raccourci de sortie n'est actif tant que la connexion n'a pas
-	// abouti. App.Start() remplacera ce capteur minimal par le sien.
+	// Ctrl+C must be able to quit right from the connection screen, before
+	// App (and its own, more complete SetInputCapture) even exists —
+	// otherwise no exit shortcut is active until the connection succeeds.
+	// App.Start() will replace this minimal handler with its own.
 	tapp.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyCtrlC {
 			tapp.Stop()
@@ -51,9 +56,9 @@ func main() {
 		return event
 	})
 
-	// Référence à l'App courante (nil tant qu'aucune connexion n'a abouti),
-	// pour permettre au gestionnaire de signaux ci-dessous de sauvegarder
-	// les requêtes en cours même en cas d'arrêt externe du programme.
+	// Reference to the current App (nil until a connection has succeeded),
+	// so the signal handler below can save in-progress requests even on an
+	// external shutdown of the program.
 	var currentApp atomic.Pointer[ui.App]
 
 	connectPage := ui.BuildConnectPage(tapp, cfg, func(cr ui.ConnectResult) {
@@ -64,12 +69,12 @@ func main() {
 	})
 	pages.AddPage("connect", connectPage, true, true)
 
-	// Sauvegarde best-effort du panneau gauche en plus de Ctrl+S explicite
-	// (SPEC.md §3.2) : Ctrl+C est déjà couvert par App.handleGlobalKeys (ce
-	// n'est qu'un octet de contrôle lu par le terminal en mode raw, pas un
-	// signal OS). SIGTERM/SIGHUP couvrent les arrêts externes (kill, session
-	// SSH coupée) — SIGKILL reste, comme pour tout programme, impossible à
-	// intercepter.
+	// Best-effort save of the left panel in addition to explicit Ctrl+S
+	// (SPEC.md §3.2): Ctrl+C is already covered by App.handleGlobalKeys (it's
+	// just a control byte read by the terminal in raw mode, not an OS
+	// signal). SIGTERM/SIGHUP cover external shutdowns (kill, a dropped SSH
+	// session) — SIGKILL, as with any program, remains impossible to
+	// intercept.
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGHUP)
 	go func() {
@@ -82,7 +87,7 @@ func main() {
 
 	tapp.SetRoot(pages, true).EnableMouse(true)
 	if err := tapp.Run(); err != nil {
-		fmt.Fprintln(os.Stderr, "Erreur fatale :", err)
+		fmt.Fprintf(os.Stderr, msgs.ErrFatalFmt+"\n", err)
 		os.Exit(1)
 	}
 }

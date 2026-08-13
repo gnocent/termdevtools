@@ -1,0 +1,284 @@
+// Package i18n provides the message catalogs (French, English) for
+// TermDevTools' user interface, selected via config.Config.Language. See
+// SPEC.md §3 for the screens this covers.
+package i18n
+
+import "strings"
+
+const (
+	FR = "fr"
+	EN = "en"
+)
+
+// Strings is the full set of user-facing text in the interface. Both the fr
+// and en catalogs below are values of this same struct, so a field added to
+// one and forgotten in the other is a compile error in whichever file still
+// misses it once code references the field — not a silently missing
+// translation at runtime.
+type Strings struct {
+	// Connect screen (connect.go)
+	ConnectListTitle           string
+	NewConnectionLabel         string
+	NewConnectionSecondary     string
+	QuitLabel                  string
+	NewConnectionFormTitle     string
+	ConnectFormTitleFmt        string // " Connecting to %s "
+	AuthFieldLabel             string
+	AuthNone                   string
+	AuthBasic                  string
+	AuthAPIKey                 string
+	AuthMTLS                   string
+	FieldURL                   string
+	FieldURLReadOnly           string
+	FieldUsername              string
+	FieldPassword              string
+	FieldAPIKeyID              string
+	FieldAPIKeySecret          string
+	FieldClientCert            string
+	FieldClientKey             string
+	FieldKeyPassphrase         string
+	FieldCAFile                string
+	FieldVerifyTLS             string
+	ButtonConnect              string
+	ButtonCancel               string
+	ErrURLRequired             string
+	StatusConnecting           string
+	ErrConnectFailedFmt        string // "Échec de connexion : %s"
+	ErrClusterHTTPFmt          string // "Le cluster a répondu HTTP %d"
+	WarnConnectedSaveFailedFmt string // "Connecté, mais échec de sauvegarde de config.yaml : %s"
+	DisplayUserNoAuth          string
+
+	// Main layout (app.go, editor.go, result.go)
+	EditorTitle     string
+	ResultTitle     string
+	CompletionTitle string
+	HelpViewTitle   string
+	SearchLabel     string
+
+	// Status bar (statusbar.go)
+	StatusBarTemplate string // "[white]Cluster: [green]%s[white]  |  ...: [green]%s[white]  |  [%s]%s[white]"
+	StatusIdle        string
+	StatusRunning     string
+	StatusResultFmt   string // "HTTP %d en %s"
+	ShortcutsHelpBar  string
+
+	// App-level status/error messages (app.go)
+	ErrLoadFailedFmt   string // "échec du chargement de %s : %s"
+	ErrNoMatchFound    string
+	ErrNoCompletion    string
+	ErrSaveFailedFmt   string
+	InfoSavedFmt       string
+	ErrExportFailedFmt string
+	InfoExportedFmt    string
+	ErrNothingToCopy   string
+	InfoCopied         string
+	ErrNothingToExport string // result.go's Export()
+
+	// Help popup content (F1)
+	HelpContent string
+
+	// Startup errors shown before the UI is up (main.go)
+	ErrConfigLoadFmt string
+	ErrExecDirFmt    string
+	ErrFatalFmt      string
+}
+
+var fr = Strings{
+	ConnectListTitle:           " TermDevTools — connexion ",
+	NewConnectionLabel:         "+ Nouvelle connexion",
+	NewConnectionSecondary:     "saisir une nouvelle connexion",
+	QuitLabel:                  "Quitter",
+	NewConnectionFormTitle:     " Nouvelle connexion ",
+	ConnectFormTitleFmt:        " Connexion à %s ",
+	AuthFieldLabel:             "Authentification",
+	AuthNone:                   "aucune",
+	AuthBasic:                  "Basic Auth",
+	AuthAPIKey:                 "API Key",
+	AuthMTLS:                   "certificat client (mTLS)",
+	FieldURL:                   "URL (https://host:port)",
+	FieldURLReadOnly:           "URL",
+	FieldUsername:              "Username",
+	FieldPassword:              "Mot de passe",
+	FieldAPIKeyID:              "API Key ID",
+	FieldAPIKeySecret:          "API Key secret",
+	FieldClientCert:            "Certificat client",
+	FieldClientKey:             "Clé privée client",
+	FieldKeyPassphrase:         "Passphrase de la clé (si chiffrée)",
+	FieldCAFile:                "Fichier CA",
+	FieldVerifyTLS:             "Vérifier le certificat serveur (TLS)",
+	ButtonConnect:              "Se connecter",
+	ButtonCancel:               "Annuler",
+	ErrURLRequired:             "L'URL est obligatoire.",
+	StatusConnecting:           "Connexion en cours...",
+	ErrConnectFailedFmt:        "Échec de connexion : %s",
+	ErrClusterHTTPFmt:          "Le cluster a répondu HTTP %d",
+	WarnConnectedSaveFailedFmt: "Connecté, mais échec de sauvegarde de config.yaml : %s",
+	DisplayUserNoAuth:          "(aucune auth)",
+
+	EditorTitle:     " Requêtes ",
+	ResultTitle:     " Résultat ",
+	CompletionTitle: " Compléter (Entrée, Echap pour annuler) ",
+	HelpViewTitle:   " Aide (Echap pour fermer) ",
+	SearchLabel:     "Rechercher : ",
+
+	StatusBarTemplate: "[white]Cluster: [green]%s[white]  |  Utilisateur: [green]%s[white]  |  [%s]%s[white]",
+	StatusIdle:        "prêt",
+	StatusRunning:     "requête en cours...",
+	StatusResultFmt:   "HTTP %d en %s",
+	ShortcutsHelpBar: "[gray]Ctrl+Entrée[white] exécuter   [gray]Tab[white] compléter   [gray]Ctrl+←/→[white] changer de panneau   " +
+		"[gray]Ctrl+Maj+←/→[white] redimensionner   [gray]Ctrl+F[white] rechercher   [gray]Ctrl+S[white] sauvegarder/exporter   " +
+		"[gray]F2[white] copier   [gray]F1[white] aide   [gray]Ctrl+C[white] quitter",
+
+	ErrLoadFailedFmt:   "échec du chargement de %s : %s",
+	ErrNoMatchFound:    "aucune occurrence trouvée",
+	ErrNoCompletion:    "aucune complétion",
+	ErrSaveFailedFmt:   "échec de sauvegarde : %s",
+	InfoSavedFmt:       "requêtes sauvegardées dans %s",
+	ErrExportFailedFmt: "échec d'export : %s",
+	InfoExportedFmt:    "résultat exporté dans %s",
+	ErrNothingToCopy:   "aucun résultat à copier",
+	InfoCopied:         "résultat copié (OSC 52 — nécessite un terminal compatible)",
+	ErrNothingToExport: "aucun résultat à exporter",
+
+	HelpContent: `[yellow]TermDevTools[white] — client Elasticsearch en mode terminal
+
+[green]Panneau gauche[white] : requêtes "MÉTHODE endpoint" + JSON optionnel
+sur les lignes suivantes. Lignes [gray]#[white] = commentaires.
+
+[green]Panneau droit[white] : résultat de la dernière requête — JSON coloré,
+ou texte brut (ex. réponses _cat/*).
+
+[yellow]Raccourcis clavier[white]
+
+  [aqua]Ctrl+Entrée[white]      Exécuter la requête sous le curseur
+  [aqua]Tab[white]              Compléter un endpoint en cours de frappe
+  [aqua]Ctrl+←/→[white]         Changer de panneau
+  [aqua]Ctrl+Maj+←/→[white]     Redimensionner le split gauche/droite
+  [aqua]Ctrl+F[white]           Rechercher dans le panneau actif
+  [aqua]Ctrl+S[white]           Sauvegarder (gauche) / exporter (droite)
+  [aqua]F2[white]               Copier le résultat (panneau droit) dans le presse-papier
+  [aqua]F1[white]               Afficher cette aide
+  [aqua]Ctrl+C[white]           Quitter (sauvegarde automatiquement le panneau gauche)
+
+[yellow]Fichiers[white]
+
+  [aqua]~/.config/termdevtools/[white]  (personnel)
+    config.yaml     clusters connus
+    queries_*.txt   sauvegarde par cluster (Ctrl+S)
+  [aqua]<dossier du binaire>/[white]  (équipe, partagé)
+    cheatsheet.txt  requêtes par défaut de l'éditeur
+    endpoints.txt   liste proposée par la complétion Tab
+    exports/        résultats exportés (Ctrl+S)
+
+[gray]Echap pour fermer cette aide.[white]`,
+
+	ErrConfigLoadFmt: "Erreur de chargement de config.yaml : %s",
+	ErrExecDirFmt:    "Impossible de déterminer le dossier de l'exécutable : %s",
+	ErrFatalFmt:      "Erreur fatale : %s",
+}
+
+var en = Strings{
+	ConnectListTitle:           " TermDevTools — connect ",
+	NewConnectionLabel:         "+ New connection",
+	NewConnectionSecondary:     "enter a new connection",
+	QuitLabel:                  "Quit",
+	NewConnectionFormTitle:     " New connection ",
+	ConnectFormTitleFmt:        " Connecting to %s ",
+	AuthFieldLabel:             "Authentication",
+	AuthNone:                   "none",
+	AuthBasic:                  "Basic Auth",
+	AuthAPIKey:                 "API Key",
+	AuthMTLS:                   "client certificate (mTLS)",
+	FieldURL:                   "URL (https://host:port)",
+	FieldURLReadOnly:           "URL",
+	FieldUsername:              "Username",
+	FieldPassword:              "Password",
+	FieldAPIKeyID:              "API Key ID",
+	FieldAPIKeySecret:          "API Key secret",
+	FieldClientCert:            "Client certificate",
+	FieldClientKey:             "Client private key",
+	FieldKeyPassphrase:         "Key passphrase (if encrypted)",
+	FieldCAFile:                "CA file",
+	FieldVerifyTLS:             "Verify server certificate (TLS)",
+	ButtonConnect:              "Connect",
+	ButtonCancel:               "Cancel",
+	ErrURLRequired:             "The URL is required.",
+	StatusConnecting:           "Connecting...",
+	ErrConnectFailedFmt:        "Connection failed: %s",
+	ErrClusterHTTPFmt:          "The cluster responded HTTP %d",
+	WarnConnectedSaveFailedFmt: "Connected, but failed to save config.yaml: %s",
+	DisplayUserNoAuth:          "(no auth)",
+
+	EditorTitle:     " Requests ",
+	ResultTitle:     " Result ",
+	CompletionTitle: " Complete (Enter, Esc to cancel) ",
+	HelpViewTitle:   " Help (Esc to close) ",
+	SearchLabel:     "Search: ",
+
+	StatusBarTemplate: "[white]Cluster: [green]%s[white]  |  User: [green]%s[white]  |  [%s]%s[white]",
+	StatusIdle:        "ready",
+	StatusRunning:     "request in progress...",
+	StatusResultFmt:   "HTTP %d in %s",
+	ShortcutsHelpBar: "[gray]Ctrl+Enter[white] execute   [gray]Tab[white] complete   [gray]Ctrl+←/→[white] switch panel   " +
+		"[gray]Ctrl+Shift+←/→[white] resize   [gray]Ctrl+F[white] search   [gray]Ctrl+S[white] save/export   " +
+		"[gray]F2[white] copy   [gray]F1[white] help   [gray]Ctrl+C[white] quit",
+
+	ErrLoadFailedFmt:   "failed to load %s: %s",
+	ErrNoMatchFound:    "no match found",
+	ErrNoCompletion:    "no completion",
+	ErrSaveFailedFmt:   "save failed: %s",
+	InfoSavedFmt:       "requests saved to %s",
+	ErrExportFailedFmt: "export failed: %s",
+	InfoExportedFmt:    "result exported to %s",
+	ErrNothingToCopy:   "nothing to copy",
+	InfoCopied:         "result copied (OSC 52 — requires a compatible terminal)",
+	ErrNothingToExport: "nothing to export",
+
+	HelpContent: `[yellow]TermDevTools[white] — terminal-mode Elasticsearch client
+
+[green]Left panel[white]: "METHOD endpoint" requests + optional JSON
+on the following lines. Lines starting with [gray]#[white] = comments.
+
+[green]Right panel[white]: result of the last request — colorized JSON,
+or plain text (e.g. _cat/* responses).
+
+[yellow]Keyboard shortcuts[white]
+
+  [aqua]Ctrl+Enter[white]       Execute the request under the cursor
+  [aqua]Tab[white]              Complete an endpoint while typing
+  [aqua]Ctrl+←/→[white]         Switch panel
+  [aqua]Ctrl+Shift+←/→[white]   Resize the left/right split
+  [aqua]Ctrl+F[white]           Search in the active panel
+  [aqua]Ctrl+S[white]           Save (left) / export (right)
+  [aqua]F2[white]               Copy the result (right panel) to the clipboard
+  [aqua]F1[white]               Show this help
+  [aqua]Ctrl+C[white]           Quit (auto-saves the left panel)
+
+[yellow]Files[white]
+
+  [aqua]~/.config/termdevtools/[white]  (personal)
+    config.yaml     known clusters
+    queries_*.txt   per-cluster save (Ctrl+S)
+  [aqua]<binary's directory>/[white]  (team, shared)
+    cheatsheet.txt  editor's default requests
+    endpoints.txt   list offered by Tab completion
+    exports/        exported results (Ctrl+S)
+
+[gray]Esc to close this help.[white]`,
+
+	ErrConfigLoadFmt: "Error loading config.yaml: %s",
+	ErrExecDirFmt:    "Could not determine the executable's directory: %s",
+	ErrFatalFmt:      "Fatal error: %s",
+}
+
+// For returns the message catalog for lang ("fr" or "en", case-insensitive).
+// Defaults to French for anything else (empty, unrecognized) — preserves
+// the interface's original language for configs predating this setting.
+func For(lang string) *Strings {
+	switch strings.ToLower(strings.TrimSpace(lang)) {
+	case EN:
+		return &en
+	default:
+		return &fr
+	}
+}

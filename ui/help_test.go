@@ -7,9 +7,9 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-// screenText concatène tout le contenu texte actuellement affiché par
-// l'écran simulé, sans mise en forme — utile pour vérifier qu'un contenu
-// donné est bien rendu à l'écran.
+// screenText concatenates all the text content currently displayed by the
+// simulated screen, with no formatting — useful to check that given content
+// is actually rendered on screen.
 func screenText(screen tcell.SimulationScreen) string {
 	cells, w, h := screen.GetContents()
 	var b strings.Builder
@@ -38,11 +38,11 @@ func TestHelpOpensAndClosesWithEscape(t *testing.T) {
 		t.Errorf("expected shortcuts section to be rendered on screen, got:\n%s", text)
 	}
 
-	// Sur un terminal bas (ici 24 lignes), la section "Fichiers" ne tient
-	// pas au-dessus de la ligne de flottaison : elle doit rester
-	// accessible en scrollant (TextView.SetWrap laisse le défilement
-	// standard actif, cf. handleGlobalKeys qui laisse passer les touches
-	// autres qu'Echap pendant que l'aide est affichée).
+	// On a short terminal (24 lines here), the "Fichiers" section doesn't
+	// fit above the fold: it must remain reachable by scrolling
+	// (TextView.SetWrap keeps standard scrolling active, see
+	// handleGlobalKeys which lets through keys other than Escape while
+	// help is displayed).
 	screen.InjectKey(tcell.KeyEnd, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 	if text := screenText(screen); !strings.Contains(text, "Fichiers") || !strings.Contains(text, "config.yaml") {
@@ -85,13 +85,40 @@ func TestHelpIgnoresOtherShortcutsWhileOpen(t *testing.T) {
 	screen.InjectKey(tcell.KeyF1, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	// Ctrl+S ne doit pas déclencher une sauvegarde/export pendant que
-	// l'aide est affichée : elle capte Entrée/Echap pour elle-même, tout
-	// le reste doit rester sans effet sur le reste de l'appli.
+	// Ctrl+S must not trigger a save/export while help is displayed: it
+	// captures Enter/Escape for itself, everything else must remain
+	// without effect on the rest of the app.
 	screen.InjectKey(tcell.KeyCtrlS, 0, tcell.ModCtrl)
 	waitForDraw(t, screen)
 
 	if !app.helpVisible {
 		t.Error("expected help to remain open, unaffected by other shortcuts")
+	}
+}
+
+// TestInterfaceLanguageEnglish checks that config.Config.Language actually
+// switches the rendered interface, end-to-end — not just that the i18n
+// catalog compiles. Covers both a status-bar string (StatusBar.SetIdle) and
+// the F1 help screen.
+func TestInterfaceLanguageEnglish(t *testing.T) {
+	_, screen := newTestAppLang(t, "en")
+
+	text := screenText(screen)
+	if !strings.Contains(text, "ready") {
+		t.Errorf("expected the English status bar ('ready'), got:\n%s", text)
+	}
+	if strings.Contains(text, "prêt") {
+		t.Errorf("did not expect French status text with Language=en, got:\n%s", text)
+	}
+
+	screen.InjectKey(tcell.KeyF1, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	text = screenText(screen)
+	if !strings.Contains(text, "Keyboard shortcuts") {
+		t.Errorf("expected the English help screen, got:\n%s", text)
+	}
+	if strings.Contains(text, "Raccourcis clavier") {
+		t.Errorf("did not expect French help text with Language=en, got:\n%s", text)
 	}
 }

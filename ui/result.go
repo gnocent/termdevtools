@@ -12,51 +12,54 @@ import (
 	"unicode"
 
 	"github.com/rivo/tview"
+
+	"termdevtools/i18n"
 )
 
-// searchRegionID est l'unique région tview utilisée pour surligner/scroller
-// vers l'occurrence courante de la recherche (Ctrl+F, cf. HighlightLine) —
-// un seul résultat mis en évidence à la fois, pas besoin d'IDs distincts.
+// searchRegionID is the single tview region used to highlight/scroll to the
+// current search match (Ctrl+F, see HighlightLine) — only one result
+// highlighted at a time, so no need for distinct IDs.
 const searchRegionID = "match"
 
-// ResultView est le panneau droit : le résultat de la dernière requête.
-// JSON prettifié et coloré si la réponse est du JSON valide, texte brut
-// sinon (ex. réponses `_cat`). Voir SPEC.md §3.3.
+// ResultView is the right panel: the result of the last request.
+// Pretty-printed and colorized JSON if the response is valid JSON, plain
+// text otherwise (e.g. `_cat` responses). See SPEC.md §3.3.
 type ResultView struct {
 	view          *tview.TextView
-	plain         string // texte affiché sans les tags de couleur, pour la recherche et l'export
-	displayedText string // dernier texte réellement envoyé à SetText (avec tags de couleur), pour HighlightLine
+	plain         string // displayed text without color tags, for search and export
+	displayedText string // last text actually sent to SetText (with color tags), for HighlightLine
 	isJSON        bool
+	msgs          *i18n.Strings
 }
 
-// NewResultView crée un panneau résultat vide.
-func NewResultView() *ResultView {
+// NewResultView creates an empty result panel.
+func NewResultView(msgs *i18n.Strings) *ResultView {
 	view := tview.NewTextView().
 		SetDynamicColors(true).
 		SetWrap(true).
 		SetScrollable(true).
 		SetRegions(true)
-	view.SetBorder(true).SetTitle(" Résultat ")
-	return &ResultView{view: view}
+	view.SetBorder(true).SetTitle(msgs.ResultTitle)
+	return &ResultView{view: view, msgs: msgs}
 }
 
-// Widget renvoie le composant tview à insérer dans le layout.
+// Widget returns the tview component to insert into the layout.
 func (r *ResultView) Widget() tview.Primitive {
 	return r.view
 }
 
-// Primitive renvoie le TextView sous-jacent.
+// Primitive returns the underlying TextView.
 func (r *ResultView) Primitive() tview.Primitive {
 	return r.view
 }
 
-// PlainText renvoie le contenu actuellement affiché, sans les tags de
-// couleur — utilisé pour l'export (Ctrl+S) et la copie presse-papier (F2).
+// PlainText returns the currently displayed content, without color tags —
+// used for export (Ctrl+S) and clipboard copy (F2).
 func (r *ResultView) PlainText() string {
 	return r.plain
 }
 
-// Clear vide le panneau (état initial avant toute exécution).
+// Clear empties the panel (initial state before any execution).
 func (r *ResultView) Clear() {
 	r.plain = ""
 	r.displayedText = ""
@@ -65,8 +68,8 @@ func (r *ResultView) Clear() {
 	r.view.ScrollToBeginning()
 }
 
-// Show affiche le corps de réponse body : JSON prettifié et coloré s'il est
-// valide, texte brut (police fixe) sinon.
+// Show displays the response body body: pretty-printed and colorized JSON
+// if valid, plain text (fixed-width) otherwise.
 func (r *ResultView) Show(body []byte) {
 	var buf bytes.Buffer
 	if err := json.Indent(&buf, body, "", "  "); err == nil {
@@ -82,7 +85,7 @@ func (r *ResultView) Show(body []byte) {
 	r.view.ScrollToBeginning()
 }
 
-// ShowError affiche un message d'erreur en rouge.
+// ShowError displays an error message in red.
 func (r *ResultView) ShowError(message string) {
 	r.plain = message
 	r.isJSON = false
@@ -91,12 +94,12 @@ func (r *ResultView) ShowError(message string) {
 	r.view.ScrollToBeginning()
 }
 
-// Export écrit le résultat actuellement affiché dans un fichier horodaté du
-// dossier dir (créé si besoin), en .json si c'est du JSON valide, .txt
-// sinon. Renvoie le chemin du fichier créé. Voir SPEC.md §3.3 et §9.1.
+// Export writes the currently displayed result to a timestamped file in
+// directory dir (created if needed), as .json if it's valid JSON, .txt
+// otherwise. Returns the path of the created file. See SPEC.md §3.3 and §9.1.
 func (r *ResultView) Export(dir string) (string, error) {
 	if r.plain == "" {
-		return "", errors.New("aucun résultat à exporter")
+		return "", errors.New(r.msgs.ErrNothingToExport)
 	}
 
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -115,23 +118,21 @@ func (r *ResultView) Export(dir string) (string, error) {
 	return path, nil
 }
 
-// HighlightLine positionne le panneau sur la ligne donnée (0-indexée),
-// utilisé par la recherche (Ctrl+F). Passe par le mécanisme de régions de
-// tview (ancré au contenu) plutôt que TextView.ScrollTo(ligne, ...), dont
-// le numéro de ligne redevient une ligne d'affichage — pas logique — dès
-// que le retour à la ligne automatique est actif (SPEC.md §3.1) : un
-// simple ScrollTo viserait le mauvais endroit dès qu'une ligne précédente
-// aurait débordé sur plusieurs lignes affichées.
+// HighlightLine scrolls the panel to the given (0-indexed) line, used by
+// search (Ctrl+F). Goes through tview's region mechanism (anchored to
+// content) rather than TextView.ScrollTo(line, ...), whose line number
+// becomes a display line — not a logical one — as soon as automatic word
+// wrap is active (SPEC.md §3.1): a plain ScrollTo would target the wrong
+// spot as soon as a preceding line had wrapped across several display lines.
 func (r *ResultView) HighlightLine(line int) {
 	lines := strings.Split(r.displayedText, "\n")
 	if line < 0 || line >= len(lines) {
 		return
 	}
 
-	// Les tokens JSON ne contiennent jamais de "\n" (colorizeJSON ne fait
-	// que reformater des tokens, jamais insérer/retirer de saut de ligne),
-	// donc displayedText a exactement le même découpage en lignes que
-	// plain : envelopper la ligne ciblée d'une région est sûr.
+	// JSON tokens never contain "\n" (colorizeJSON only reformats tokens,
+	// never inserts/removes a line break), so displayedText has exactly the
+	// same line split as plain: wrapping the targeted line in a region is safe.
 	tagged := make([]string, len(lines))
 	copy(tagged, lines)
 	tagged[line] = `["` + searchRegionID + `"]` + tagged[line] + `[""]`
@@ -141,9 +142,9 @@ func (r *ResultView) HighlightLine(line int) {
 	r.view.ScrollToHighlight()
 }
 
-// FindNext cherche la prochaine occurrence (insensible à la casse) de query
-// dans le texte brut affiché, à partir de la ligne afterLine (exclue).
-// Renvoie le numéro de ligne du prochain résultat, avec retour au début.
+// FindNext looks for the next (case-insensitive) occurrence of query in the
+// displayed plain text, starting from line afterLine (exclusive). Returns
+// the line number of the next match, wrapping back to the start.
 func (r *ResultView) FindNext(query string, afterLine int) (int, bool) {
 	if query == "" || r.plain == "" {
 		return 0, false
@@ -168,9 +169,9 @@ func (r *ResultView) FindNext(query string, afterLine int) (int, bool) {
 
 var jsonTokenRe = regexp.MustCompile(`"(?:\\.|[^"\\])*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null|[{}\[\],:]`)
 
-// colorizeJSON colore un texte JSON déjà indenté (json.Indent) en tags de
-// couleur tview. Toute construction manuelle de tag n'est possible que si
-// les crochets "[" du contenu littéral sont échappés (convention tview).
+// colorizeJSON colorizes an already-indented (json.Indent) JSON text with
+// tview color tags. Any manual tag construction is only safe if literal "["
+// characters in the content are escaped (tview convention).
 func colorizeJSON(text string) string {
 	var b strings.Builder
 	last := 0
@@ -198,7 +199,7 @@ func colorizeJSON(text string) string {
 			b.WriteString("[gray]")
 			b.WriteString(tok)
 			b.WriteString("[white]")
-		default: // nombre
+		default: // number
 			b.WriteString("[#af87ff]")
 			b.WriteString(tok)
 			b.WriteString("[white]")
@@ -209,8 +210,8 @@ func colorizeJSON(text string) string {
 	return b.String()
 }
 
-// isKeyToken indique si la chaîne se terminant à pos est suivie (après
-// d'éventuels espaces) d'un ':', auquel cas il s'agit d'une clé JSON.
+// isKeyToken reports whether the string ending at pos is followed (after
+// any whitespace) by a ':', in which case it's a JSON key.
 func isKeyToken(text string, pos int) bool {
 	for pos < len(text) {
 		r := rune(text[pos])

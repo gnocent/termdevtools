@@ -7,14 +7,13 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-// TestCursorLineWrapSafe vérifie que CursorLine reste correct (ligne
-// logique du texte réel) même quand une ligne précédente déborde sur
-// plusieurs lignes affichées — le bug qu'aurait provoqué un simple
-// TextArea.GetCursor() une fois le retour à la ligne automatique actif
-// (SPEC.md §3.1).
+// TestCursorLineWrapSafe checks that CursorLine stays correct (logical line
+// of the actual text) even when a previous line overflows across several
+// display lines — the bug a plain TextArea.GetCursor() would have caused
+// once automatic word wrap is active (SPEC.md §3.1).
 func TestCursorLineWrapSafe(t *testing.T) {
 	app, screen := newTestApp(t)
-	screen.SetSize(20, 24) // étroit : force le débordement visuel de la ligne JSON
+	screen.SetSize(20, 24) // narrow: forces the JSON line to visually overflow
 	waitForDraw(t, screen)
 
 	injectText(screen, "GET _cat/health")
@@ -30,7 +29,7 @@ func TestCursorLineWrapSafe(t *testing.T) {
 
 	text := app.editor.Text()
 	logicalLines := strings.Split(text, "\n")
-	wantRow := len(logicalLines) - 1 // curseur en fin de saisie, dernière ligne logique
+	wantRow := len(logicalLines) - 1 // cursor at end of input, last logical line
 
 	if got := app.editor.CursorLine(); got != wantRow {
 		t.Errorf("expected logical CursorLine=%d, got %d\ntext=%q", wantRow, got, text)
@@ -40,9 +39,8 @@ func TestCursorLineWrapSafe(t *testing.T) {
 	}
 }
 
-// TestCompletionPrefixWrapSafe vérifie que la complétion Tab cible toujours
-// la bonne portion de texte quand une ligne précédente a débordé
-// visuellement.
+// TestCompletionPrefixWrapSafe checks that Tab completion always targets the
+// right portion of text when a previous line has visually overflowed.
 func TestCompletionPrefixWrapSafe(t *testing.T) {
 	app, screen := newTestApp(t)
 	screen.SetSize(20, 24)
@@ -59,21 +57,20 @@ func TestCompletionPrefixWrapSafe(t *testing.T) {
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	// La liste par défaut ajoute systématiquement "?v" aux commandes _cat.
+	// The default list always appends "?v" to _cat commands.
 	got := app.editor.Text()
 	if !strings.HasSuffix(got, "GET _cat/health?v") {
 		t.Errorf("expected completion to apply to the last line despite wrapping, got %q", got)
 	}
 }
 
-// TestHighlightLineWrapSafe vérifie que la recherche (Ctrl+F) dans le
-// panneau droit met en évidence le bon contenu (via les régions tview,
-// ancrées au texte) plutôt qu'un numéro de ligne affichée — c'est
-// précisément ce que TextView.ScrollTo(ligne, ...) ne garantit plus une
-// fois le retour à la ligne automatique actif (SPEC.md §3.1) : une ligne
-// précédente qui déborde décale toutes les lignes affichées suivantes,
-// donc cibler par région plutôt que par index évite le bug par
-// construction, indépendamment de la largeur du terminal.
+// TestHighlightLineWrapSafe checks that search (Ctrl+F) in the right panel
+// highlights the right content (via tview regions, anchored to text) rather
+// than a display line number — which is exactly what
+// TextView.ScrollTo(line, ...) no longer guarantees once automatic word wrap
+// is active (SPEC.md §3.1): a previous line that overflows shifts every
+// following display line, so targeting by region rather than by index
+// avoids the bug by construction, regardless of terminal width.
 func TestHighlightLineWrapSafe(t *testing.T) {
 	app, screen := newTestApp(t)
 

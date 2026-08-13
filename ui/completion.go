@@ -7,24 +7,22 @@ import (
 	"strings"
 )
 
-// knownEndpoints est la liste par défaut (compilée dans le binaire) des
-// endpoints Elasticsearch les plus courants en administration/exploitation,
-// proposée par l'auto-complétion Tab (SPEC.md §3.2). Utilisée seulement en
-// l'absence du fichier endpoints.txt à côté du binaire (LoadEndpointsFile),
-// que l'équipe peut maintenir sans recompiler à chaque nouvelle version
-// d'Elasticsearch.
+// knownEndpoints is the default list (compiled into the binary) of the most
+// common Elasticsearch endpoints for administration/operations, offered by
+// Tab auto-completion (SPEC.md §3.2). Only used when there's no
+// endpoints.txt file next to the binary (LoadEndpointsFile), which the team
+// can maintain without recompiling on every new Elasticsearch version.
 //
-// Extraite de la spec OpenAPI officielle (elastic/elasticsearch-specification,
-// branche 9.5, output/openapi/elasticsearch-openapi.json), filtrée aux
-// endpoints sans paramètre de chemin (les `/{index}/...` nécessitent un nom
-// d'index réel — pas de découverte dynamique des index, cf. SPEC.md §7) et
-// aux domaines "administration de base" : `_cat` (toutes les commandes,
-// `?v` systématique pour les en-têtes de colonnes), `_cluster`, `_nodes`,
-// index/recherche/snapshot/ILM/SLM/licence. Volontairement écartés : ML,
-// sécurité, watcher, transform, rollup, SQL/ES|QL, CCR, connectors,
-// inference, enrich — hors du périmètre admin de base de cet outil.
+// Extracted from the official OpenAPI spec (elastic/elasticsearch-specification,
+// branch 9.5, output/openapi/elasticsearch-openapi.json), filtered to
+// endpoints with no path parameter (`/{index}/...` ones need a real index
+// name — no dynamic index discovery, see SPEC.md §7) and to "core admin"
+// domains: `_cat` (all commands, `?v` systematically for column headers),
+// `_cluster`, `_nodes`, index/search/snapshot/ILM/SLM/license. Deliberately
+// left out: ML, security, watcher, transform, rollup, SQL/ES|QL, CCR,
+// connectors, inference, enrich — outside this tool's core admin scope.
 var knownEndpoints = []string{
-	// _cat/* — verbose (?v) systématique pour les en-têtes de colonnes.
+	// _cat/* — verbose (?v) systematically, for column headers.
 	"_cat/aliases?v",
 	"_cat/allocation?v",
 	"_cat/circuit_breaker?v",
@@ -69,7 +67,7 @@ var knownEndpoints = []string{
 	"_nodes/stats",
 	"_nodes/usage",
 
-	// Index, document, recherche, snapshot, ILM/SLM, licence.
+	// Index, document, search, snapshot, ILM/SLM, license.
 	"_alias",
 	"_aliases",
 	"_analyze",
@@ -130,20 +128,19 @@ var knownEndpoints = []string{
 	"_validate/query",
 }
 
-// catColumns est la table par défaut (compilée dans le binaire) des
-// colonnes disponibles pour h= (colonnes affichées) et s= (tri) de chaque
-// commande _cat/*, proposée par l'auto-complétion Tab (SPEC.md §3.2).
-// Utilisée seulement en l'absence du fichier cat_columns.txt à côté du
-// binaire (LoadCatColumnsFile).
+// catColumns is the default table (compiled into the binary) of columns
+// available for h= (displayed columns) and s= (sort) of each _cat/*
+// command, offered by Tab auto-completion (SPEC.md §3.2). Only used when
+// there's no cat_columns.txt file next to the binary (LoadCatColumnsFile).
 //
-// Seuls les noms complets de colonne sont listés (pas les alias courts
-// comme "dc" pour "docs.count") : plus parlants dans la liste de
-// suggestions, et ça limite le nombre de propositions pour les commandes
-// qui ont beaucoup de colonnes (ex. _cat/indices, _cat/nodes).
+// Only full column names are listed (not short aliases like "dc" for
+// "docs.count"): more descriptive in the suggestion list, and it limits the
+// number of suggestions for commands with many columns (e.g. _cat/indices,
+// _cat/nodes).
 //
-// Générée le 2026-08-12 à partir d'un cluster Elasticsearch 9.5.0 réel
-// (GET _cat/<commande>?help pour chacune des commandes de knownEndpoints) —
-// voir SPEC.md §3.2 pour la méthode.
+// Generated on 2026-08-12 from a real Elasticsearch 9.5.0 cluster (GET
+// _cat/<command>?help for each of knownEndpoints' commands) — see SPEC.md
+// §3.2 for the method.
 var catColumns = map[string][]string{
 	"aliases": {
 		"alias", "index", "filter", "routing.index", "routing.search", "is_write_index",
@@ -318,10 +315,10 @@ var catColumns = map[string][]string{
 	},
 }
 
-// matchPrefix renvoie, parmi candidates, ceux commençant par prefix
-// (insensible à la casse), triés. Un prefix vide renvoie la liste complète.
-// Utilisée aussi bien pour les endpoints que pour les colonnes _cat (h=/s=)
-// et les directions de tri (asc/desc).
+// matchPrefix returns, among candidates, those starting with prefix
+// (case-insensitive), sorted. An empty prefix returns the full list. Used
+// both for endpoints and for _cat columns (h=/s=) and sort directions
+// (asc/desc).
 func matchPrefix(prefix string, candidates []string) []string {
 	lower := strings.ToLower(prefix)
 	var matches []string
@@ -334,11 +331,11 @@ func matchPrefix(prefix string, candidates []string) []string {
 	return matches
 }
 
-// LoadEndpointsFile lit un fichier d'endpoints — un par ligne, lignes
-// vides et commentaires ('#') ignorés — pour permettre à l'équipe de
-// maintenir la liste proposée par l'auto-complétion sans recompiler
-// (SPEC.md §3.2, §9.1). Renvoie (nil, nil) si le fichier n'existe pas :
-// l'appelant se rabat alors sur knownEndpoints.
+// LoadEndpointsFile reads an endpoints file — one per line, blank lines
+// and comments ('#') ignored — so the team can maintain the list offered
+// by auto-completion without recompiling (SPEC.md §3.2, §9.1). Returns
+// (nil, nil) if the file doesn't exist: the caller then falls back to
+// knownEndpoints.
 func LoadEndpointsFile(path string) ([]string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -359,17 +356,16 @@ func LoadEndpointsFile(path string) ([]string, error) {
 	return endpoints, nil
 }
 
-// catColumnSectionRe reconnaît une ligne d'en-tête de section dans un
-// fichier de colonnes _cat (ex. "# _cat/indices") — voir LoadCatColumnsFile.
+// catColumnSectionRe recognizes a section header line in a _cat columns
+// file (e.g. "# _cat/indices") — see LoadCatColumnsFile.
 var catColumnSectionRe = regexp.MustCompile(`^#\s*_cat/(\S+)\s*$`)
 
-// LoadCatColumnsFile lit un fichier de colonnes _cat organisé en sections
-// "# _cat/commande" suivies d'une colonne (nom complet ou alias) par ligne,
-// pour permettre à l'équipe de maintenir la liste proposée par
-// l'auto-complétion h=/s= sans recompiler (SPEC.md §3.2, §9.1). Les autres
-// lignes commençant par '#' sont de simples commentaires. Renvoie (nil,
-// nil) si le fichier n'existe pas : l'appelant se rabat alors sur
-// catColumns.
+// LoadCatColumnsFile reads a _cat columns file organized into "# _cat/command"
+// sections followed by one column (full name or alias) per line, so the
+// team can maintain the list offered by h=/s= auto-completion without
+// recompiling (SPEC.md §3.2, §9.1). Other lines starting with '#' are plain
+// comments. Returns (nil, nil) if the file doesn't exist: the caller then
+// falls back to catColumns.
 func LoadCatColumnsFile(path string) (map[string][]string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -404,18 +400,17 @@ func LoadCatColumnsFile(path string) (map[string][]string, error) {
 	return result, nil
 }
 
-// sortDirections sont les valeurs possibles pour la direction de tri d'une
-// colonne dans le paramètre s= (ex. "s=docs.count:desc").
+// sortDirections are the possible values for a column's sort direction in
+// the s= parameter (e.g. "s=docs.count:desc").
 var sortDirections = []string{"asc", "desc"}
 
-// matchCatCommand cherche, parmi les clés de columns, la commande _cat la
-// plus longue (la plus "couvrante") qui préfixe path — soit une
-// correspondance exacte, soit suivie d'un '/' (jamais une correspondance
-// partielle de mot : "shardsxyz" ne doit pas matcher "shards"). Nécessaire
-// car de nombreuses commandes _cat acceptent un filtre en fin de chemin
-// avant les paramètres, ex. "_cat/shards/monindex?h=..." (filtre sur
-// l'index "monindex") — sans ça, "shards/monindex" ne correspondrait à
-// aucune commande connue et aucune colonne ne serait proposée.
+// matchCatCommand looks, among the keys of columns, for the longest (most
+// "covering") _cat command that prefixes path — either an exact match, or
+// followed by a '/' (never a partial word match: "shardsxyz" must not
+// match "shards"). Necessary because many _cat commands accept a filter at
+// the end of the path before the parameters, e.g. "_cat/shards/myindex?h=..."
+// (filtering on index "myindex") — without this, "shards/myindex" would
+// match no known command and no column would be suggested.
 func matchCatCommand(path string, columns map[string][]string) (command string, ok bool) {
 	for cmd := range columns {
 		if cmd == "" {
@@ -431,15 +426,15 @@ func matchCatCommand(path string, columns map[string][]string) (command string, 
 	return command, ok
 }
 
-// catColumnCompletion tente d'interpréter prefix (le texte tapé après la
-// méthode HTTP, cf. Editor.CompletionPrefix) comme une frappe en cours dans
-// le paramètre h= (colonnes affichées) ou s= (tri) d'une commande _cat/*,
-// ex. "_cat/indices?h=health,st" ou "_cat/shards?s=docs.count:de". Renvoie
-// ok=false si prefix ne correspond pas à ce cas (endpoint classique, pas
-// une commande _cat, ou pas dans un paramètre h=/s=) — l'appelant se rabat
-// alors sur la complétion d'endpoint habituelle. subPrefixLen (en runes)
-// permet de calculer la portion à remplacer : seule la colonne (ou la
-// direction) en cours de frappe, pas tout ce qui précède.
+// catColumnCompletion attempts to interpret prefix (the text typed after
+// the HTTP method, see Editor.CompletionPrefix) as an in-progress edit
+// inside the h= (displayed columns) or s= (sort) parameter of a _cat/*
+// command, e.g. "_cat/indices?h=health,st" or "_cat/shards?s=docs.count:de".
+// Returns ok=false if prefix doesn't match this case (a regular endpoint,
+// not a _cat command, or not inside an h=/s= parameter) — the caller then
+// falls back to regular endpoint completion. subPrefixLen (in runes) allows
+// computing the portion to replace: only the column (or direction) being
+// typed, not everything before it.
 func catColumnCompletion(prefix string, columns map[string][]string) (candidates []string, subPrefixLen int, ok bool) {
 	if !strings.HasPrefix(prefix, "_cat/") {
 		return nil, 0, false
@@ -451,19 +446,18 @@ func catColumnCompletion(prefix string, columns map[string][]string) (candidates
 	path := prefix[len("_cat/"):qIdx]
 	query := prefix[qIdx+1:]
 
-	// De nombreuses commandes _cat acceptent un filtre en fin de chemin
-	// avant les paramètres (ex. "_cat/shards/monindex?h=..." filtre sur
-	// l'index "monindex"). On reconnaît donc la commande _cat la plus
-	// longue (la plus "couvrante") qui préfixe path à une frontière de
-	// '/' — pas une correspondance partielle de mot (ex. "shardsxyz" ne
-	// doit pas matcher "shards").
+	// Many _cat commands accept a filter at the end of the path before the
+	// parameters (e.g. "_cat/shards/myindex?h=..." filtering on index
+	// "myindex"). So we recognize the longest (most "covering") _cat
+	// command that prefixes path at a '/' boundary — not a partial word
+	// match (e.g. "shardsxyz" must not match "shards").
 	command, ok := matchCatCommand(path, columns)
 	if !ok {
 		return nil, 0, false
 	}
 
-	// Le paramètre en cours de frappe : ce qui suit le dernier '&' (ou
-	// toute la query string s'il n'y en a pas).
+	// The parameter currently being typed: whatever follows the last '&'
+	// (or the whole query string if there is none).
 	param := query
 	if amp := strings.LastIndexByte(query, '&'); amp >= 0 {
 		param = query[amp+1:]
@@ -481,15 +475,15 @@ func catColumnCompletion(prefix string, columns map[string][]string) (candidates
 		return nil, 0, false
 	}
 
-	// Colonnes séparées par des virgules : seule la dernière, en cours de
-	// frappe, doit être complétée.
+	// Comma-separated columns: only the last one, being typed, should be
+	// completed.
 	segment := value
 	if comma := strings.LastIndexByte(value, ','); comma >= 0 {
 		segment = value[comma+1:]
 	}
 
-	// s=colonne:asc|desc — une fois le ':' tapé, on complète la direction,
-	// pas le nom de colonne (déjà entièrement tapé à ce stade).
+	// s=column:asc|desc — once ':' is typed, we complete the direction, not
+	// the column name (already fully typed at this point).
 	if isSortParam {
 		if colon := strings.IndexByte(segment, ':'); colon >= 0 {
 			dirPrefix := segment[colon+1:]

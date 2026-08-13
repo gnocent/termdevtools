@@ -1,90 +1,94 @@
+*(Version française : [README_fr.md](README_fr.md))*
+
 # TermDevTools
 
-Simulateur en mode terminal de la vue **DevTools** de Kibana, pour interroger un cluster Elasticsearch directement depuis un terminal Linux (RHEL 8/9/10), sans navigateur ni Kibana fonctionnel.
+A terminal-mode simulator of Kibana's **DevTools** view, for querying an Elasticsearch cluster directly from a Linux terminal (RHEL 8/9/10), without a browser or a working Kibana.
 
-## Pourquoi
+## Why
 
-Il arrive qu'un cluster Elasticsearch n'ait pas de Kibana disponible, ou que son Kibana soit hors service — typiquement pendant une investigation où c'est justement le moment où on en aurait le plus besoin. Faire l'équivalent en `curl` à la main est possible mais pénible (gestion du TLS, requêtes multi-lignes, mise en forme du JSON de réponse...). TermDevTools reproduit l'essentiel du confort des DevTools de Kibana — éditeur de requêtes, exécution au curseur, réponse JSON formatée — dans un simple binaire terminal.
+Sometimes an Elasticsearch cluster has no Kibana available, or its Kibana is down — typically during an investigation, which is exactly when you'd need it most. Doing the equivalent by hand with `curl` is possible but tedious (TLS handling, multi-line requests, formatting the JSON response...). TermDevTools reproduces most of the comfort of Kibana's DevTools — a request editor, execute-at-cursor, formatted JSON responses — in a single terminal binary.
 
-## Fonctionnalités
+## Features
 
-- **Interface en deux panneaux** : éditeur de requêtes à gauche (`MÉTHODE endpoint` + corps JSON optionnel), résultat JSON formaté à droite.
-- **Exécution au curseur** (`Ctrl+Entrée`) : plusieurs requêtes peuvent cohabiter dans l'éditeur, séparées par des lignes vides ; celle sous le curseur est exécutée.
-- **Auto-complétion** (`Tab`) des endpoints (`_cat/*`, `_cluster/*`, `_nodes/*`, gestion d'index, ILM/SLM, snapshots, licence...) et, pour les commandes `_cat/*`, des noms de colonnes des paramètres `h=`/`s=`. Listes personnalisables sans recompiler via `endpoints.txt` et `cat_columns.txt`.
-- **Recherche** (`Ctrl+F`) dans l'éditeur comme dans le résultat.
-- **Sauvegarde automatique** des requêtes en cours par cluster et par utilisateur (à la fermeture et via `Ctrl+S`), rechargées à la reconnexion.
-- **Export** du résultat affiché vers un fichier horodaté (`Ctrl+S`, panneau droit) et **copie presse-papier** via OSC 52 (`F2`, fonctionne à travers SSH).
-- **Connexion** : Basic Auth, API Key ou certificat client (mTLS), avec ou sans vérification TLS ; historique des clusters déjà utilisés (sans jamais y stocker de secret — voir [Sécurité](#sécurité)).
-- **Aide intégrée** (`F1`) : rappel des raccourcis et de l'emplacement des fichiers.
+- **Two-panel interface**: request editor on the left (`METHOD endpoint` + optional JSON body), formatted JSON result on the right.
+- **Execute at cursor** (`Ctrl+Enter`): several requests can coexist in the editor, separated by blank lines; the one under the cursor is executed.
+- **Auto-completion** (`Tab`) for endpoints (`_cat/*`, `_cluster/*`, `_nodes/*`, index management, ILM/SLM, snapshots, license...) and, for `_cat/*` commands, for the column names of the `h=`/`s=` parameters. Lists are customizable without recompiling via `endpoints.txt` and `cat_columns.txt`.
+- **Search** (`Ctrl+F`) in the editor as well as in the result.
+- **Automatic save** of in-progress requests per cluster and per user (on exit and via `Ctrl+S`), reloaded on reconnection.
+- **Export** of the displayed result to a timestamped file (`Ctrl+S`, right panel) and **clipboard copy** via OSC 52 (`F2`, works over SSH).
+- **Connection**: Basic Auth, API Key, or client certificate (mTLS), with or without TLS verification; history of previously used clusters (never storing a secret there — see [Security](#security)).
+- **Built-in help** (`F1`): reminder of shortcuts and file locations.
 
-Détail complet des choix et du comportement : [SPEC.md](SPEC.md).
+Full detail of design choices and behavior: [SPEC.md](SPEC.md).
 
 ## Installation
 
-### Binaires précompilés
+### Prebuilt binaries
 
-Des binaires statiques sont fournis pour Linux (amd64), Windows (amd64) et macOS (Apple Silicon / arm64) — voir la section [Releases](../../releases) du dépôt. Aucune dépendance à installer : il suffit de télécharger le binaire correspondant à votre plateforme et de le rendre exécutable (`chmod +x` sous Linux/macOS).
+Static binaries are provided for Linux (amd64), Windows (amd64), and macOS (Apple Silicon / arm64) — see the repository's [Releases](../../releases) section. No dependency to install: just download the binary for your platform and make it executable (`chmod +x` on Linux/macOS).
 
-### Compilation depuis les sources
+### Building from source
 
-Nécessite [Go](https://go.dev/) 1.25 ou supérieur.
+Requires [Go](https://go.dev/) 1.25 or later.
 
 ```bash
-git clone <url-du-dépôt>
+git clone <repo-url>
 cd TermDevTools
 go build -o termdevtools .
 ```
 
-Le binaire est statique (`CGO_ENABLED=0`) : il n'a besoin d'aucune bibliothèque système au-delà de la libc de base, et peut être copié tel quel sur n'importe quelle machine RHEL 8/9/10 (ou toute autre distribution Linux amd64), sans installation.
+The binary is static (`CGO_ENABLED=0`): it needs no system library beyond the base libc, and can be copied as-is onto any RHEL 8/9/10 machine (or any other Linux amd64 distribution), with no installation step.
 
-Le script [`build-release.sh`](build-release.sh) compile les trois plateformes cibles (`linux/amd64`, `windows/amd64`, `darwin/arm64`) et regroupe chaque binaire avec ses fichiers annexes dans `dist/<plateforme>/`.
+The [`build-release.sh`](build-release.sh) script builds all three target platforms (`linux/amd64`, `windows/amd64`, `darwin/arm64`) and bundles each binary with its companion files under `dist/<platform>/`.
 
-## Configuration et fichiers annexes
+## Configuration and companion files
 
-Au premier lancement, aucune configuration n'est nécessaire : un écran de connexion permet de saisir directement l'URL et les identifiants d'un cluster. Les fichiers suivants sont ensuite lus **s'ils existent**, à côté du binaire :
+On first launch, no configuration is needed: a connection screen lets you enter a cluster's URL and credentials directly. The following files are then read **if they exist**, next to the binary:
 
-| Fichier | Rôle |
+| File | Purpose |
 |---|---|
-| `cheatsheet.txt` | Contenu par défaut de l'éditeur au premier lancement sur un cluster donné (copier `cheatsheet.txt.example`). |
-| `endpoints.txt` | Liste des endpoints proposés en auto-complétion (remplace la liste intégrée). |
-| `cat_columns.txt` | Table commande `_cat/*` → colonnes, pour l'auto-complétion des paramètres `h=`/`s=`. |
+| `cheatsheet.txt` | Default editor content on first launch against a given cluster (copy `cheatsheet.txt.example`). |
+| `endpoints.txt` | List of endpoints offered for auto-completion (replaces the built-in list). |
+| `cat_columns.txt` | `_cat/*` command → columns table, for auto-completion of the `h=`/`s=` parameters. |
 
-Un exemple de configuration utilisateur (`~/.config/termdevtools/config.yaml`, généré automatiquement à la première connexion) est fourni à titre indicatif dans `config.yaml.example` — **il ne contient jamais de secret** : mots de passe, clés d'API et passphrases sont redemandés à chaque connexion, jamais écrits sur disque (voir [Sécurité](#sécurité)).
+A sample user configuration (`~/.config/termdevtools/config.yaml`, generated automatically on first connection) is provided for reference in `config.yaml.example` — **it never contains a secret**: passwords, API key secrets, and passphrases are always re-requested on connection, never written to disk (see [Security](#security)).
 
-## Raccourcis clavier
+The interface language (French by default, or English) is set via `language: fr` / `language: en` in that same `config.yaml`.
 
-| Action | Touche |
+## Keyboard shortcuts
+
+| Action | Key |
 |---|---|
-| Exécuter la requête sous le curseur | `Ctrl+Entrée` |
-| Basculer focus panneau gauche ↔ droit | `Ctrl+←` / `Ctrl+→` |
-| Quitter (sauvegarde automatique du panneau gauche) | `Ctrl+C` |
-| Rechercher dans les requêtes / dans le résultat | `Ctrl+F` (selon le panneau focus) |
-| Redimensionner le split gauche/droite | `Ctrl+Maj+←` / `Ctrl+Maj+→` |
-| Sauvegarder (gauche) / exporter (droite) | `Ctrl+S` (selon le panneau focus) |
-| Compléter un endpoint / une colonne | `Tab` (panneau gauche) |
-| Copier le résultat dans le presse-papier | `F2` |
-| Aide | `F1` (`Echap` pour fermer) |
+| Execute the request under the cursor | `Ctrl+Enter` |
+| Switch focus left ↔ right panel | `Ctrl+←` / `Ctrl+→` |
+| Quit (auto-saves the left panel) | `Ctrl+C` |
+| Search in requests / in the result | `Ctrl+F` (depending on focused panel) |
+| Resize the left/right split | `Ctrl+Shift+←` / `Ctrl+Shift+→` |
+| Save (left) / export (right) | `Ctrl+S` (depending on focused panel) |
+| Complete an endpoint / a column | `Tab` (left panel) |
+| Copy the result to the clipboard | `F2` |
+| Help | `F1` (`Esc` to close) |
 
-## Sécurité
+## Security
 
-- **TLS vérifié par défaut** : la vérification du certificat serveur est activée sauf désactivation explicite lors de la connexion.
-- **Aucun secret persisté** : mot de passe, secret d'API Key et passphrase de clé privée ne sont jamais écrits dans `config.yaml` — seuls l'URL, le type d'authentification et les identifiants non sensibles (username, API key ID, chemins de certificats) le sont, avec des permissions restreintes (`0600` pour les fichiers, `0700` pour les dossiers).
-- **Copie presse-papier (`F2`)** via OSC 52 : le terminal local reçoit la donnée à copier sans jamais transiter par un presse-papier serveur — mais aucune garantie de succès n'est renvoyée par ce mécanisme (dépend du terminal utilisé).
-- Le projet a été soumis à une relecture de sécurité (revue du code, absence d'exécution de commandes externes, `govulncheck` sans vulnérabilité connue exploitable) avant publication — voir aussi le [disclaimer](#avertissement--limitation-de-responsabilité) ci-dessous.
+- **TLS verified by default**: server certificate verification is enabled unless explicitly disabled when connecting.
+- **No secret ever persisted**: password, API Key secret, and private key passphrase are never written to `config.yaml` — only the URL, auth type, and non-sensitive identifiers (username, API key ID, certificate paths) are, with restricted permissions (`0600` for files, `0700` for directories).
+- **Clipboard copy (`F2`)** via OSC 52: the local terminal receives the data to copy without it ever passing through a server-side clipboard — but this mechanism gives no guarantee of success (depends on the terminal in use).
+- The project went through a security review (code review, no execution of external commands, `govulncheck` with no known exploitable vulnerability) before publication — see also the [disclaimer](#disclaimer--limitation-of-liability) below.
 
-## Licence
+## License
 
-Ce projet est distribué sous licence **[GNU Affero General Public License v3.0](LICENSE)** (AGPLv3) : vous êtes libre de l'utiliser, l'étudier, le modifier et le redistribuer, à condition que le code source (y compris vos modifications) reste disponible dans les mêmes termes — y compris si l'outil est exposé via un réseau (usage en mode service).
+This project is distributed under the **[GNU Affero General Public License v3.0](LICENSE)** (AGPLv3): you're free to use, study, modify, and redistribute it, provided the source code (including your modifications) remains available under the same terms — including when the tool is exposed over a network (service mode usage).
 
-> **Note d'intention (non contraignante juridiquement)** : l'esprit de ce projet est de rester un outil communautaire et amélioré collectivement, pas un produit revendu tel quel. L'AGPLv3 n'interdit pas formellement un usage commercial — seule une licence non-commerciale le ferait, au prix de restrictions plus lourdes et moins "open source" — mais c'est l'usage que son auteur espère en voir fait.
+> **Note of intent (not legally binding)**: the spirit of this project is to remain a community tool, improved collectively, not a product resold as-is. The AGPLv3 does not formally forbid commercial use — only a non-commercial license would, at the cost of heavier and less "open source" restrictions — but that's the use its author hopes to see made of it.
 
-## Avertissement / limitation de responsabilité
+## Disclaimer / limitation of liability
 
-TermDevTools est un outil publié **tel quel** ("as is"), sans garantie d'aucune sorte, explicite ou implicite — y compris, sans s'y limiter, les garanties de qualité marchande, d'adéquation à un usage particulier et d'absence de contrefaçon (voir les articles 15 à 17 de la [licence AGPLv3](LICENSE), qui font foi).
+TermDevTools is published **as is**, without warranty of any kind, express or implied — including, without limitation, the warranties of merchantability, fitness for a particular purpose, and non-infringement (see sections 15 through 17 of the [AGPLv3 license](LICENSE), which govern).
 
-En particulier :
+In particular:
 
-- Ce projet est développé et maintenu **sur le temps libre de son auteur**, sans engagement de disponibilité, de maintenance, de correctif de sécurité ou d'évolution future.
-- L'auteur et les contributeurs **déclinent toute responsabilité** pour les conséquences directes ou indirectes de l'utilisation de cet outil — y compris, sans s'y limiter, une perte de données, une interruption de service, ou toute action exécutée sur un cluster Elasticsearch via cet outil (TermDevTools exécute les requêtes telles que vous les écrivez, sans confirmation supplémentaire au-delà de ce qui est décrit dans [SPEC.md](SPEC.md)).
-- L'utilisation de cet outil contre un cluster de production reste **sous l'entière responsabilité de la personne qui l'utilise** : vérifiez toujours vos requêtes, en particulier les opérations destructrices (`DELETE`, mises à jour de mapping, etc.), comme vous le feriez avec n'importe quel client Elasticsearch (Kibana, `curl`, ou autre).
-- Les évolutions futures du projet (ou leur absence) n'engagent que leurs auteurs respectifs au moment où elles sont apportées.
+- This project is developed and maintained **on its author's free time**, with no commitment to availability, maintenance, security patches, or future evolution.
+- The author and contributors **decline any responsibility** for the direct or indirect consequences of using this tool — including, without limitation, data loss, service interruption, or any action executed against an Elasticsearch cluster through this tool (TermDevTools executes requests exactly as you write them, with no confirmation beyond what is described in [SPEC.md](SPEC.md)).
+- Using this tool against a production cluster remains **the sole responsibility of the person using it**: always review your requests, particularly destructive operations (`DELETE`, mapping updates, etc.), just as you would with any Elasticsearch client (Kibana, `curl`, or otherwise).
+- Future evolutions of the project (or the lack thereof) are the responsibility only of whoever makes them, at the time they are made.

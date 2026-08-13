@@ -1,6 +1,6 @@
-// Package parser découpe le contenu de l'éditeur (panneau gauche) en
-// requêtes individuelles — une ligne "MÉTHODE endpoint" suivie d'un corps
-// JSON optionnel — et retrouve la requête sous le curseur. Voir SPEC.md §3.2.
+// Package parser splits the editor content (left panel) into individual
+// requests — a "METHOD endpoint" line followed by an optional JSON body —
+// and locates the request under the cursor. See SPEC.md §3.2.
 package parser
 
 import (
@@ -11,27 +11,27 @@ import (
 	"strings"
 )
 
-// ErrNoRequest indique qu'aucune requête n'a pu être trouvée dans le buffer.
-var ErrNoRequest = errors.New("aucune requête trouvée")
+// ErrNoRequest indicates that no request could be found in the buffer.
+var ErrNoRequest = errors.New("no request found")
 
 var requestLineRe = regexp.MustCompile(`^(?i)(GET|POST|PUT|DELETE)\s+(\S+)\s*$`)
 
-// Request est une requête extraite de l'éditeur.
+// Request is a request extracted from the editor.
 type Request struct {
 	Method string
 	Path   string
-	Body   []byte // nil si la requête n'a pas de corps
+	Body   []byte // nil if the request has no body
 
-	// StartLine/EndLine sont les index de ligne (0-indexés) couverts par
-	// cette requête dans le buffer d'origine, ligne de méthode incluse.
+	// StartLine/EndLine are the (0-indexed) line indices covered by this
+	// request in the original buffer, including the method line.
 	StartLine int
 	EndLine   int
 }
 
-// ParseAll découpe l'intégralité du buffer en requêtes, dans l'ordre
-// d'apparition. Les lignes vides ou commençant par '#' sont ignorées en
-// dehors d'un corps JSON ; les lignes non reconnues comme méthode sont
-// simplement sautées (tolérant, pour ne pas bloquer sur un texte libre).
+// ParseAll splits the whole buffer into requests, in order of appearance.
+// Empty lines or lines starting with '#' are ignored outside of a JSON body;
+// lines not recognized as a method line are simply skipped (lenient, so as
+// not to choke on free-form text).
 func ParseAll(text string) []Request {
 	lines := strings.Split(text, "\n")
 	var requests []Request
@@ -72,10 +72,9 @@ func ParseAll(text string) []Request {
 	return requests
 }
 
-// collectBody consomme, à partir de start, le corps JSON éventuel d'une
-// requête (équilibrage des accolades, en ignorant celles présentes dans des
-// chaînes) et renvoie le corps ainsi que l'index de la ligne suivante non
-// consommée.
+// collectBody consumes, starting at start, a request's optional JSON body
+// (brace balancing, ignoring braces found inside strings) and returns the
+// body along with the index of the next unconsumed line.
 func collectBody(lines []string, start int) (body []byte, next int) {
 	i := start
 	started := false
@@ -93,7 +92,7 @@ func collectBody(lines []string, start int) (body []byte, next int) {
 				continue
 			}
 			if !strings.HasPrefix(trimmed, "{") {
-				break // pas de corps pour cette requête
+				break // no body for this request
 			}
 			started = true
 		} else if strings.HasPrefix(trimmed, "#") {
@@ -144,10 +143,10 @@ func parseRequestLine(line string) (method, path string, ok bool) {
 	return strings.ToUpper(m[1]), m[2], true
 }
 
-// RequestAtLine renvoie la requête à laquelle appartient cursorLine (index
-// de ligne 0-indexé). Si le curseur ne tombe dans aucune requête (ligne
-// vide/commentaire entre deux requêtes), la requête la plus proche
-// précédant le curseur est utilisée ; à défaut, la première du buffer.
+// RequestAtLine returns the request cursorLine (0-indexed line index)
+// belongs to. If the cursor doesn't fall inside any request (blank/comment
+// line between two requests), the closest request preceding the cursor is
+// used; failing that, the first one in the buffer.
 func RequestAtLine(text string, cursorLine int) (*Request, error) {
 	requests := ParseAll(text)
 	if len(requests) == 0 {
@@ -170,14 +169,14 @@ func RequestAtLine(text string, cursorLine int) (*Request, error) {
 	return &requests[0], nil
 }
 
-// ValidateBody vérifie que body est un JSON syntaxiquement valide (ou vide).
+// ValidateBody checks that body is syntactically valid JSON (or empty).
 func ValidateBody(body []byte) error {
 	if len(body) == 0 {
 		return nil
 	}
 	var v interface{}
 	if err := json.Unmarshal(body, &v); err != nil {
-		return fmt.Errorf("JSON invalide : %w", err)
+		return fmt.Errorf("invalid JSON: %w", err)
 	}
 	return nil
 }

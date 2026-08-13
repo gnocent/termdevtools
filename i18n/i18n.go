@@ -63,16 +63,17 @@ type Strings struct {
 	ShortcutsHelpBar  string
 
 	// App-level status/error messages (app.go)
-	ErrLoadFailedFmt   string // "échec du chargement de %s : %s"
-	ErrNoMatchFound    string
-	ErrNoCompletion    string
-	ErrSaveFailedFmt   string
-	InfoSavedFmt       string
-	ErrExportFailedFmt string
-	InfoExportedFmt    string
-	ErrNothingToCopy   string
-	InfoCopied         string
-	ErrNothingToExport string // result.go's Export()
+	ErrLoadFailedFmt          string // "échec du chargement de %s : %s"
+	ErrNoMatchFound           string
+	ErrNoCompletion           string
+	ErrNoCompletionContextFmt string // "%q, row=%d, col=%d" — F10's self-diagnosis, see Editor.DebugCursorContext
+	ErrSaveFailedFmt          string
+	InfoSavedFmt              string
+	ErrExportFailedFmt        string
+	InfoExportedFmt           string
+	ErrNothingToCopy          string
+	InfoCopied                string
+	ErrNothingToExport        string // result.go's Export()
 
 	// Help popup content (F1)
 	HelpContent string
@@ -142,16 +143,17 @@ var fr = Strings{
 		"[gray]F5/F6[white] redimensionner   [gray]Ctrl+F[white] rechercher   [gray]Ctrl+S[white] sauvegarder/exporter   " +
 		"[gray]F2[white] copier",
 
-	ErrLoadFailedFmt:   "échec du chargement de %s : %s",
-	ErrNoMatchFound:    "aucune occurrence trouvée",
-	ErrNoCompletion:    "aucune complétion",
-	ErrSaveFailedFmt:   "échec de sauvegarde : %s",
-	InfoSavedFmt:       "requêtes sauvegardées dans %s",
-	ErrExportFailedFmt: "échec d'export : %s",
-	InfoExportedFmt:    "résultat exporté dans %s",
-	ErrNothingToCopy:   "aucun résultat à copier",
-	InfoCopied:         "résultat copié (OSC 52 — nécessite un terminal compatible)",
-	ErrNothingToExport: "aucun résultat à exporter",
+	ErrLoadFailedFmt:          "échec du chargement de %s : %s",
+	ErrNoMatchFound:           "aucune occurrence trouvée",
+	ErrNoCompletion:           "aucune complétion",
+	ErrNoCompletionContextFmt: "pas de contexte de complétion ici — texte=%q ligne=%d colonne=%d",
+	ErrSaveFailedFmt:          "échec de sauvegarde : %s",
+	InfoSavedFmt:              "requêtes sauvegardées dans %s",
+	ErrExportFailedFmt:        "échec d'export : %s",
+	InfoExportedFmt:           "résultat exporté dans %s",
+	ErrNothingToCopy:          "aucun résultat à copier",
+	InfoCopied:                "résultat copié (OSC 52 — nécessite un terminal compatible)",
+	ErrNothingToExport:        "aucun résultat à exporter",
 
 	HelpContent: `[yellow]TermDevTools[white] — client Elasticsearch en mode terminal
 
@@ -256,16 +258,17 @@ var en = Strings{
 		"[gray]F5/F6[white] resize   [gray]Ctrl+F[white] search   [gray]Ctrl+S[white] save/export   " +
 		"[gray]F2[white] copy",
 
-	ErrLoadFailedFmt:   "failed to load %s: %s",
-	ErrNoMatchFound:    "no match found",
-	ErrNoCompletion:    "no completion",
-	ErrSaveFailedFmt:   "save failed: %s",
-	InfoSavedFmt:       "requests saved to %s",
-	ErrExportFailedFmt: "export failed: %s",
-	InfoExportedFmt:    "result exported to %s",
-	ErrNothingToCopy:   "nothing to copy",
-	InfoCopied:         "result copied (OSC 52 — requires a compatible terminal)",
-	ErrNothingToExport: "nothing to export",
+	ErrLoadFailedFmt:          "failed to load %s: %s",
+	ErrNoMatchFound:           "no match found",
+	ErrNoCompletion:           "no completion",
+	ErrNoCompletionContextFmt: "no completion context here — text=%q row=%d col=%d",
+	ErrSaveFailedFmt:          "save failed: %s",
+	InfoSavedFmt:              "requests saved to %s",
+	ErrExportFailedFmt:        "export failed: %s",
+	InfoExportedFmt:           "result exported to %s",
+	ErrNothingToCopy:          "nothing to copy",
+	InfoCopied:                "result copied (OSC 52 — requires a compatible terminal)",
+	ErrNothingToExport:        "nothing to export",
 
 	HelpContent: `[yellow]TermDevTools[white] — terminal-mode Elasticsearch client
 

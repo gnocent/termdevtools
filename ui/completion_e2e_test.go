@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -109,6 +110,36 @@ func TestF10OutsideCompletionContextIsSwallowed(t *testing.T) {
 	want := "POST _search\n{"
 	if got := app.editor.Text(); got != want {
 		t.Errorf("expected F10 to be swallowed with no effect outside a completion context, got %q want %q", got, want)
+	}
+}
+
+// TestF10ShowsDebugContextOutsideCompletion checks that F10 reports the
+// line text and cursor row/col it saw, when it doesn't recognize a
+// completion context — added to self-diagnose a real report where the
+// context detection itself, not the F10 keystroke, was the actual problem
+// (a "GET " line failed to be recognized on one specific machine, despite
+// F10 itself arriving as a clean, unambiguous KeyF10 event there).
+func TestF10ShowsDebugContextOutsideCompletion(t *testing.T) {
+	_, screen := newTestApp(t)
+
+	// A JSON body line is a reliable, unambiguous "no completion context"
+	// case: unlike "GET " (empty prefix — matches with the *full* endpoint
+	// list, not what's under test here), "{" can never match
+	// completionLineRe at all.
+	injectText(screen, "POST _search")
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
+	injectText(screen, "{")
+	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyF10, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	// The full message (including the status bar's own "Cluster: ... |
+	// Utilisateur: ..." prefix) can exceed the simulated screen's 80
+	// columns before reaching the %q line text — checking the message's
+	// own stable lead-in is enough to confirm this code path fired.
+	text := screenText(screen)
+	if !strings.Contains(text, "pas de contexte de") {
+		t.Errorf("expected the status bar to show the no-completion-context diagnostic, got:\n%s", text)
 	}
 }
 

@@ -23,13 +23,40 @@ Full detail of design choices and behavior: [SPEC.md](SPEC.md).
 
 ## Installation
 
+### Quick install (recommended)
+
+Requires [Go](https://go.dev/) 1.25 or later. Builds natively for your platform (no cross-compilation) and installs the binary together with its companion files in one self-contained location:
+
+```bash
+# Linux / macOS
+git clone <repo-url>
+cd TermDevTools
+./install.sh
+```
+
+```powershell
+# Windows (PowerShell)
+git clone <repo-url>
+cd TermDevTools
+.\install.ps1
+```
+
+Each script:
+
+- builds `termdevtools` for your current OS/architecture;
+- copies `cat_columns.txt` and `endpoints.txt` next to it, always refreshed from the repository;
+- seeds `cheatsheet.txt` from `cheatsheet.txt.example` **the first time only** — safe to re-run, it never overwrites a cheatsheet you've since customized;
+- prints what to add to your `PATH` if the install location isn't on it yet.
+
+Default install location: `~/.local/share/termdevtools` on Linux/macOS (symlinked onto your `PATH` via `~/.local/bin`), `%LOCALAPPDATA%\termdevtools` on Windows. Override it with the `TERMDEVTOOLS_INSTALL_DIR` environment variable (and `TERMDEVTOOLS_BIN_DIR` on Linux/macOS for the symlink location) if you'd rather install somewhere else — e.g. a shared `/opt/termdevtools` for a team.
+
 ### Prebuilt binaries
 
-Static binaries are provided for Linux (amd64), Windows (amd64), and macOS (Apple Silicon / arm64) — see the repository's [Releases](../../releases) section. No dependency to install: just download the binary for your platform and make it executable (`chmod +x` on Linux/macOS).
+Static binaries are provided for Linux (amd64), Windows (amd64), and macOS (Apple Silicon / arm64) — see the repository's [Releases](../../releases) section, where each binary is bundled in a zip with its companion files (see [Installation layout](#installation-layout) below). No dependency to install: just download and make it executable (`chmod +x` on Linux/macOS).
 
-### Building from source
+### Manual build / cross-compiling
 
-Requires [Go](https://go.dev/) 1.25 or later.
+To just build without installing, or to cross-compile for a platform other than the one you're on:
 
 ```bash
 git clone <repo-url>
@@ -39,19 +66,22 @@ go build -o termdevtools .
 
 The binary is static (`CGO_ENABLED=0`): it needs no system library beyond the base libc, and can be copied as-is onto any RHEL 8/9/10 machine (or any other Linux amd64 distribution), with no installation step.
 
-The [`build-release.sh`](build-release.sh) script builds all three target platforms (`linux/amd64`, `windows/amd64`, `darwin/arm64`) and bundles each binary with its companion files under `dist/<platform>/`.
+The [`build-release.sh`](build-release.sh) script cross-compiles all three target platforms (`linux/amd64`, `windows/amd64`, `darwin/arm64`) at once and bundles each binary with its companion files under `dist/<platform>/` — useful for producing binaries to hand out to teammates rather than installing locally.
 
-## Configuration and companion files
+### Installation layout
 
-On first launch, no configuration is needed: a connection screen lets you enter a cluster's URL and credentials directly. The following files are then read **if they exist**, next to the binary:
+Everything below is **optional** except the binary itself — TermDevTools runs with sensible built-in defaults for all of it.
 
-| File | Purpose |
-|---|---|
-| `cheatsheet.txt` | Default editor content on first launch against a given cluster (copy `cheatsheet.txt.example`). |
-| `endpoints.txt` | List of endpoints offered for auto-completion (replaces the built-in list). |
-| `cat_columns.txt` | `_cat/*` command → columns table, for auto-completion of the `h=`/`s=` parameters. |
+| Location | File | Purpose |
+|---|---|---|
+| next to the binary | `cheatsheet.txt` | Default editor content on first launch against a given cluster (copy/rename `cheatsheet.txt.example`, or let `install.sh`/`install.ps1` do it). Absent → empty editor. |
+| next to the binary | `endpoints.txt` | List of endpoints offered for auto-completion. Absent → falls back to a built-in list. |
+| next to the binary | `cat_columns.txt` | `_cat/*` command → columns table, for auto-completion of the `h=`/`s=` parameters. Absent → falls back to a built-in table. |
+| `~/.config/termdevtools/config.yaml` | — | **Created automatically** on first successful connection — nothing to set up by hand. See [Configuration](#configuration) below. |
 
-A sample user configuration (`~/.config/termdevtools/config.yaml`, generated automatically on first connection) is provided for reference in `config.yaml.example` — **it never contains a secret**: passwords, API key secrets, and passphrases are always re-requested on connection, never written to disk (see [Security](#security)).
+## Configuration
+
+No configuration is needed to get started: a connection screen lets you enter a cluster's URL and credentials directly, and `~/.config/termdevtools/config.yaml` is created automatically on first successful connection. A sample is provided for reference in `config.yaml.example` — **it never contains a secret**: passwords, API key secrets, and passphrases are always re-requested on connection, never written to disk (see [Security](#security)).
 
 The interface language (French by default, or English) is set via `language: fr` / `language: en` in that same `config.yaml` — or switched live from the app with `F3`, which saves the choice for next time.
 

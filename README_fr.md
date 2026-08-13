@@ -23,13 +23,40 @@ Détail complet des choix et du comportement : [SPEC_fr.md](SPEC_fr.md).
 
 ## Installation
 
+### Installation rapide (recommandé)
+
+Nécessite [Go](https://go.dev/) 1.25 ou supérieur. Compile nativement pour votre plateforme (pas de cross-compilation) et installe le binaire avec ses fichiers annexes au même endroit :
+
+```bash
+# Linux / macOS
+git clone <url-du-dépôt>
+cd TermDevTools
+./install.sh
+```
+
+```powershell
+# Windows (PowerShell)
+git clone <url-du-dépôt>
+cd TermDevTools
+.\install.ps1
+```
+
+Chaque script :
+
+- compile `termdevtools` pour votre OS/architecture courants ;
+- copie `cat_columns.txt` et `endpoints.txt` à côté, toujours mis à jour depuis le dépôt ;
+- initialise `cheatsheet.txt` depuis `cheatsheet.txt.example` **la première fois seulement** — relançable sans risque, n'écrase jamais une cheatsheet déjà personnalisée ;
+- indique quoi ajouter à votre `PATH` si l'emplacement d'installation n'y est pas encore.
+
+Emplacement par défaut : `~/.local/share/termdevtools` sous Linux/macOS (lié via un symlink dans `~/.local/bin`, ajouté au `PATH`), `%LOCALAPPDATA%\termdevtools` sous Windows. Personnalisable via la variable d'environnement `TERMDEVTOOLS_INSTALL_DIR` (et `TERMDEVTOOLS_BIN_DIR` sous Linux/macOS pour l'emplacement du symlink) — utile par exemple pour une installation partagée en équipe dans `/opt/termdevtools`.
+
 ### Binaires précompilés
 
-Des binaires statiques sont fournis pour Linux (amd64), Windows (amd64) et macOS (Apple Silicon / arm64) — voir la section [Releases](../../releases) du dépôt. Aucune dépendance à installer : il suffit de télécharger le binaire correspondant à votre plateforme et de le rendre exécutable (`chmod +x` sous Linux/macOS).
+Des binaires statiques sont fournis pour Linux (amd64), Windows (amd64) et macOS (Apple Silicon / arm64) — voir la section [Releases](../../releases) du dépôt, où chaque binaire est fourni avec ses fichiers annexes (voir [Arborescence d'installation](#arborescence-dinstallation) ci-dessous). Aucune dépendance à installer : il suffit de télécharger et de le rendre exécutable (`chmod +x` sous Linux/macOS).
 
-### Compilation depuis les sources
+### Compilation manuelle / cross-compilation
 
-Nécessite [Go](https://go.dev/) 1.25 ou supérieur.
+Pour compiler sans installer, ou cross-compiler vers une plateforme différente de la vôtre :
 
 ```bash
 git clone <url-du-dépôt>
@@ -39,19 +66,22 @@ go build -o termdevtools .
 
 Le binaire est statique (`CGO_ENABLED=0`) : il n'a besoin d'aucune bibliothèque système au-delà de la libc de base, et peut être copié tel quel sur n'importe quelle machine RHEL 8/9/10 (ou toute autre distribution Linux amd64), sans installation.
 
-Le script [`build-release.sh`](build-release.sh) compile les trois plateformes cibles (`linux/amd64`, `windows/amd64`, `darwin/arm64`) et regroupe chaque binaire avec ses fichiers annexes dans `dist/<plateforme>/`.
+Le script [`build-release.sh`](build-release.sh) compile les trois plateformes cibles (`linux/amd64`, `windows/amd64`, `darwin/arm64`) en une fois et regroupe chaque binaire avec ses fichiers annexes dans `dist/<plateforme>/` — utile pour produire des binaires à distribuer à l'équipe plutôt que pour une installation locale.
 
-## Configuration et fichiers annexes
+### Arborescence d'installation
 
-Au premier lancement, aucune configuration n'est nécessaire : un écran de connexion permet de saisir directement l'URL et les identifiants d'un cluster. Les fichiers suivants sont ensuite lus **s'ils existent**, à côté du binaire :
+Tout ce qui suit est **facultatif**, à l'exception du binaire lui-même — TermDevTools fonctionne avec des valeurs par défaut intégrées pour tout le reste.
 
-| Fichier | Rôle |
-|---|---|
-| `cheatsheet.txt` | Contenu par défaut de l'éditeur au premier lancement sur un cluster donné (copier `cheatsheet.txt.example`). |
-| `endpoints.txt` | Liste des endpoints proposés en auto-complétion (remplace la liste intégrée). |
-| `cat_columns.txt` | Table commande `_cat/*` → colonnes, pour l'auto-complétion des paramètres `h=`/`s=`. |
+| Emplacement | Fichier | Rôle |
+|---|---|---|
+| à côté du binaire | `cheatsheet.txt` | Contenu par défaut de l'éditeur au premier lancement sur un cluster donné (copier/renommer `cheatsheet.txt.example`, ou laisser `install.sh`/`install.ps1` le faire). Absent → éditeur vide. |
+| à côté du binaire | `endpoints.txt` | Liste des endpoints proposés en auto-complétion. Absent → utilise une liste intégrée. |
+| à côté du binaire | `cat_columns.txt` | Table commande `_cat/*` → colonnes, pour l'auto-complétion des paramètres `h=`/`s=`. Absent → utilise une table intégrée. |
+| `~/.config/termdevtools/config.yaml` | — | **Créé automatiquement** à la première connexion réussie — rien à préparer à la main. Voir [Configuration](#configuration) ci-dessous. |
 
-Un exemple de configuration utilisateur (`~/.config/termdevtools/config.yaml`, généré automatiquement à la première connexion) est fourni à titre indicatif dans `config.yaml.example` — **il ne contient jamais de secret** : mots de passe, clés d'API et passphrases sont redemandés à chaque connexion, jamais écrits sur disque (voir [Sécurité](#sécurité)).
+## Configuration
+
+Aucune configuration n'est nécessaire pour démarrer : un écran de connexion permet de saisir directement l'URL et les identifiants d'un cluster, et `~/.config/termdevtools/config.yaml` est créé automatiquement à la première connexion réussie. Un exemple est fourni à titre indicatif dans `config.yaml.example` — **il ne contient jamais de secret** : mots de passe, clés d'API et passphrases sont redemandés à chaque connexion, jamais écrits sur disque (voir [Sécurité](#sécurité)).
 
 La langue de l'interface (français par défaut, ou anglais) se règle via `language: fr` / `language: en` dans ce même `config.yaml` — ou se change à la volée dans l'appli avec `F3`, qui enregistre le choix pour la prochaine fois.
 

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
+
+	"termdevtools/config"
 )
 
 // screenText concatenates all the text content currently displayed by the
@@ -120,5 +122,45 @@ func TestInterfaceLanguageEnglish(t *testing.T) {
 	}
 	if strings.Contains(text, "Raccourcis clavier") {
 		t.Errorf("did not expect French help text with Language=en, got:\n%s", text)
+	}
+}
+
+// TestLanguageToggleF3SwitchesAndPersists checks the F3 shortcut: it
+// re-renders the already-open help screen and the status bar in the other
+// language without rebuilding the layout, and persists the choice to
+// config.yaml (config.Save, sandboxed to a temp XDG_CONFIG_HOME by
+// newTestAppLang) so it's picked up again on the next launch.
+func TestLanguageToggleF3SwitchesAndPersists(t *testing.T) {
+	app, screen := newTestAppLang(t, "fr")
+
+	screen.InjectKey(tcell.KeyF1, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+	if text := screenText(screen); !strings.Contains(text, "Raccourcis clavier") {
+		t.Fatalf("expected the French help screen before toggling, got:\n%s", text)
+	}
+
+	screen.InjectKey(tcell.KeyF3, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	if !app.helpVisible {
+		t.Error("expected help to remain open across a language toggle")
+	}
+	text := screenText(screen)
+	if !strings.Contains(text, "Keyboard shortcuts") {
+		t.Errorf("expected the help screen to re-render in English in place, got:\n%s", text)
+	}
+	if !strings.Contains(text, "Language: English") {
+		t.Errorf("expected a status bar confirmation of the switch, got:\n%s", text)
+	}
+	if app.cfg.Language != "en" {
+		t.Errorf("expected cfg.Language=%q after toggling, got %q", "en", app.cfg.Language)
+	}
+
+	reloaded, err := config.Load()
+	if err != nil {
+		t.Fatalf("config.Load after toggle: %v", err)
+	}
+	if reloaded.Language != "en" {
+		t.Errorf("expected the language choice to be persisted to disk, got %q", reloaded.Language)
 	}
 }

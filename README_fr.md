@@ -53,7 +53,7 @@ Au premier lancement, aucune configuration n'est nécessaire : un écran de conn
 
 Un exemple de configuration utilisateur (`~/.config/termdevtools/config.yaml`, généré automatiquement à la première connexion) est fourni à titre indicatif dans `config.yaml.example` — **il ne contient jamais de secret** : mots de passe, clés d'API et passphrases sont redemandés à chaque connexion, jamais écrits sur disque (voir [Sécurité](#sécurité)).
 
-La langue de l'interface (français par défaut, ou anglais) se règle via `language: fr` / `language: en` dans ce même `config.yaml`.
+La langue de l'interface (français par défaut, ou anglais) se règle via `language: fr` / `language: en` dans ce même `config.yaml` — ou se change à la volée dans l'appli avec `F3`, qui enregistre le choix pour la prochaine fois.
 
 ## Raccourcis clavier
 
@@ -67,6 +67,7 @@ La langue de l'interface (français par défaut, ou anglais) se règle via `lang
 | Sauvegarder (gauche) / exporter (droite) | `Ctrl+S` (selon le panneau focus) |
 | Compléter un endpoint / une colonne | `Tab` (panneau gauche) |
 | Copier le résultat dans le presse-papier | `F2` |
+| Changer la langue de l'interface (fr/en) | `F3` |
 | Aide | `F1` (`Echap` pour fermer) |
 
 ## Sécurité

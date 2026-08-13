@@ -25,6 +25,7 @@ func newTestApp(t *testing.T) (*App, tcell.SimulationScreen) {
 // actually honored end-to-end (see TestInterfaceLanguageEnglish).
 func newTestAppLang(t *testing.T, lang string) (*App, tcell.SimulationScreen) {
 	t.Helper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // sandbox config.Save() (F3 language toggle) away from the real user config
 
 	client, err := esclient.New(esclient.Params{URL: "http://127.0.0.1:1"})
 	if err != nil {

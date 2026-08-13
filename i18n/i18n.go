@@ -81,6 +81,10 @@ type Strings struct {
 	ErrConfigLoadFmt string
 	ErrExecDirFmt    string
 	ErrFatalFmt      string
+
+	// Language switch (F3, app.go)
+	LanguageName            string // this catalog's own language, in its own language ("Français"/"English")
+	InfoLanguageSwitchedFmt string
 }
 
 var fr = Strings{
@@ -125,9 +129,13 @@ var fr = Strings{
 	StatusIdle:        "prêt",
 	StatusRunning:     "requête en cours...",
 	StatusResultFmt:   "HTTP %d en %s",
-	ShortcutsHelpBar: "[gray]Ctrl+Entrée[white] exécuter   [gray]Tab[white] compléter   [gray]Ctrl+←/→[white] changer de panneau   " +
+	// Deliberate order: the most essential commands (help, language, quit)
+	// come first, so they stay visible even on a narrow terminal where the
+	// end of the line gets cut off (only 1 row is allocated for this bar).
+	ShortcutsHelpBar: "[gray]F1[white] aide   [gray]F3[white] langue   [gray]Ctrl+C[white] quitter   " +
+		"[gray]Ctrl+Entrée[white] exécuter   [gray]Tab[white] compléter   [gray]Ctrl+←/→[white] changer de panneau   " +
 		"[gray]Ctrl+Maj+←/→[white] redimensionner   [gray]Ctrl+F[white] rechercher   [gray]Ctrl+S[white] sauvegarder/exporter   " +
-		"[gray]F2[white] copier   [gray]F1[white] aide   [gray]Ctrl+C[white] quitter",
+		"[gray]F2[white] copier",
 
 	ErrLoadFailedFmt:   "échec du chargement de %s : %s",
 	ErrNoMatchFound:    "aucune occurrence trouvée",
@@ -158,6 +166,7 @@ ou texte brut (ex. réponses _cat/*).
   [aqua]Ctrl+S[white]           Sauvegarder (gauche) / exporter (droite)
   [aqua]F2[white]               Copier le résultat (panneau droit) dans le presse-papier
   [aqua]F1[white]               Afficher cette aide
+  [aqua]F3[white]               Changer la langue de l'interface (fr/en)
   [aqua]Ctrl+C[white]           Quitter (sauvegarde automatiquement le panneau gauche)
 
 [yellow]Fichiers[white]
@@ -175,6 +184,9 @@ ou texte brut (ex. réponses _cat/*).
 	ErrConfigLoadFmt: "Erreur de chargement de config.yaml : %s",
 	ErrExecDirFmt:    "Impossible de déterminer le dossier de l'exécutable : %s",
 	ErrFatalFmt:      "Erreur fatale : %s",
+
+	LanguageName:            "Français",
+	InfoLanguageSwitchedFmt: "Langue : %s",
 }
 
 var en = Strings{
@@ -219,9 +231,13 @@ var en = Strings{
 	StatusIdle:        "ready",
 	StatusRunning:     "request in progress...",
 	StatusResultFmt:   "HTTP %d in %s",
-	ShortcutsHelpBar: "[gray]Ctrl+Enter[white] execute   [gray]Tab[white] complete   [gray]Ctrl+←/→[white] switch panel   " +
+	// Deliberate order: the most essential commands (help, language, quit)
+	// come first, so they stay visible even on a narrow terminal where the
+	// end of the line gets cut off (only 1 row is allocated for this bar).
+	ShortcutsHelpBar: "[gray]F1[white] help   [gray]F3[white] language   [gray]Ctrl+C[white] quit   " +
+		"[gray]Ctrl+Enter[white] execute   [gray]Tab[white] complete   [gray]Ctrl+←/→[white] switch panel   " +
 		"[gray]Ctrl+Shift+←/→[white] resize   [gray]Ctrl+F[white] search   [gray]Ctrl+S[white] save/export   " +
-		"[gray]F2[white] copy   [gray]F1[white] help   [gray]Ctrl+C[white] quit",
+		"[gray]F2[white] copy",
 
 	ErrLoadFailedFmt:   "failed to load %s: %s",
 	ErrNoMatchFound:    "no match found",
@@ -252,6 +268,7 @@ or plain text (e.g. _cat/* responses).
   [aqua]Ctrl+S[white]           Save (left) / export (right)
   [aqua]F2[white]               Copy the result (right panel) to the clipboard
   [aqua]F1[white]               Show this help
+  [aqua]F3[white]               Switch the interface language (fr/en)
   [aqua]Ctrl+C[white]           Quit (auto-saves the left panel)
 
 [yellow]Files[white]
@@ -269,16 +286,26 @@ or plain text (e.g. _cat/* responses).
 	ErrConfigLoadFmt: "Error loading config.yaml: %s",
 	ErrExecDirFmt:    "Could not determine the executable's directory: %s",
 	ErrFatalFmt:      "Fatal error: %s",
+
+	LanguageName:            "English",
+	InfoLanguageSwitchedFmt: "Language: %s",
 }
 
-// For returns the message catalog for lang ("fr" or "en", case-insensitive).
-// Defaults to French for anything else (empty, unrecognized) — preserves
-// the interface's original language for configs predating this setting.
-func For(lang string) *Strings {
-	switch strings.ToLower(strings.TrimSpace(lang)) {
-	case EN:
-		return &en
-	default:
-		return &fr
+// Normalize maps lang ("fr"/"en", case-insensitive, possibly padded with
+// whitespace) to exactly FR or EN, defaulting to FR for anything else
+// (empty, unrecognized) — preserves the interface's original language for
+// configs predating this setting.
+func Normalize(lang string) string {
+	if strings.ToLower(strings.TrimSpace(lang)) == EN {
+		return EN
 	}
+	return FR
+}
+
+// For returns the message catalog for lang (see Normalize).
+func For(lang string) *Strings {
+	if Normalize(lang) == EN {
+		return &en
+	}
+	return &fr
 }

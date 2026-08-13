@@ -100,6 +100,7 @@ Put a help bar under the status bar as a shortcut reminder.
 | Complete an endpoint while typing | `Tab` in the left panel, on a `METHOD endpoint` line (§3.2) | Defined |
 | Show help (how it works + shortcuts) | `F1`, `Esc` to close | Defined |
 | Copy the result to the clipboard | `F2` (§3.3) | Defined |
+| Switch the interface language (fr/en) | `F3` | Defined |
 
 > `Ctrl+Enter` is only active when the left panel (request editing) is focused — no effect from the right panel.
 >
@@ -154,7 +155,7 @@ Connection history is specific to the user (two people launching the same shared
 
 ```yaml
 default_timeout_seconds: 120
-language: fr  # interface language: "fr" (default) or "en" — see the i18n package
+language: fr  # interface language: "fr" (default) or "en" — see the i18n package; also switchable live with F3, which rewrites this line
 default_ca_dir: /etc/pki/termdevtools/ca              # pre-fills the CA field for a new connection
 default_client_cert_dir: /etc/pki/termdevtools/certs  # pre-fills the client cert/key fields (mTLS)
 

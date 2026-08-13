@@ -53,7 +53,7 @@ On first launch, no configuration is needed: a connection screen lets you enter 
 
 A sample user configuration (`~/.config/termdevtools/config.yaml`, generated automatically on first connection) is provided for reference in `config.yaml.example` — **it never contains a secret**: passwords, API key secrets, and passphrases are always re-requested on connection, never written to disk (see [Security](#security)).
 
-The interface language (French by default, or English) is set via `language: fr` / `language: en` in that same `config.yaml`.
+The interface language (French by default, or English) is set via `language: fr` / `language: en` in that same `config.yaml` — or switched live from the app with `F3`, which saves the choice for next time.
 
 ## Keyboard shortcuts
 
@@ -67,6 +67,7 @@ The interface language (French by default, or English) is set via `language: fr`
 | Save (left) / export (right) | `Ctrl+S` (depending on focused panel) |
 | Complete an endpoint / a column | `Tab` (left panel) |
 | Copy the result to the clipboard | `F2` |
+| Switch the interface language (fr/en) | `F3` |
 | Help | `F1` (`Esc` to close) |
 
 ## Security

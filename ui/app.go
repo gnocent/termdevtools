@@ -56,6 +56,7 @@ const (
 type App struct {
 	tapp        *tview.Application
 	client      *esclient.Client
+	cfg         *config.Config
 	timeout     time.Duration
 	exportsDir  string
 	queriesPath string
@@ -99,6 +100,7 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 	a := &App{
 		tapp:             tapp,
 		client:           cr.Client,
+		cfg:              cfg,
 		timeout:          time.Duration(cfg.DefaultTimeoutSeconds) * time.Second,
 		exportsDir:       paths.Exports,
 		msgs:             msgs,
@@ -236,8 +238,15 @@ func (a *App) Start() {
 
 func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 	if a.helpVisible {
-		if event.Key() == tcell.KeyEscape {
+		switch event.Key() {
+		case tcell.KeyEscape:
 			a.closeHelp()
+			return nil
+		case tcell.KeyF3:
+			// Switching language while help is open re-renders it in place
+			// (see toggleLanguage/applyLanguage) — useful to see the effect
+			// immediately, since the help screen is the shortcuts reference.
+			a.toggleLanguage()
 			return nil
 		}
 		return event // let the help TextView scroll if content overflows
@@ -291,6 +300,9 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case event.Key() == tcell.KeyF2:
 		a.copyResult()
+		return nil
+	case event.Key() == tcell.KeyF3:
+		a.toggleLanguage()
 		return nil
 	}
 	return event
@@ -564,4 +576,40 @@ func (a *App) copyResult() {
 		a.screen.SetClipboard([]byte(text))
 	}
 	a.status.SetInfo(a.msgs.InfoCopied)
+}
+
+// toggleLanguage implements F3: flips the interface language (fr/en),
+// persists the choice to config.yaml, and re-renders the already-built
+// widgets in place — see applyLanguage. No screen/layout reconstruction is
+// needed: every panel already reads its chrome (titles, labels, help text)
+// from a.msgs, so switching just means pointing them at the other catalog
+// and re-applying it, the same calls each made once at construction time.
+func (a *App) toggleLanguage() {
+	next := i18n.EN
+	if i18n.Normalize(a.cfg.Language) == i18n.EN {
+		next = i18n.FR
+	}
+	a.cfg.Language = next
+	a.msgs = i18n.For(next)
+	a.applyLanguage()
+
+	if err := a.cfg.Save(); err != nil {
+		a.status.SetError(fmt.Sprintf(a.msgs.ErrSaveFailedFmt, err))
+		return
+	}
+	a.status.SetInfo(fmt.Sprintf(a.msgs.InfoLanguageSwitchedFmt, a.msgs.LanguageName))
+}
+
+// applyLanguage re-applies a.msgs to every widget built once in NewApp —
+// titles, labels, and the help screen's content. The editor's and result
+// panel's actual content (requests being edited, last response shown) is
+// left untouched.
+func (a *App) applyLanguage() {
+	a.editor.SetLanguage(a.msgs)
+	a.result.SetLanguage(a.msgs)
+	a.status.SetLanguage(a.msgs)
+	a.searchBar.SetLabel(a.msgs.SearchLabel)
+	a.completionList.SetTitle(a.msgs.CompletionTitle)
+	a.helpView.SetTitle(a.msgs.HelpViewTitle)
+	a.helpView.SetText(a.msgs.HelpContent)
 }

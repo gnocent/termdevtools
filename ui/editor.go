@@ -33,6 +33,12 @@ func (e *Editor) Primitive() tview.Primitive {
 	return e.view
 }
 
+// SetLanguage re-applies the panel's chrome (border title) in msgs' language
+// — the content itself (the requests being edited) is untouched.
+func (e *Editor) SetLanguage(msgs *i18n.Strings) {
+	e.view.SetTitle(msgs.EditorTitle)
+}
+
 // Text returns the editor's full content.
 func (e *Editor) Text() string {
 	return e.view.GetText()

@@ -33,6 +33,16 @@ func NewStatusBar(cluster, user string, msgs *i18n.Strings) *StatusBar {
 	return sb
 }
 
+// SetLanguage re-applies the shortcuts help bar in msgs' language. The
+// current status line is left untouched — it stays in the previous
+// language until the next SetIdle/SetRunning/SetInfo/SetResult/SetError
+// call re-renders it (the caller typically issues one right after
+// SetLanguage to confirm the switch immediately).
+func (sb *StatusBar) SetLanguage(msgs *i18n.Strings) {
+	sb.msgs = msgs
+	sb.help.SetText(msgs.ShortcutsHelpBar)
+}
+
 // Widget returns the container (status + help) to insert into the layout.
 func (sb *StatusBar) Widget() tview.Primitive {
 	return tview.NewFlex().SetDirection(tview.FlexRow).

@@ -53,6 +53,14 @@ func (r *ResultView) Primitive() tview.Primitive {
 	return r.view
 }
 
+// SetLanguage re-applies the panel's chrome (border title) in msgs'
+// language, and switches which language ErrNothingToExport is reported in —
+// the displayed result itself is untouched.
+func (r *ResultView) SetLanguage(msgs *i18n.Strings) {
+	r.msgs = msgs
+	r.view.SetTitle(msgs.ResultTitle)
+}
+
 // PlainText returns the currently displayed content, without color tags —
 // used for export (Ctrl+S) and clipboard copy (F2).
 func (r *ResultView) PlainText() string {

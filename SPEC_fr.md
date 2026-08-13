@@ -100,6 +100,7 @@ Mettre une barre d'aide sous la barre d'état avec rappel des raccourcis.
 | Compléter un endpoint en cours de frappe | `Tab` dans pannel gauche, sur une ligne `MÉTHODE endpoint` (§3.2) | Défini |
 | Afficher l'aide (fonctionnement + raccourcis) | `F1`, `Echap` pour fermer | Défini |
 | Copier le résultat dans le presse-papier | `F2` (§3.3) | Défini |
+| Changer la langue de l'interface (fr/en) | `F3` | Défini |
 
 > `Ctrl+Entrée` n'est actif que lorsque le focus est sur le panneau gauche (édition des requêtes) — sans effet depuis le panneau droit.
 >
@@ -154,7 +155,7 @@ L'historique de connexions est propre à l'utilisateur (deux personnes lançant 
 
 ```yaml
 default_timeout_seconds: 120
-language: fr  # langue de l'interface : "fr" (défaut) ou "en" — voir le package i18n
+language: fr  # langue de l'interface : "fr" (défaut) ou "en" — voir le package i18n ; modifiable à la volée avec F3, qui réécrit cette ligne
 default_ca_dir: /etc/pki/termdevtools/ca              # pré-remplissage du champ CA pour une nouvelle connexion
 default_client_cert_dir: /etc/pki/termdevtools/certs  # pré-remplissage des champs cert/clé client (mTLS)
 

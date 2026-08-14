@@ -113,37 +113,6 @@ func TestF10OutsideCompletionContextIsSwallowed(t *testing.T) {
 	}
 }
 
-// TestF10ShowsDebugContextOutsideCompletion checks that F10 reports the
-// line text and cursor row/col it saw, when it doesn't recognize a
-// completion context — added to self-diagnose a real report where the
-// context detection itself, not the F10 keystroke, was the actual problem
-// (a "GET " line failed to be recognized on one specific machine, despite
-// F10 itself arriving as a clean, unambiguous KeyF10 event there).
-func TestF10ShowsDebugContextOutsideCompletion(t *testing.T) {
-	_, screen := newTestApp(t)
-
-	// A JSON body line is a reliable, unambiguous "no completion context"
-	// case: unlike "GET " (empty prefix — matches with the *full* endpoint
-	// list, not what's under test here), "{" can never match
-	// completionLineRe at all.
-	injectText(screen, "POST _search")
-	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
-	injectText(screen, "{")
-	waitForDraw(t, screen)
-	screen.InjectKey(tcell.KeyF10, 0, tcell.ModNone)
-	waitForDraw(t, screen)
-
-	// The full message (including the status bar's own "Cluster: ... |
-	// Utilisateur: ..." prefix) can exceed the simulated screen's 80
-	// columns before reaching the %q line text — checking the message's
-	// own stable lead-in ("F10 : ") is enough to confirm this code path
-	// fired.
-	text := screenText(screen)
-	if !strings.Contains(text, "F10 :") {
-		t.Errorf("expected the status bar to show the no-completion-context diagnostic, got:\n%s", text)
-	}
-}
-
 func TestCompletionSingleMatchAppliesInline(t *testing.T) {
 	app, screen := newTestApp(t)
 
@@ -179,6 +148,35 @@ func TestCompletionTrailingSlashIsIgnored(t *testing.T) {
 	}
 }
 
+// TestCompletionClearsPriorErrorMessage checks that a stale "no completion"
+// error (red, from an earlier Tab/F10 press with zero matches) doesn't stay
+// displayed once a *later* completion attempt actually finds matches and
+// opens the list.
+func TestCompletionClearsPriorErrorMessage(t *testing.T) {
+	app, screen := newTestApp(t)
+
+	injectText(screen, "GET zzzznomatch")
+	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+	if !strings.Contains(screenText(screen), app.msgs.ErrNoCompletion) {
+		t.Fatalf("test setup sanity check failed: expected the %q error after zero matches", app.msgs.ErrNoCompletion)
+	}
+
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
+	injectText(screen, "GET _cat/s")
+	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	if app.completionList.GetItemCount() < 2 {
+		t.Fatalf("expected multiple completion candidates, got %d", app.completionList.GetItemCount())
+	}
+	if strings.Contains(screenText(screen), app.msgs.ErrNoCompletion) {
+		t.Error("expected the earlier no-completion error to be cleared once the list opens")
+	}
+}
+
 func TestCompletionMultiMatchOpensListAndEnterApplies(t *testing.T) {
 	app, screen := newTestApp(t)
 
@@ -208,6 +206,95 @@ func TestCompletionMultiMatchOpensListAndEnterApplies(t *testing.T) {
 		t.Error("expected the editor text to change after Enter, it did not")
 	}
 	t.Logf("editor text after completion: %q", got)
+}
+
+// TestCompletionTypeaheadJumpsToMatch checks that typing while the
+// completion list is open narrows the selection to the first item starting
+// with what was typed (case-insensitive) — useful to jump straight to an
+// entry without scrolling through a long list (see typeaheadCompletion).
+func TestCompletionTypeaheadJumpsToMatch(t *testing.T) {
+	app, screen := newTestApp(t)
+
+	// "_cat/s" (already typed) matches segments/shards/snapshots (sorted
+	// alphabetically, all shown in the list): typing one more letter, "h",
+	// should skip past "segments" straight to "shards".
+	injectText(screen, "GET _cat/s")
+	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	if app.completionList.GetItemCount() < 3 {
+		t.Fatalf("test setup sanity check failed: expected at least 3 candidates, got %d", app.completionList.GetItemCount())
+	}
+
+	injectText(screen, "h")
+	waitForDraw(t, screen)
+
+	if main, _ := app.completionList.GetItemText(app.completionList.GetCurrentItem()); main != "_cat/shards?v" {
+		t.Fatalf("expected typeahead 'sh' to select %q, got %q", "_cat/shards?v", main)
+	}
+
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	if got, want := app.editor.Text(), "GET _cat/shards?v"; got != want {
+		t.Errorf("expected typeahead selection to be applied on Enter, got %q want %q", got, want)
+	}
+}
+
+// TestCompletionTypeaheadSurvivesPause checks that a pause between
+// keystrokes never drops already-typed characters from the type-ahead
+// buffer — a prior version reset the buffer after 700ms of inactivity,
+// which silently dropped a character like "/" typed just before a pause,
+// producing a search that looked timing-dependent/random to the user
+// (typing "GET _cat" + Tab + "/" + a pause + "i" must search "_cat/i", not
+// end up searching just "i").
+func TestCompletionTypeaheadSurvivesPause(t *testing.T) {
+	app, screen := newTestApp(t)
+
+	injectText(screen, "GET _cat")
+	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	injectText(screen, "/")
+	waitForDraw(t, screen)
+	time.Sleep(900 * time.Millisecond) // longer than the old (now-removed) 700ms timeout
+	injectText(screen, "i")
+	waitForDraw(t, screen)
+
+	if !strings.Contains(app.completionList.GetTitle(), "[_cat/i]") {
+		t.Fatalf("expected the search text to still be %q after the pause, title is %q", "_cat/i", app.completionList.GetTitle())
+	}
+	if main, _ := app.completionList.GetItemText(app.completionList.GetCurrentItem()); main != "_cat/indices?v" {
+		t.Errorf("expected the pause to leave the '/' in place and select %q, got %q", "_cat/indices?v", main)
+	}
+}
+
+// TestCompletionTitleShowsSearchText checks that the completion list's
+// title shows what's actually being searched for (the text already typed
+// before Tab, plus type-ahead keystrokes since) — reported as confusing
+// otherwise: typing "GET _cat" then Tab then "i" searches for "_cati", not
+// "_cat/i" (every candidate has a "/" in between, e.g. "_cat/indices?v"),
+// so without visible feedback the keystroke silently does nothing.
+func TestCompletionTitleShowsSearchText(t *testing.T) {
+	app, screen := newTestApp(t)
+
+	injectText(screen, "GET _cat")
+	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	if !strings.Contains(app.completionList.GetTitle(), "[_cat]") {
+		t.Fatalf("expected the completion list title to show the base search text %q, got %q", "_cat", app.completionList.GetTitle())
+	}
+
+	injectText(screen, "i")
+	waitForDraw(t, screen)
+
+	if !strings.Contains(app.completionList.GetTitle(), "[_cati]") {
+		t.Errorf("expected the completion list title to reflect the typed 'i', got %q", app.completionList.GetTitle())
+	}
 }
 
 func TestCompletionEscapeCancelsWithoutChange(t *testing.T) {

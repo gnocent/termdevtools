@@ -102,10 +102,10 @@ Mouse support (click to focus a field or select a list entry) is **off by defaul
 | Switch the interface language (fr/en) | `F3` |
 | Help | `F1` (`Esc` to close) |
 
-[^enter]: `Ctrl+Enter` also works, on terminals that report it as distinct from plain `Enter` — many don't (`Ctrl+M` *is* `Enter`'s control byte, confirmed unreported on a real macOS terminal even with Option/Alt held too), which is why `Ctrl+E` is the primary, always-reliable shortcut.
+[^enter]: `Ctrl+Enter` also works on terminals that report it as distinct from plain `Enter` — many don't, which is why `Ctrl+E` is the primary, always-reliable shortcut.
 [^focus]: On macOS, `Option`/`Alt` also works instead of `Ctrl` — `Ctrl+←/→` is intercepted by the system by default (Mission Control desktop switching).
-[^resize]: `Ctrl+Shift+←/→` (`Option`/`Alt` included, on macOS) also works, on terminals that report it as distinct from an unmodified arrow key — confirmed unreported that way on a real macOS terminal, which is why `F5`/`F6` are the primary, always-reliable shortcuts.
-[^tab]: On some older terminals, `Tab` is swallowed entirely — no key event at all reaches the app (confirmed on both Windows `cmd.exe` and PuTTY on the same real machine), unlike the modifier-only ambiguity affecting the shortcuts above. `F10` is a guaranteed-reliable alternative for exactly that case.
+[^resize]: `Ctrl+Shift+←/→` (`Option`/`Alt` included, on macOS) also works on terminals that report it distinctly from an unmodified arrow key — not all do, which is why `F5`/`F6` are the primary, always-reliable shortcuts.
+[^tab]: On some terminals (notably PuTTY) `Tab` is swallowed entirely — no key event reaches the app at all. `F10` is a guaranteed-reliable alternative. **PuTTY is generally discouraged**: no issues on native macOS/Windows 10+ terminals.
 
 ## Security
 

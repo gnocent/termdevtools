@@ -9,7 +9,7 @@ import (
 func TestCopyResultSendsPlainTextToClipboard(t *testing.T) {
 	app, screen := newTestApp(t)
 
-	app.result.Show([]byte(`{"status":"green"}`))
+	app.result.Show("GET", "_cluster/health", []byte(`{"status":"green"}`))
 	waitForDraw(t, screen)
 
 	screen.InjectKey(tcell.KeyF2, 0, tcell.ModNone)

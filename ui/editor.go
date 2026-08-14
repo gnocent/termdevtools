@@ -207,33 +207,6 @@ func (e *Editor) CompletionPrefix() (prefix string, start, end int, ok bool) {
 	return prefix, start, end, true
 }
 
-// DebugCursorContext returns the current logical line's text up to the
-// cursor, the *full* line it's on (to tell a genuinely wrong/stale cursor
-// offset apart from a line that really is empty/short), the raw absolute
-// (byte) offset CursorOffset() returned, and the row/column CompletionPrefix
-// computes from it — exposed for F10's "no completion context" fallback
-// (app.go) to self-diagnose why a context wasn't recognized, since Tab's
-// silent passthrough in that case gives no such visibility (same idea as
-// cmd/keydebug, applied to editor/cursor state instead of raw key events).
-func (e *Editor) DebugCursorContext() (lineUpToCursor, fullLine string, offset, row, col int) {
-	text := e.Text()
-	offset = e.CursorOffset()
-	lines := strings.Split(text, "\n")
-
-	row, col = lineColAt(text, offset)
-	if row < 0 || row >= len(lines) {
-		return "", "", offset, row, col
-	}
-	fullLine = lines[row]
-	if col < 0 {
-		col = 0
-	}
-	if col > len(fullLine) {
-		col = len(fullLine)
-	}
-	return fullLine[:col], fullLine, offset, row, col
-}
-
 // ApplyCompletion replaces the text between start and end (byte offsets,
 // see CompletionPrefix) with replacement, and places the cursor right after.
 func (e *Editor) ApplyCompletion(start, end int, replacement string) {

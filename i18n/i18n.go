@@ -63,17 +63,16 @@ type Strings struct {
 	ShortcutsHelpBar  string
 
 	// App-level status/error messages (app.go)
-	ErrLoadFailedFmt          string // "échec du chargement de %s : %s"
-	ErrNoMatchFound           string
-	ErrNoCompletion           string
-	ErrNoCompletionContextFmt string // args: full line, raw cursor offset, row, col — F10's self-diagnosis, see Editor.DebugCursorContext
-	ErrSaveFailedFmt          string
-	InfoSavedFmt              string
-	ErrExportFailedFmt        string
-	InfoExportedFmt           string
-	ErrNothingToCopy          string
-	InfoCopied                string
-	ErrNothingToExport        string // result.go's Export()
+	ErrLoadFailedFmt   string // "échec du chargement de %s : %s"
+	ErrNoMatchFound    string
+	ErrNoCompletion    string
+	ErrSaveFailedFmt   string
+	InfoSavedFmt       string
+	ErrExportFailedFmt string
+	InfoExportedFmt    string
+	ErrNothingToCopy   string
+	InfoCopied         string
+	ErrNothingToExport string // result.go's Export()
 
 	// Help popup content (F1)
 	HelpContent string
@@ -143,17 +142,16 @@ var fr = Strings{
 		"[gray]F5/F6[white] redimensionner   [gray]Ctrl+F[white] rechercher   [gray]Ctrl+S[white] sauvegarder/exporter   " +
 		"[gray]F2[white] copier",
 
-	ErrLoadFailedFmt:          "échec du chargement de %s : %s",
-	ErrNoMatchFound:           "aucune occurrence trouvée",
-	ErrNoCompletion:           "aucune complétion",
-	ErrNoCompletionContextFmt: "F10 : ligne=%q curseur=%d/L%d/C%d",
-	ErrSaveFailedFmt:          "échec de sauvegarde : %s",
-	InfoSavedFmt:              "requêtes sauvegardées dans %s",
-	ErrExportFailedFmt:        "échec d'export : %s",
-	InfoExportedFmt:           "résultat exporté dans %s",
-	ErrNothingToCopy:          "aucun résultat à copier",
-	InfoCopied:                "résultat copié (OSC 52 — nécessite un terminal compatible)",
-	ErrNothingToExport:        "aucun résultat à exporter",
+	ErrLoadFailedFmt:   "échec du chargement de %s : %s",
+	ErrNoMatchFound:    "aucune occurrence trouvée",
+	ErrNoCompletion:    "aucune complétion",
+	ErrSaveFailedFmt:   "échec de sauvegarde : %s",
+	InfoSavedFmt:       "requêtes sauvegardées dans %s",
+	ErrExportFailedFmt: "échec d'export : %s",
+	InfoExportedFmt:    "résultat exporté dans %s",
+	ErrNothingToCopy:   "aucun résultat à copier",
+	InfoCopied:         "résultat copié (OSC 52 — nécessite un terminal compatible)",
+	ErrNothingToExport: "aucun résultat à exporter",
 
 	HelpContent: `[yellow]TermDevTools[white] — client Elasticsearch en mode terminal
 
@@ -164,18 +162,18 @@ sur les lignes suivantes. Lignes [gray]#[white] = commentaires.
 ou texte brut (ex. réponses _cat/*).
 
 [yellow]Raccourcis clavier[white]
-[gray]Ctrl+Entrée et Ctrl+Maj+←/→ dépendent du terminal (parfois
-indiscernables d'Entrée/←/→ non modifiés, y compris avec Option/Alt) :
-Ctrl+E et F5/F6 fonctionnent partout, sans cette ambiguïté — à
-privilégier. Sur macOS, Option/Alt remplace aussi Ctrl pour changer de
-panneau (←/→), souvent interceptés par le système sur cette plateforme.
-Sur certains terminaux anciens, Tab est intercepté avant d'atteindre
-l'appli (aucun signal reçu, pas juste ambigu) : F10 fait la même chose.[white]
+[gray]PuTTY est connu pour mal gérer certains raccourcis : fortement
+déconseillé. Aucun souci sous macOS/Windows 10+ natifs. En cas de
+doute, préférez Ctrl+E, F5/F6 et Tab/F10.[white]
 
   [aqua]Ctrl+E[white]           Exécuter la requête sous le curseur
+                     (aussi : Ctrl+Entrée, Option/Alt+Entrée sur macOS — non garanti partout)
   [aqua]Tab/F10[white]          Compléter un endpoint en cours de frappe
+                     (aussi : Ctrl+Espace)
   [aqua]Ctrl+←/→[white]         Changer de panneau
+                     (aussi : Option/Alt+←/→ sur macOS)
   [aqua]F5/F6[white]            Redimensionner le split gauche/droite
+                     (aussi : Ctrl+Maj+←/→, Option/Alt+Maj+←/→ sur macOS — non garanti partout)
   [aqua]Ctrl+F[white]           Rechercher dans le panneau actif
   [aqua]Ctrl+S[white]           Sauvegarder (gauche) / exporter (droite)
   [aqua]F2[white]               Copier le résultat (panneau droit) dans le presse-papier
@@ -258,17 +256,16 @@ var en = Strings{
 		"[gray]F5/F6[white] resize   [gray]Ctrl+F[white] search   [gray]Ctrl+S[white] save/export   " +
 		"[gray]F2[white] copy",
 
-	ErrLoadFailedFmt:          "failed to load %s: %s",
-	ErrNoMatchFound:           "no match found",
-	ErrNoCompletion:           "no completion",
-	ErrNoCompletionContextFmt: "F10: line=%q cursor=%d/L%d/C%d",
-	ErrSaveFailedFmt:          "save failed: %s",
-	InfoSavedFmt:              "requests saved to %s",
-	ErrExportFailedFmt:        "export failed: %s",
-	InfoExportedFmt:           "result exported to %s",
-	ErrNothingToCopy:          "nothing to copy",
-	InfoCopied:                "result copied (OSC 52 — requires a compatible terminal)",
-	ErrNothingToExport:        "nothing to export",
+	ErrLoadFailedFmt:   "failed to load %s: %s",
+	ErrNoMatchFound:    "no match found",
+	ErrNoCompletion:    "no completion",
+	ErrSaveFailedFmt:   "save failed: %s",
+	InfoSavedFmt:       "requests saved to %s",
+	ErrExportFailedFmt: "export failed: %s",
+	InfoExportedFmt:    "result exported to %s",
+	ErrNothingToCopy:   "nothing to copy",
+	InfoCopied:         "result copied (OSC 52 — requires a compatible terminal)",
+	ErrNothingToExport: "nothing to export",
 
 	HelpContent: `[yellow]TermDevTools[white] — terminal-mode Elasticsearch client
 
@@ -279,18 +276,18 @@ on the following lines. Lines starting with [gray]#[white] = comments.
 or plain text (e.g. _cat/* responses).
 
 [yellow]Keyboard shortcuts[white]
-[gray]Ctrl+Enter and Ctrl+Shift+←/→ are terminal-dependent (sometimes
-indistinguishable from unmodified Enter/←/→, even with Option/Alt
-held too): Ctrl+E and F5/F6 work everywhere with no such ambiguity —
-prefer them. On macOS, Option/Alt also works instead of Ctrl to switch
-panel (←/→), often intercepted by the system on that platform. On some
-older terminals, Tab is swallowed before it even reaches the app (no
-signal received at all, not just ambiguous): F10 does the same thing.[white]
+[gray]PuTTY is known to mishandle some shortcuts: strongly discouraged.
+No issues on native macOS/Windows 10+ terminals. When in doubt, prefer
+Ctrl+E, F5/F6, and Tab/F10.[white]
 
   [aqua]Ctrl+E[white]           Execute the request under the cursor
+                     (also: Ctrl+Enter, Option/Alt+Enter on macOS — not guaranteed everywhere)
   [aqua]Tab/F10[white]          Complete an endpoint while typing
+                     (also: Ctrl+Space)
   [aqua]Ctrl+←/→[white]         Switch panel
+                     (also: Option/Alt+←/→ on macOS)
   [aqua]F5/F6[white]            Resize the left/right split
+                     (also: Ctrl+Shift+←/→, Option/Alt+Shift+←/→ on macOS — not guaranteed everywhere)
   [aqua]Ctrl+F[white]           Search in the active panel
   [aqua]Ctrl+S[white]           Save (left) / export (right)
   [aqua]F2[white]               Copy the result (right panel) to the clipboard

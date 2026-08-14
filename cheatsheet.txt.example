@@ -7,16 +7,40 @@
 # peut suivre sur les lignes suivantes. Placez le curseur sur une requête
 # et faites Ctrl+Entrée pour l'exécuter.
 
-GET _cluster/health
-
-GET _cat/indices?v
-
-GET _cat/nodes?v
-
-# Exemple de requête avec un corps JSON
-POST _search
+# détail shard par shard, pour localiser précisément un souci
+GET _cluster/health?level=shards
+GET _cat/master?v
+# explique un shard précis ; sans corps JSON, prend automatiquement le premier shard non alloué trouvé
+GET _cluster/allocation/explain
 {
-  "query": {
-    "match_all": {}
-  }
+  "index": "my-index-000001",
+  "shard": 0,
+  "primary": true
 }
+# inclut aussi les valeurs par défaut, pas seulement les settings modifiés
+GET _cluster/settings?flat_settings&include_defaults=true
+# colonnes ciblées admin : rejected = signe de saturation à surveiller
+GET _cat/thread_pool?v&h=id,name,active,queue,rejected,size,type
+GET _cat/circuit_breaker?v
+GET _cat/pending_tasks?v
+# descriptions détaillées, utile pour repérer une requête lourde en cours
+GET _cat/tasks?v&detailed=true
+# ne montre que les recovery en cours, pas l'historique complet
+GET _cat/recovery?v&active_only=true
+# colonnes de monitoring : heap/ram/cpu/charge/disque en un coup d'œil
+GET _cat/nodes?v&h=name,heap.percent,ram.percent,cpu,load_1m,disk.used_percent,node.role,master
+
+# restreint aux métriques utiles (heap, disque, GC) plutôt que le dump complet
+GET _nodes/stats/jvm,os,fs
+# vue équilibrage disque directement exploitable
+GET _cat/allocation?v&h=node,shards,disk.percent,disk.used,disk.avail,disk.total
+
+# n'affiche que les indices en alerte (health jaune/rouge)
+GET _cat/indices?v&health=yellow
+# les plus gros index en tête, taille exacte en octets
+GET _cat/indices?v&bytes=b&s=store.size:desc
+# fait ressortir les shards non alloués et leur raison
+GET _cat/shards?v&h=index,shard,prirep,state,node,unassigned.reason&s=state
+
+# on peut cibler un dépôt précis avec _cat/snapshots/<repo>?v
+GET _cat/snapshots?v

@@ -76,28 +76,44 @@ func (r *ResultView) Clear() {
 	r.view.ScrollToBeginning()
 }
 
+// requestReminder formats the "# METHOD path" comment line prepended to the
+// result panel (Show/ShowError) — a reminder of which request produced this
+// output, no JSON body included. Kept out of the JSON-colorizing pass (a
+// digit in path, e.g. "_search?size=10", would otherwise be mistaken for a
+// JSON number token) and displayed in gray, echoing the "#" comment
+// convention already used for editor lines (SPEC.md §3.2). Included in
+// plain (not just displayedText) so it also ends up in exports (Ctrl+S) and
+// clipboard copy (F2) — the point of the reminder, per the user's request.
+func requestReminder(method, path string) string {
+	return "# " + method + " " + path + "\n"
+}
+
 // Show displays the response body body: pretty-printed and colorized JSON
-// if valid, plain text (fixed-width) otherwise.
-func (r *ResultView) Show(body []byte) {
+// if valid, plain text (fixed-width) otherwise. method and path identify
+// the request that produced it (see requestReminder).
+func (r *ResultView) Show(method, path string, body []byte) {
+	header := requestReminder(method, path)
 	var buf bytes.Buffer
 	if err := json.Indent(&buf, body, "", "  "); err == nil {
-		r.plain = buf.String()
+		r.plain = header + buf.String()
 		r.isJSON = true
-		r.displayedText = colorizeJSON(r.plain)
+		r.displayedText = "[gray]" + tview.Escape(header) + "[white]" + colorizeJSON(buf.String())
 	} else {
-		r.plain = string(body)
+		r.plain = header + string(body)
 		r.isJSON = false
-		r.displayedText = tview.Escape(r.plain)
+		r.displayedText = "[gray]" + tview.Escape(header) + "[white]" + tview.Escape(string(body))
 	}
 	r.view.SetText(r.displayedText)
 	r.view.ScrollToBeginning()
 }
 
-// ShowError displays an error message in red.
-func (r *ResultView) ShowError(message string) {
-	r.plain = message
+// ShowError displays an error message in red. method and path identify the
+// request that produced it (see requestReminder).
+func (r *ResultView) ShowError(method, path, message string) {
+	header := requestReminder(method, path)
+	r.plain = header + message
 	r.isJSON = false
-	r.displayedText = "[red]" + tview.Escape(message) + "[white]"
+	r.displayedText = "[gray]" + tview.Escape(header) + "[white][red]" + tview.Escape(message) + "[white]"
 	r.view.SetText(r.displayedText)
 	r.view.ScrollToBeginning()
 }

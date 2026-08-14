@@ -123,7 +123,7 @@ func TestHighlightLineWrapSafe(t *testing.T) {
   "a_very_long_field_name_that_will_definitely_wrap_on_a_narrow_terminal": true,
   "needle": "found_me"
 }`
-	app.result.Show([]byte(body))
+	app.result.Show("GET", "_search", []byte(body))
 	waitForDraw(t, screen)
 
 	lines := strings.Split(app.result.PlainText(), "\n")

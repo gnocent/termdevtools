@@ -102,10 +102,10 @@ Le support de la souris (cliquer pour donner le focus à un champ ou sélectionn
 | Changer la langue de l'interface (fr/en) | `F3` |
 | Aide | `F1` (`Echap` pour fermer) |
 
-[^entree]: `Ctrl+Entrée` fonctionne aussi, sur les terminaux qui le rapportent distinctement d'un simple `Entrée` — beaucoup ne le font pas (`Ctrl+M` *est* le code de contrôle d'`Entrée`, confirmé non rapporté sur un vrai terminal macOS même avec Option/Alt tenu en même temps), d'où `Ctrl+E` comme raccourci principal, toujours fiable.
+[^entree]: `Ctrl+Entrée` fonctionne aussi sur les terminaux qui le rapportent distinctement d'un simple `Entrée` — beaucoup ne le font pas, d'où `Ctrl+E` comme raccourci principal, toujours fiable.
 [^focus]: Sur macOS, `Option`/`Alt` fonctionne aussi à la place de `Ctrl` — `Ctrl+←/→` est intercepté par le système par défaut (changement d'espace Mission Control).
-[^redim]: `Ctrl+Maj+←/→` (`Option`/`Alt` inclus, sur macOS) fonctionne aussi, sur les terminaux qui le rapportent distinctement d'une flèche non modifiée — confirmé non rapporté ainsi sur un vrai terminal macOS, d'où `F5`/`F6` comme raccourcis principaux, toujours fiables.
-[^tab]: Sur certains terminaux anciens, `Tab` est absorbé entièrement — aucun événement clavier n'atteint l'appli (confirmé à la fois sur `cmd.exe` Windows et PuTTY, sur une même machine réelle), contrairement à la simple ambiguïté de modificateur touchant les raccourcis ci-dessus. `F10` est une alternative garantie fiable pour ce cas précis.
+[^redim]: `Ctrl+Maj+←/→` (`Option`/`Alt` inclus, sur macOS) fonctionne aussi sur les terminaux qui le rapportent distinctement d'une flèche non modifiée — tous ne le font pas, d'où `F5`/`F6` comme raccourcis principaux, toujours fiables.
+[^tab]: Sur certains terminaux (notamment PuTTY), `Tab` est absorbé entièrement — aucun événement clavier n'atteint l'appli. `F10` est une alternative garantie fiable. **PuTTY est globalement déconseillé** : aucun souci sous macOS/Windows 10+ natifs.
 
 ## Sécurité
 

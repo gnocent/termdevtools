@@ -73,9 +73,11 @@ type App struct {
 	searchBar  *tview.InputField
 	leftWeight int
 
-	completionList  *tview.List
-	completionStart int
-	completionEnd   int
+	completionList        *tview.List
+	completionStart       int
+	completionEnd         int
+	completionTypedPrefix string
+	completionTypeahead   string
 
 	pages       *tview.Pages
 	helpView    *tview.TextView
@@ -162,6 +164,12 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 			}
 			a.completionList.SetCurrentItem(next)
 			return nil
+		case tcell.KeyRune:
+			a.typeaheadCompletion(event.Rune())
+			return nil
+		case tcell.KeyBackspace, tcell.KeyBackspace2:
+			a.typeaheadCompletionBackspace()
+			return nil
 		}
 		return event
 	})
@@ -184,12 +192,18 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 	// background (classic tview idiom: nested Flex with nil spacers).
 	// Proportional (not fixed) height to adapt to the terminal size; the
 	// TextView stays scrollable if the content still overflows on a very
-	// short terminal.
+	// short terminal. The width, on the other hand, is fixed rather than
+	// proportional (content reads better at a stable line length than
+	// stretched to a wide terminal) — capped at 76 to stay clear of the
+	// classic 80-column terminal floor once the side margins and border are
+	// accounted for; going wider clips/corrupts the display on anything at
+	// or below that width (confirmed via the 80-column simulated screen the
+	// e2e tests use).
 	helpOverlay := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().
 			AddItem(nil, 0, 1, false).
-			AddItem(a.helpView, 68, 0, true).
+			AddItem(a.helpView, 76, 0, true).
 			AddItem(nil, 0, 1, false),
 			0, 9, true).
 		AddItem(nil, 0, 1, false)
@@ -296,15 +310,7 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 		}
 		if event.Key() == tcell.KeyF10 {
 			// Unlike Tab, F10 has no "insert a literal character" fallback
-			// meaning outside a completion context — instead of just
-			// swallowing it, self-diagnose why no context was recognized:
-			// the *full* current line (not just up to the cursor — a real
-			// report showed an unexpectedly empty/short one, meaning the
-			// cursor offset itself, not completion detection, was the
-			// actual problem) plus the raw offset/row/col, since Tab's
-			// silent passthrough gives no such visibility.
-			_, fullLine, offset, row, col := a.editor.DebugCursorContext()
-			a.status.SetError(fmt.Sprintf(a.msgs.ErrNoCompletionContextFmt, fullLine, offset, row, col))
+			// meaning outside a completion context — just swallow it.
 			return nil
 		}
 		return event // outside a completion context: Tab inserts a tab, standard behavior
@@ -347,7 +353,9 @@ func isExecuteShortcut(event *tcell.EventKey) bool {
 // on the same machine) isn't a decodable encoding quirk to work around —
 // something ahead of the app (terminal or OS) is swallowing Tab itself,
 // most likely for its own focus-navigation purposes. F10 is added as a
-// guaranteed-reliable alternative for exactly that case.
+// guaranteed-reliable alternative for exactly that case. Ctrl+Space is a
+// third option, offered mainly for muscle memory (the usual IDE/editor
+// completion shortcut) — no particular terminal-reliability edge over F10.
 func isCompletionShortcut(event *tcell.EventKey) bool {
 	return event.Key() == tcell.KeyTab || event.Key() == tcell.KeyF10 || event.Key() == tcell.KeyCtrlSpace
 }
@@ -551,11 +559,11 @@ func (a *App) executeCurrent() {
 		a.tapp.QueueUpdateDraw(func() {
 			if err != nil {
 				a.status.SetError(err.Error())
-				a.result.ShowError(err.Error())
+				a.result.ShowError(method, path, err.Error())
 				return
 			}
 			a.status.SetResult(result.StatusCode, result.Duration)
-			a.result.Show(result.Body)
+			a.result.Show(method, path, result.Body)
 		})
 	}()
 }
@@ -604,12 +612,23 @@ func (a *App) offerCompletions(start, end int, matches []string) {
 		a.editor.ApplyCompletion(start, end, matches[0])
 		a.status.SetIdle()
 	default:
+		// Clear any earlier error (e.g. a previous Tab/F10 press that found
+		// no completion) before showing the list — otherwise it stays
+		// displayed, in red, behind/around a completion that did work.
+		a.status.SetIdle()
 		a.openCompletion(start, end, matches)
 	}
 }
 
 func (a *App) openCompletion(start, end int, matches []string) {
 	a.completionStart, a.completionEnd = start, end
+	// The already-typed text that produced matches (e.g. "_cat/s") — every
+	// item in the list starts with it, so further typeahead keystrokes are
+	// matched against this prefix plus what's typed next, not against the
+	// bare keystrokes alone (see applyCompletionTypeahead).
+	a.completionTypedPrefix = a.editor.Text()[start:end]
+	a.completionTypeahead = ""
+	a.updateCompletionTitle()
 
 	a.completionList.Clear()
 	for _, m := range matches {
@@ -626,8 +645,69 @@ func (a *App) openCompletion(start, end int, matches []string) {
 }
 
 func (a *App) closeCompletion() {
+	a.completionTypeahead = ""
 	a.root.ResizeItem(a.completionList, 0, 0)
 	a.focusEditor()
+}
+
+// typeaheadCompletion appends r to the completion list's type-ahead search
+// buffer and jumps to the first item whose text starts with the buffer,
+// case-insensitively — lets you narrow down a long suggestion list by
+// typing instead of scrolling. The buffer only resets when the list itself
+// is opened or closed (see openCompletion/closeCompletion), never on its
+// own after a pause: an earlier version reset it after 700ms of inactivity,
+// which silently dropped already-typed characters (e.g. "/") whenever
+// typing paused even briefly — confusingly timing-dependent, since
+// Backspace already covers deliberate correction.
+func (a *App) typeaheadCompletion(r rune) {
+	a.completionTypeahead += string(r)
+	a.applyCompletionTypeahead()
+}
+
+// typeaheadCompletionBackspace removes the last rune from the type-ahead
+// buffer and re-applies it, letting a mistyped prefix be corrected without
+// closing and reopening the list.
+func (a *App) typeaheadCompletionBackspace() {
+	runes := []rune(a.completionTypeahead)
+	if len(runes) == 0 {
+		return
+	}
+	a.completionTypeahead = string(runes[:len(runes)-1])
+	a.applyCompletionTypeahead()
+}
+
+// applyCompletionTypeahead selects the first item in the completion list
+// whose text starts with completionTypedPrefix+completionTypeahead
+// (case-insensitive) — every item already starts with completionTypedPrefix
+// (the text typed before the list opened), so this matches from the
+// beginning of the item, not just against the newly typed keystrokes. Also
+// refreshes the list's title to show that combined search text (see
+// updateCompletionTitle): typing "i" right after Tab on "GET _cat" searches
+// for "_cati" (no matching item, since every candidate has a "/" there,
+// e.g. "_cat/indices?v") — showing the search text makes that visible
+// instead of the list silently not reacting to the keystroke.
+func (a *App) applyCompletionTypeahead() {
+	a.updateCompletionTitle()
+	if a.completionTypeahead == "" {
+		return
+	}
+	lower := strings.ToLower(a.completionTypedPrefix + a.completionTypeahead)
+	for i := 0; i < a.completionList.GetItemCount(); i++ {
+		main, _ := a.completionList.GetItemText(i)
+		if strings.HasPrefix(strings.ToLower(main), lower) {
+			a.completionList.SetCurrentItem(i)
+			return
+		}
+	}
+}
+
+// updateCompletionTitle refreshes the completion list's border title to
+// show the text currently being searched for: what was already typed
+// before the list opened (completionTypedPrefix) plus any type-ahead
+// keystrokes since (completionTypeahead).
+func (a *App) updateCompletionTitle() {
+	search := a.completionTypedPrefix + a.completionTypeahead
+	a.completionList.SetTitle(a.msgs.CompletionTitle + "[" + search + "]")
 }
 
 // handleSave implements Ctrl+S, whose behavior depends on which panel has
@@ -718,7 +798,7 @@ func (a *App) applyLanguage() {
 	a.result.SetLanguage(a.msgs)
 	a.status.SetLanguage(a.msgs)
 	a.searchBar.SetLabel(a.msgs.SearchLabel)
-	a.completionList.SetTitle(a.msgs.CompletionTitle)
+	a.updateCompletionTitle()
 	a.helpView.SetTitle(a.msgs.HelpViewTitle)
 	a.helpView.SetText(a.msgs.HelpContent)
 }

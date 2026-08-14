@@ -64,6 +64,51 @@ func TestCompletionPrefixWrapSafe(t *testing.T) {
 	}
 }
 
+// TestEditorSearchScrollsMatchIntoView checks that a Ctrl+F match in the
+// left panel actually scrolls into view when it's outside the current
+// viewport — tview.TextArea.Select's own doc comment is explicit that it
+// "preserves" the scroll offset (unlike normal cursor movement via typing
+// or arrow keys, which tview keeps on-screen automatically), so without
+// Editor.scrollToCursor a match far from the top would be selected
+// correctly internally but stay invisible: exactly what a real report
+// described as search "landing in the wrong place".
+func TestEditorSearchScrollsMatchIntoView(t *testing.T) {
+	app, screen := newTestApp(t)
+	screen.SetSize(80, 24)
+	waitForDraw(t, screen)
+
+	var lines []string
+	for i := 0; i < 40; i++ {
+		if i == 35 {
+			lines = append(lines, "# NEEDLE")
+			continue
+		}
+		lines = append(lines, "# filler line")
+	}
+	app.editor.view.SetText(strings.Join(lines, "\n"), false)
+	app.editor.SelectRange(0, 0) // cursor/scroll back to the top before searching
+	waitForDraw(t, screen)
+
+	if row, _ := app.editor.view.GetOffset(); row != 0 {
+		t.Fatalf("test setup sanity check failed: expected to start scrolled to the top, got row offset %d", row)
+	}
+
+	screen.InjectKey(tcell.KeyCtrlF, 0, tcell.ModCtrl)
+	waitForDraw(t, screen)
+	injectText(screen, "NEEDLE")
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	row, _ := app.editor.view.GetOffset()
+	if row == 0 {
+		t.Error("expected the match on line 35 to scroll the viewport, row offset is still 0")
+	}
+	cursorFromRow, _, _, _ := app.editor.view.GetCursor()
+	if cursorFromRow < row || cursorFromRow >= row+24 {
+		t.Errorf("expected the matched row (%d) to fall within the visible viewport [%d, %d), it doesn't", cursorFromRow, row, row+24)
+	}
+}
+
 // TestHighlightLineWrapSafe checks that search (Ctrl+F) in the right panel
 // highlights the right content (via tview regions, anchored to text) rather
 // than a display line number — which is exactly what

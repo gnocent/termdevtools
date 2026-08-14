@@ -66,7 +66,7 @@ type Strings struct {
 	ErrLoadFailedFmt          string // "échec du chargement de %s : %s"
 	ErrNoMatchFound           string
 	ErrNoCompletion           string
-	ErrNoCompletionContextFmt string // "%q, row=%d, col=%d" — F10's self-diagnosis, see Editor.DebugCursorContext
+	ErrNoCompletionContextFmt string // args: full line, raw cursor offset, row, col — F10's self-diagnosis, see Editor.DebugCursorContext
 	ErrSaveFailedFmt          string
 	InfoSavedFmt              string
 	ErrExportFailedFmt        string
@@ -146,7 +146,7 @@ var fr = Strings{
 	ErrLoadFailedFmt:          "échec du chargement de %s : %s",
 	ErrNoMatchFound:           "aucune occurrence trouvée",
 	ErrNoCompletion:           "aucune complétion",
-	ErrNoCompletionContextFmt: "pas de contexte de complétion ici — texte=%q ligne=%d colonne=%d",
+	ErrNoCompletionContextFmt: "F10 : ligne=%q curseur=%d/L%d/C%d",
 	ErrSaveFailedFmt:          "échec de sauvegarde : %s",
 	InfoSavedFmt:              "requêtes sauvegardées dans %s",
 	ErrExportFailedFmt:        "échec d'export : %s",
@@ -261,7 +261,7 @@ var en = Strings{
 	ErrLoadFailedFmt:          "failed to load %s: %s",
 	ErrNoMatchFound:           "no match found",
 	ErrNoCompletion:           "no completion",
-	ErrNoCompletionContextFmt: "no completion context here — text=%q row=%d col=%d",
+	ErrNoCompletionContextFmt: "F10: line=%q cursor=%d/L%d/C%d",
 	ErrSaveFailedFmt:          "save failed: %s",
 	InfoSavedFmt:              "requests saved to %s",
 	ErrExportFailedFmt:        "export failed: %s",

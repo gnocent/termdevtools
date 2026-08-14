@@ -136,9 +136,10 @@ func TestF10ShowsDebugContextOutsideCompletion(t *testing.T) {
 	// The full message (including the status bar's own "Cluster: ... |
 	// Utilisateur: ..." prefix) can exceed the simulated screen's 80
 	// columns before reaching the %q line text — checking the message's
-	// own stable lead-in is enough to confirm this code path fired.
+	// own stable lead-in ("F10 : ") is enough to confirm this code path
+	// fired.
 	text := screenText(screen)
-	if !strings.Contains(text, "pas de contexte de") {
+	if !strings.Contains(text, "F10 :") {
 		t.Errorf("expected the status bar to show the no-completion-context diagnostic, got:\n%s", text)
 	}
 }

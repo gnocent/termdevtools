@@ -297,12 +297,14 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyF10 {
 			// Unlike Tab, F10 has no "insert a literal character" fallback
 			// meaning outside a completion context — instead of just
-			// swallowing it, self-diagnose why no context was recognized
-			// (line text + cursor row/col), since Tab's silent passthrough
-			// gives no such visibility for tracking down a case where the
-			// context detection itself misbehaves on a given terminal.
-			line, row, col := a.editor.DebugCursorContext()
-			a.status.SetError(fmt.Sprintf(a.msgs.ErrNoCompletionContextFmt, line, row, col))
+			// swallowing it, self-diagnose why no context was recognized:
+			// the *full* current line (not just up to the cursor — a real
+			// report showed an unexpectedly empty/short one, meaning the
+			// cursor offset itself, not completion detection, was the
+			// actual problem) plus the raw offset/row/col, since Tab's
+			// silent passthrough gives no such visibility.
+			_, fullLine, offset, row, col := a.editor.DebugCursorContext()
+			a.status.SetError(fmt.Sprintf(a.msgs.ErrNoCompletionContextFmt, fullLine, offset, row, col))
 			return nil
 		}
 		return event // outside a completion context: Tab inserts a tab, standard behavior

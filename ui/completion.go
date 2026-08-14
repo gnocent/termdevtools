@@ -432,7 +432,8 @@ func matchCatCommand(path string, columns map[string][]string) (command string, 
 // command, e.g. "_cat/indices?h=health,st" or "_cat/shards?s=docs.count:de".
 // Returns ok=false if prefix doesn't match this case (a regular endpoint,
 // not a _cat command, or not inside an h=/s= parameter) — the caller then
-// falls back to regular endpoint completion. subPrefixLen (in runes) allows
+// falls back to regular endpoint completion. subPrefixLen (in bytes, see
+// Editor.CursorOffset for why bytes and not runes) allows
 // computing the portion to replace: only the column (or direction) being
 // typed, not everything before it.
 func catColumnCompletion(prefix string, columns map[string][]string) (candidates []string, subPrefixLen int, ok bool) {
@@ -487,7 +488,7 @@ func catColumnCompletion(prefix string, columns map[string][]string) (candidates
 	if isSortParam {
 		if colon := strings.IndexByte(segment, ':'); colon >= 0 {
 			dirPrefix := segment[colon+1:]
-			return matchPrefix(dirPrefix, sortDirections), len([]rune(dirPrefix)), true
+			return matchPrefix(dirPrefix, sortDirections), len(dirPrefix), true
 		}
 	}
 
@@ -495,5 +496,5 @@ func catColumnCompletion(prefix string, columns map[string][]string) (candidates
 	if len(cols) == 0 {
 		return nil, 0, false
 	}
-	return matchPrefix(segment, cols), len([]rune(segment)), true
+	return matchPrefix(segment, cols), len(segment), true
 }

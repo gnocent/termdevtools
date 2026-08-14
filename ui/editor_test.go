@@ -62,12 +62,37 @@ func TestCompletionPrefixSecondLine(t *testing.T) {
 	if prefix != "_cat/sh" {
 		t.Errorf("expected prefix %q, got %q", "_cat/sh", prefix)
 	}
-	// "# cheatsheet\n" is 13 runes; "GET " adds 4 more.
+	// "# cheatsheet\n" is 13 bytes (all-ASCII here, so also 13 runes); "GET "
+	// adds 4 more. See TestLineColAtByteOffsets for a case where the two
+	// diverge.
 	if start != 13+4 {
 		t.Errorf("expected start %d, got %d", 13+4, start)
 	}
-	if end-start != len([]rune(prefix)) {
+	if end-start != len(prefix) {
 		t.Errorf("expected end-start == len(prefix), got end=%d start=%d", end, start)
+	}
+}
+
+// TestLineColAtByteOffsets checks that lineColAt (and everything built on
+// it: CursorLine, CompletionPrefix) reasons in UTF-8 **byte** offsets, not
+// runes — confirmed by reading tview's own source that
+// TextArea.GetSelection/Select/Replace all count bytes internally. Before
+// this was byte-based, a position on a line *after* one containing any
+// multi-byte character (an accented French one, typically) would come out
+// short by however many extra bytes that character contributed — wrong
+// column, and for CursorLine specifically, potentially the wrong *line*
+// entirely (which request Ctrl+E executes).
+func TestLineColAtByteOffsets(t *testing.T) {
+	text := "# résumé\nGET _cat/health"
+	// "résumé" has two 2-byte accented characters, so "# résumé\n" is 11
+	// bytes, not the 9 a rune count would suggest.
+	offset := len("# résumé\nGET _cat/") // right before "health"
+	row, col := lineColAt(text, offset)
+	if row != 1 {
+		t.Fatalf("expected row 1, got %d", row)
+	}
+	if want := len("GET _cat/"); col != want {
+		t.Errorf("expected col %d, got %d — byte/rune offset mismatch", want, col)
 	}
 }
 

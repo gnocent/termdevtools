@@ -62,6 +62,7 @@ type Client struct {
 type Result struct {
 	StatusCode int
 	Duration   time.Duration
+	Headers    http.Header
 	Body       []byte
 }
 
@@ -137,7 +138,7 @@ func (c *Client) Execute(ctx context.Context, method, path string, body []byte) 
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
 
-	return &Result{StatusCode: resp.StatusCode, Duration: duration, Body: respBody}, nil
+	return &Result{StatusCode: resp.StatusCode, Duration: duration, Headers: resp.Header, Body: respBody}, nil
 }
 
 func (c *Client) applyAuth(req *http.Request) {

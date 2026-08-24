@@ -12,15 +12,15 @@ Status: finalized for v1 — implementation complete, this document now tracks t
 
 - **Problem solved**: We sometimes run into cases where an Elastic cluster has no Kibana, or its Kibana isn't working. To make investigations easier, having a DevTools equivalent directly in the terminal is much more efficient than typing a handful of curl commands (with the associated SSL headaches, complex API requests, …).
 - **Target users**: the team responsible for running Elasticsearch clusters.
-- **Target environments**: RHEL 8, RHEL 9, RHEL 10 (terminal only, no GUI).
-- **Portability constraint**: single binary, no system dependency beyond the base libc.
+- **Target environments**: originally RHEL 8/9/10 (terminal only, no GUI) — the team's actual deployment target for the Elasticsearch clusters this tool investigates — since broadened to Windows and macOS as well, for day-to-day use on a developer's own machine rather than only on the cluster's host.
+- **Portability constraint**: single binary per platform, no system dependency beyond the base libc on Linux (nothing equivalent needed on Windows/macOS).
 
 ## 2. Technical choices
 
 - **Language chosen**: **Go**.
 - **TUI library chosen**: [`tview`](https://github.com/rivo/tview) (ready-made widgets: `TextArea` for the editor, `TextView` for the JSON, `Flex`/`Grid` for layout, `SetInputCapture` for global shortcuts), built on [`tcell`](https://github.com/gdamore/tcell). Chosen over `bubbletea` for how simple it is to develop against for this use case (a classic widget-based layout, no complex custom rendering).
 - **HTTP/JSON client library**: Go's stdlib (`net/http` + `encoding/json`), no external dependency needed a priori.
-- **Build/distribution method**: static binary (`CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build`), no dependency on the system's libc → portable as-is across RHEL 8/9/10, and easy to fold into an existing deployment/configuration-management tool.
+- **Build/distribution method**: static binary (`CGO_ENABLED=0 go build`), no dependency on the system's libc → portable as-is across RHEL 8/9/10 (and any other Linux amd64 distribution), and easy to fold into an existing deployment/configuration-management tool. [`build-release.sh`](build-release.sh) cross-compiles the same source for `linux/amd64`, `windows/amd64`, and `darwin/arm64` in one pass — see README.md § Installation.
 
 ## 3. User interface (TUI)
 
@@ -30,6 +30,7 @@ On launch, a connection screen lists the URLs of known clusters (no separate nam
 
 - Selecting an existing cluster: non-sensitive fields (auth type, CA/cert paths, username, API key ID) are pre-filled from `config.yaml`; only the secret (password, API key secret, private key passphrase) is asked for again, depending on the auth type.
 - **New connection**: a full interactive form to fill in — URL, authentication type (none / Basic Auth / API Key / mTLS client certificate), then depending on the type: username, API key ID, CA path (pre-filled with `default_ca_dir`), client cert/key paths (pre-filled with `default_client_cert_dir`), whether to enable TLS verification — and finally the corresponding secret(s).
+- **Certificate picker (`Enter` on the CA file / client cert / client key fields)**: opens a popup — a small file browser, 70 columns wide — listing the entries found directly inside the corresponding configured directory (`default_ca_dir` for the CA field, `default_client_cert_dir` for both client cert/key fields — §9.2), to pick from instead of typing a filename from memory; subdirectories are listed first (suffixed with the OS path separator), then files, each group alphabetical. Arrows then `Enter` picks a file or browses into a subdirectory; `Backspace` goes back up to the parent directory; `Esc` cancels entirely without changing the field, from any depth. Reports a clear error in the connection screen's message line instead of opening an empty popup when the corresponding directory isn't configured; falls back to browsing the user's home directory (rather than erroring) when it's configured but doesn't exist on disk (§5).
 - **Fields displayed dynamically**, to show only what's relevant:
   - URL in `http://` (not https) → TLS fields hidden (CA file, "verify certificate" checkbox, and the client certificate/key fields, since a client certificate is part of the TLS handshake)
   - "None" authentication → no auth field shown
@@ -53,9 +54,11 @@ On launch, a connection screen lists the URLs of known clusters (no separate nam
 
 ### 3.2 Editor (left panel)
 
-- tview component: `TextArea` (multi-line, natively handles cursor/selection).
+- tview component: `TextArea` (multi-line, natively handles cursor/selection), laid out beside a line-number gutter (SPEC.md §7 backlog #5) inside a shared bordered panel — the number is shown once per logical line, blank on a word-wrapped continuation row, matching the usual editor convention. `TextArea` exposes no public API for where it wraps, so the gutter recomputes that itself (`ui/gutter.go`, `wrapRowStarts`) using the same underlying library (`github.com/rivo/uniseg`) `TextArea` uses internally, kept in step by construction rather than by reverse-engineered approximation.
+- **Auto-closing brackets/quotes** (SPEC.md §7 backlog #6, `ui/autoclose.go`): typing `{`, `[`, or `"` inserts the matching closer too, cursor placed in between; typing a closer that's already sitting right there (typically the one just auto-inserted) steps over it instead of duplicating it; Backspace between an empty pair removes both sides at once. Deliberately conservative given this was flagged as the highest UX-risk item on the backlog: does nothing while a selection is active (TextArea's own default typing-replaces-selection behavior applies instead), and doesn't auto-close a bracket typed as plain content inside an already-open string — tracked per line by counting unescaped `"` characters before the cursor, sufficient on its own since an unescaped newline inside a JSON string is invalid JSON to begin with (a string literal can never legitimately span more than one line).
 - Content: text containing one or more API requests (starting with GET, PUT, POST, or DELETE, followed by the endpoint and parameters, and on the following lines, the JSON payload to send). The editor detects the end of the JSON under a request (brace balancing) to understand the separation with the next request. Any line starting with `#` is a comment, and is therefore ignored.
 - Execution: `Ctrl+E` (also `Ctrl+Enter` where the terminal reports it — see §4) executes the request the cursor is in, **only if the left panel is focused** (no effect if the right panel is focused, see §4). The call is launched asynchronously; the status bar switches to "request in progress...", then the right panel and status bar are updated once the response is received.
+- **Reusable variables** (`${name}`, SPEC.md §7 backlog #4): a `${name}` reference anywhere in the path or body is substituted with a stored value before the request is actually sent (`Ctrl+E`) or turned into a `curl` command (`F9`) — `App.resolveRequest`, shared by both, the only two "what would actually be sent" operations; `F4` (reformat) deliberately does not go through it, since it edits the saved query text itself and must leave `${name}` literal. An undefined variable aborts with a status-bar error naming it (deduplicated across path and body) rather than sending the literal placeholder text. Values come from `~/.config/termdevtools/variables_<sanitized URL>.txt` — one file per cluster per user, same scheme as the query save below (`name=value` lines, `#` comments, `ui/variables.go`'s `parseVariables`) — loaded on connection and reloaded on demand with `F7` (no in-app editor; hand-edited, like `endpoints.txt`/`cat_columns.txt`, §9.1). Self-documenting on first use, same approach as `config.yaml` (`LoadVariablesFile`, mirroring `config.WriteDefaultConfigFile`).
 - Default file: `cheatsheet.txt`, loaded at startup if it exists (same directory as the binary).
 - **Per-cluster save**: the editor content save is specific to the **cluster you're connected to** (identified by its URL) **and to the current user** — one `~/.config/termdevtools/queries_<sanitized URL>.txt` file per cluster already used by that user (next to `config.yaml`, see §9.1 for the detail of filename sanitization).
 - **Save triggers**:
@@ -80,6 +83,7 @@ On launch, a connection screen lists the URLs of known clusters (no separate nam
 
 - Display format: pretty-printed JSON (typical responses) or fixed-width text (e.g. a response to a `_cat` command).
 - **Request reminder**: the panel's first line is always a `# METHOD path` comment (no JSON body) recalling which request produced the displayed result — e.g. `# GET _cat/health?v`. Part of the panel's plain text, so it's included in exports and clipboard copy too (below), not just the on-screen display.
+- **Response headers** (SPEC.md §7 backlog #2): every HTTP header on the response is listed right after the reminder, one `# Header: value` comment line per header (sorted by name), same plain-text treatment as the reminder itself — included in exports and clipboard copy. Gray like the reminder, except a `Warning` header (RFC 7234 — Elasticsearch sets it to flag a deprecated API in use) shown in yellow so it stands out. Not shown for a transport-level failure (`ShowError`): there's no response to have headers from.
 - Syntax highlighting for JSON: yes in v1.
 - Result history: No.
 - Handling large responses: manual scroll with up/down keys.
@@ -102,6 +106,9 @@ Put a help bar under the status bar as a shortcut reminder.
 | Resize the left/right split | `F5` (shrink the left) / `F6` (grow it) — `Ctrl+Shift+←/→` also works on terminals that report it | Defined |
 | Save (left) / export (right) | `Ctrl+S`, behavior depends on the focused panel (§3.2, §3.3) | Defined |
 | Complete an endpoint while typing | `Tab`, `F10`, or `Ctrl+Space` in the left panel, on a `METHOD endpoint` line (§3.2) | Defined |
+| Reformat (re-indent) the JSON body of the request under the cursor | `F4` in the left panel, no effect if there's no body or it isn't valid JSON | Defined |
+| Copy the request under the cursor as an equivalent `curl` command | `F9` in the left panel — secrets replaced with a placeholder (§7 backlog #3) | Defined |
+| Reload `${name}` variables from disk | `F7`, no panel restriction (§3.2, §7 backlog #4) | Defined |
 | Show help (how it works + shortcuts) | `F1`, `Esc` to close | Defined |
 | Copy the result to the clipboard | `F2` (§3.3) | Defined |
 | Switch the interface language (fr/en) | `F3` | Defined |
@@ -117,8 +124,8 @@ Put a help bar under the status bar as a shortcut reminder.
 - See §3.0 for the flow and §9.2 for the `config.yaml` schema.
 - **Supported authentication**: none, Basic Auth (login/password), API Key, client certificate (mTLS).
 - **TLS**: certificate verification (CA located by default in `default_ca_dir`, path overridable per connection), option to skip it.
-- **Certificates**: two globally configurable default directories (`default_ca_dir`, `default_client_cert_dir`) to pre-fill paths when entering a new connection.
-- **Secret storage**: none — password, API key secret, and private key passphrase are re-requested on every connection; only non-sensitive elements (URL, auth type, username, API key ID, CA/cert paths) are persisted in `config.yaml`, with the most recently used entry at the top of the list.
+- **Certificates**: two globally configurable default directories (`default_ca_dir`, `default_client_cert_dir`) to pre-fill paths when entering a new connection and to source the certificate picker popup (§3.0) — default to `/etc/pki/tls/certs` (RHEL/CentOS' standard TLS certificate directory) on Linux only, empty (nothing pre-filled) on Windows and macOS since that path doesn't exist there; overridable or clearable (`""`) per §9.2. Neither setting is a gate: if the configured directory doesn't exist on disk, the picker falls back to browsing the user's home directory instead of erroring out, and the field itself can always be typed by hand for a certificate kept anywhere else. Only when even that fallback isn't usable does the picker report a clear error naming the setting, not a raw OS error.
+- **Secret storage**: none — password, API key secret, and private key passphrase are re-requested on every connection; only non-sensitive elements (URL, auth type, username, API key ID, CA/cert paths) are persisted in `config.yaml`, with the most recently used entry at the top of the list. The same rule extends to the "copy as cURL" feature (`F9`, §4): the generated command includes the real, non-sensitive auth details (username, API key ID, certificate/key paths) but replaces the actual secret with a placeholder — a clipboard copy has no guardrail equivalent to "never written to disk."
 
 ## 6. Supported requests
 
@@ -130,12 +137,14 @@ Put a help bar under the status bar as a shortcut reminder.
 ## 7. Out of scope for v1 (future backlog)
 
 - Live-updating timer for the in-progress request in the status bar (v1 only shows the final result: HTTP code + total duration once the response is received).
-- Dynamic auto-completion of the connected cluster's real index names (v1 is limited to a static list of known endpoints, see §3.2).
+- Dynamic auto-completion of the connected cluster's real index names (v1 is limited to a static list of known endpoints, see §3.2). Highest-value item on this list, also the largest: needs live cluster queries, caching, and cache invalidation — not scheduled ahead of the smaller items below.
 - Advanced syntax highlighting.
+
+**Candidates inspired by Kibana Dev Tools** — all shipped as of this writing, roughly in decreasing-interest order as originally proposed: ~~Reformat the request body's JSON in place~~ (Kibana's "auto indent") as `F4` (§4); ~~Show the response's HTTP headers~~ as part of the result panel (§3.3); ~~"Copy as cURL"~~ as `F9` (§4) — secrets redacted, see `esclient.Client.CurlCommand`; ~~Line numbers in the editor gutter~~ as part of the editor panel (§3.2); ~~Reusable variables~~ as `${name}` substitution, reloaded with `F7` (§3.2, §9.1); ~~Auto-closing brackets/quotes~~ while typing in the editor (§3.2, `ui/autoclose.go`).
 
 ## 8. Non-functional constraints
 
-- **Runtime dependencies**: none beyond the standard libc present on RHEL 8/9/10.
+- **Runtime dependencies**: none — the standard libc present on RHEL 8/9/10 (or any other Linux amd64 distribution) on that platform, nothing at all to install on Windows or macOS.
 - **Performance**: must support large results (several MB).
 - **Intended final packaging**: a single binary to copy.
 - **Project/binary name**: termdevtools.
@@ -147,8 +156,9 @@ Put a help bar under the status bar as a shortcut reminder.
 Connection history is specific to the user (two people launching the same shared binary on the same server shouldn't step on each other), whereas the cheatsheet is more of a team-level content attached to the installation. Hence two separate locations:
 
 - **User configuration directory** (`~/.config/termdevtools/`, or `$XDG_CONFIG_HOME/termdevtools/` if that variable is set), created automatically (`0700` permissions) on first write:
-  - `config.yaml` — known clusters, updated automatically on every successful connection, no secret in it (§9.2).
+  - `config.yaml` — known clusters, updated automatically on every successful connection, no secret in it (§9.2). If the file doesn't exist yet, it's created on startup with every setting shown at its default value, a comment above each explaining what it does — self-documenting, so a user can discover what's configurable without reading this spec. Existing values are never touched; if the file does exist but is missing one or more settings (e.g. saved by an older version of the program, before some setting existed, or hand-trimmed down to a couple of keys), the missing ones are appended the same way, so it stays fully self-documenting as the program evolves.
   - `queries_<sanitized URL>.txt` — one file per cluster already used by this user, containing the latest save of the left panel for that cluster (§3.2). Written by `Ctrl+S` and automatically on program exit. Name built from the cluster's URL, replacing with `_` any character that isn't alphanumeric, `.`, `_`, or `-` (so notably `:` and `/`) — e.g. `https://es-prod.example.com:9200` → `queries_https___es-prod.example.com_9200.txt`. Two different URLs that happened to be similar enough to produce the same name after this normalization would (rare case) share the same file — an accepted limitation to keep names readable rather than hashed.
+  - `variables_<sanitized URL>.txt` — one file per cluster already used by this user, holding the reusable `${name}` values substituted into requests (§3.2, §7 backlog #4) — same one-file-per-cluster-per-user scheme and filename sanitization as `queries_*.txt`, just a different prefix (`config.VariablesPathForURL`). Hand-edited (no in-app editor), self-documenting: created with an explanatory comment the first time this user connects to this cluster, if it doesn't exist yet. Loaded on connection, reloaded on demand with `F7` (no file-watching).
 - **Executable's directory** (the binary's, not the shell's current working directory):
   - `cheatsheet.txt` — default editor content, loaded at startup only if no `queries_*.txt` save yet exists for the current cluster/user (optional, §3.2).
   - `endpoints.txt` — list of endpoints offered by `Tab` auto-completion, replaces the default list built into the binary if present (§3.2). **Checked into the repository** (unlike `cheatsheet.txt`/`config.yaml`, which remain plain `.example` templates): since it changes rarely, it's treated as a standard project input rather than a template to copy. Still optional at runtime, though — without it (e.g. a deployment where only the binary is copied), the default list built into the binary takes over. Lets the list be adjusted to the team's Elasticsearch version without recompiling; to be regenerated from the OpenAPI spec (§3.2) if it diverges too much from a future version.
@@ -162,8 +172,8 @@ Connection history is specific to the user (two people launching the same shared
 default_timeout_seconds: 120
 language: fr  # interface language: "fr" (default) or "en" — see the i18n package; also switchable live with F3, which rewrites this line
 mouse: false  # mouse support, off by default (see §3.3) — everything has a keyboard equivalent
-default_ca_dir: /etc/pki/termdevtools/ca              # pre-fills the CA field for a new connection
-default_client_cert_dir: /etc/pki/termdevtools/certs  # pre-fills the client cert/key fields (mTLS)
+default_ca_dir: ""          # pre-fills the CA field for a new connection and the certificate picker (§3.0) — defaults to /etc/pki/tls/certs (RHEL/CentOS' standard TLS cert directory) on Linux, "" (disabled) on Windows/macOS
+default_client_cert_dir: "" # pre-fills the client cert/key fields (mTLS) and the certificate picker — same default rule
 
 # order = usage history, most recently connected first
 # (no separate name: the URL identifies the cluster)

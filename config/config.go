@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -23,8 +25,35 @@ const (
 	fileName              = "config.yaml"
 	queriesFilePrefix     = "queries_"
 	queriesFileSuffix     = ".txt"
+	variablesFilePrefix   = "variables_"
+	variablesFileSuffix   = ".txt"
 	appDirName            = "termdevtools"
 )
+
+// defaultCertDir pre-fills both DefaultCADir and DefaultClientCertDir when
+// config.yaml doesn't set them: the standard system-wide TLS certificate
+// directory on RHEL/CentOS (this project's primary deployment target, see
+// SPEC.md §1), so the connection form's CA/client-cert/client-key fields
+// and the certificate picker popup (ui/connect.go) have something sensible
+// to work with out of the box.
+//
+// Empty on any OS other than Linux: assuming this same RHEL-specific path
+// also exists on Windows or macOS was a real bug — it doesn't, and pointing
+// the certificate picker at it there produced a raw "directory not found"
+// OS error instead of the friendlier "nothing configured" message an empty
+// default already routes to (openCertPicker in ui/connect.go).
+var defaultCertDir = certDirForOS(runtime.GOOS)
+
+// certDirForOS is defaultCertDir's actual logic, factored out as a plain
+// function of a goos string (rather than reading runtime.GOOS directly) so
+// it can be tested for every target platform regardless of which one the
+// tests happen to run on.
+func certDirForOS(goos string) string {
+	if goos == "linux" {
+		return "/etc/pki/tls/certs"
+	}
+	return ""
+}
 
 // unsafeFilenameChars covers everything a URL can contain that a filename
 // can't necessarily support (":", "/", spaces...) — replaced with "_" in
@@ -123,18 +152,51 @@ func QueriesPathForURL(url string) (string, error) {
 	return filepath.Join(dir, queriesFilePrefix+safe+queriesFileSuffix), nil
 }
 
+// VariablesPathForURL returns the path to the personal store of reusable
+// `${name}` variables (SPEC.md §7 backlog #4) for the cluster at url — same
+// one-file-per-cluster-per-user scheme, same filename sanitization, as
+// QueriesPathForURL, just a different prefix.
+func VariablesPathForURL(url string) (string, error) {
+	dir, err := ConfigDir()
+	if err != nil {
+		return "", err
+	}
+	safe := unsafeFilenameChars.ReplaceAllString(url, "_")
+	return filepath.Join(dir, variablesFilePrefix+safe+variablesFileSuffix), nil
+}
+
 // Load reads config.yaml. If the file doesn't exist yet (first launch), an
-// empty configuration with default values is returned with no error.
+// empty configuration with default values is returned with no error, and a
+// commented config.yaml documenting every setting (see
+// writeDefaultConfigFile) is created so it can be discovered and edited. If
+// it does exist but predates one or more settings (e.g. saved by an older
+// version of the program, or hand-edited down to just a couple of keys),
+// the missing ones are appended the same way (backfillMissingSettings) —
+// existing keys and values are never touched.
 func Load() (*Config, error) {
 	path, err := Path()
 	if err != nil {
 		return nil, fmt.Errorf("resolving config.yaml path: %w", err)
 	}
 
-	cfg := &Config{DefaultTimeoutSeconds: defaultTimeoutSeconds, path: path}
+	// DefaultCADir/DefaultClientCertDir are pre-set here, before Unmarshal,
+	// rather than defaulted afterward like DefaultTimeoutSeconds below:
+	// yaml.Unmarshal only overwrites fields actually present in the
+	// document, so a config.yaml that omits the key (or predates this
+	// default) keeps defaultCertDir, while one that explicitly sets it to
+	// "" (opting out of any default) is respected instead of being forced
+	// back — unlike a timeout, an empty path is a legitimate "no default"
+	// choice, not an invalid value to correct.
+	cfg := &Config{
+		DefaultTimeoutSeconds: defaultTimeoutSeconds,
+		DefaultCADir:          defaultCertDir,
+		DefaultClientCertDir:  defaultCertDir,
+		path:                  path,
+	}
 
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
+		writeDefaultConfigFile(path)
 		return cfg, nil
 	}
 	if err != nil {
@@ -148,6 +210,7 @@ func Load() (*Config, error) {
 	if cfg.DefaultTimeoutSeconds <= 0 {
 		cfg.DefaultTimeoutSeconds = defaultTimeoutSeconds
 	}
+	backfillMissingSettings(path, string(data))
 	return cfg, nil
 }
 
@@ -176,6 +239,134 @@ func (c *Config) Save() error {
 		return fmt.Errorf("writing %s: %w", c.path, err)
 	}
 	return nil
+}
+
+// configFileHeader introduces the generated config.yaml (see
+// defaultConfigFileContent) — written once, above every setting, on first
+// launch only (an existing header is never touched by the backfill in
+// backfillMissingSettings).
+const configFileHeader = `# Fichier de configuration de TermDevTools — généré automatiquement au
+# premier lancement (voir SPEC.md §9.1-§9.2). Propre à cet utilisateur :
+# deux personnes lançant le même binaire partagé n'ont pas le même
+# historique de connexions. Aucun secret n'y est jamais stocké : mots de
+# passe, API key secrets et passphrases de clé privée sont toujours
+# redemandés à la connexion.
+#
+# Chaque paramètre ci-dessous est affiché à sa valeur par défaut ; modifiez
+# ou supprimez selon vos besoins.
+`
+
+// configSettings lists every top-level config.yaml setting, in the order
+// they're written: key is the YAML key used to detect whether a given
+// setting is already present in an existing file (backfillMissingSettings),
+// block is the comment-plus-value snippet inserted for it — either in the
+// fresh file written on first launch, or appended for any of these settings
+// still missing from an older file (e.g. one written before "mouse" or
+// "default_ca_dir" existed). Each block leads with a blank line, so blocks
+// can be concatenated directly one after another (or appended to existing
+// content) with consistent spacing.
+//
+// The two directory settings default to defaultCertDir (RHEL/CentOS'
+// standard system-wide TLS certificate directory) rather than being unset,
+// so they're shown here as active values like every other setting.
+var configSettings = []struct{ key, block string }{
+	{"default_timeout_seconds", fmt.Sprintf(`
+# Délai maximum (en secondes) avant qu'une requête n'échoue en timeout.
+default_timeout_seconds: %d
+`, defaultTimeoutSeconds)},
+	{"language", `
+# Langue de l'interface : "fr" ou "en". Bascule aussi en direct avec F3
+# (qui met à jour cette ligne automatiquement).
+language: fr
+`},
+	{"mouse", `
+# Support de la souris (cliquer pour donner le focus à un champ/une entrée
+# de liste). Désactivé par défaut : toute interaction souris a un
+# équivalent clavier complet (SPEC.md §3-4), et la laisser désactivée
+# garde la sélection/collage natifs du terminal disponibles (F2 copie
+# quand même le résultat, voir SPEC.md §3.3).
+mouse: false
+`},
+	{"default_ca_dir", fmt.Sprintf(`
+# Dossier pré-rempli pour le champ CA lors de la saisie d'une nouvelle
+# connexion (§3.0), et utilisé par le sélecteur de certificat (Entrée sur
+# le champ) pour y lister les fichiers disponibles à choisir.
+default_ca_dir: %s
+`, defaultCertDir)},
+	{"default_client_cert_dir", fmt.Sprintf(`
+# Dossier pré-rempli pour les champs de certificat client (mTLS) lors de la
+# saisie d'une nouvelle connexion (§3.0), même usage que default_ca_dir
+# ci-dessus. Identique par défaut : ajustez si vos certificats client sont
+# ailleurs.
+default_client_cert_dir: %s
+`, defaultCertDir)},
+	{"clusters", `
+# Historique des clusters connus. L'ordre fait office d'historique
+# d'utilisation : le plus récemment utilisé est automatiquement replacé en
+# tête (§9.2). Rempli/mis à jour automatiquement après chaque connexion
+# réussie — vide au premier lancement.
+clusters: []
+`},
+}
+
+// defaultConfigFileContent renders the full config.yaml written on first
+// launch: the header followed by every setting at its default value.
+func defaultConfigFileContent() string {
+	var b strings.Builder
+	b.WriteString(configFileHeader)
+	for _, s := range configSettings {
+		b.WriteString(s.block)
+	}
+	return b.String()
+}
+
+// writeDefaultConfigFile creates config.yaml at path, pre-filled from
+// defaultConfigFileContent (see Load, called only when the file doesn't
+// exist yet). Best-effort and silent: a failure here (e.g. a read-only
+// filesystem) must not stop the app from starting — it still runs fine off
+// the in-memory defaults, and later explicit saves (Ctrl+S, F3, a
+// successful connection) surface their own errors as usual if the problem
+// persists.
+func writeDefaultConfigFile(path string) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return
+	}
+	_ = os.WriteFile(path, []byte(defaultConfigFileContent()), 0o600)
+}
+
+// settingKeyPresent reports whether key already appears in content as a
+// YAML mapping key at the start of a line — commented-out counts too (e.g.
+// "#default_ca_dir:"), since that's exactly how an unset optional setting
+// is documented by this same package: once shown, a setting must not be
+// re-appended just because it's still at its default.
+func settingKeyPresent(content, key string) bool {
+	re := regexp.MustCompile(`(?m)^[ \t]*#?[ \t]*` + regexp.QuoteMeta(key) + `[ \t]*:`)
+	return re.MatchString(content)
+}
+
+// backfillMissingSettings appends, to the existing config.yaml at path
+// (whose current content is passed in as content, already read by Load),
+// any of configSettings not already present in it — so a config.yaml
+// written by an older version of the program (before some setting existed)
+// still ends up documenting every setting a current one supports, without
+// touching what the user already has. A no-op, as it should be, once every
+// setting has been backfilled once. Best-effort and silent, same rationale
+// as writeDefaultConfigFile.
+func backfillMissingSettings(path, content string) {
+	var missing strings.Builder
+	for _, s := range configSettings {
+		if !settingKeyPresent(content, s.key) {
+			missing.WriteString(s.block)
+		}
+	}
+	if missing.Len() == 0 {
+		return
+	}
+
+	updated := strings.TrimRight(content, "\n") + "\n" +
+		"\n# Paramètres ajoutés automatiquement au démarrage (absents de ce fichier) :\n" +
+		missing.String()
+	_ = os.WriteFile(path, []byte(updated), 0o600)
 }
 
 // FindByURL returns a copy of the cluster at url, if it exists.

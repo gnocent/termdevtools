@@ -62,10 +62,18 @@ func newTestAppLang(t *testing.T, lang string) (*App, tcell.SimulationScreen) {
 }
 
 // waitForDraw gives the Application's goroutine time to process the
-// already-injected events and redraw.
+// already-injected events and redraw. A blind sleep, not a real
+// synchronization primitive (tview's key-event and QueueUpdate channels
+// aren't ordered relative to each other, so there's no cheap way to know
+// "every injected key has been processed" for certain) — bumped from the
+// original 30ms since ui/autoclose.go added real per-keystroke processing
+// (every typed rune, not just brackets/quotes, now runs through a Go
+// closure before insertion), which made the margin tighter and this race
+// noticeably flakier under load. Still probabilistic; see the tracked
+// follow-up to replace this with an actual polling wait.
 func waitForDraw(t *testing.T, screen tcell.SimulationScreen) {
 	t.Helper()
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(75 * time.Millisecond)
 }
 
 func injectText(screen tcell.SimulationScreen, s string) {
@@ -102,12 +110,12 @@ func TestF10OutsideCompletionContextIsSwallowed(t *testing.T) {
 
 	injectText(screen, "POST _search")
 	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
-	injectText(screen, "{")
+	injectText(screen, "{") // auto-closed to "{}", see ui/autoclose.go
 	waitForDraw(t, screen)
 	screen.InjectKey(tcell.KeyF10, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	want := "POST _search\n{"
+	want := "POST _search\n{}"
 	if got := app.editor.Text(); got != want {
 		t.Errorf("expected F10 to be swallowed with no effect outside a completion context, got %q want %q", got, want)
 	}
@@ -321,12 +329,12 @@ func TestTabInsideJSONBodyIsNotIntercepted(t *testing.T) {
 
 	injectText(screen, "POST _search")
 	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
-	injectText(screen, "{")
+	injectText(screen, "{") // auto-closed to "{}", cursor lands between the two, see ui/autoclose.go
 	waitForDraw(t, screen)
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	want := "POST _search\n{\t"
+	want := "POST _search\n{\t}"
 	if got := app.editor.Text(); got != want {
 		t.Errorf("expected a literal tab inserted in JSON body context, got %q want %q", got, want)
 	}

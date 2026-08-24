@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -11,24 +13,54 @@ import (
 	"termdevtools/i18n"
 )
 
-// Editor is the left panel: the request editor. See SPEC.md §3.2.
+// initialGutterWidth is a starting guess for the line-number gutter's fixed
+// width (SPEC.md §7 backlog #5) — corrected on the very first draw
+// (Editor.refreshGutter, based on the actual line count) regardless.
+const initialGutterWidth = 3
+
+// Editor is the left panel: the request editor. See SPEC.md §3.2. Laid out
+// as a gutter (line numbers, gutter.go) beside the actual TextArea, inside
+// a Flex that carries the panel's own border/title — the TextArea itself
+// stays borderless, so the numbers read as part of the same pane rather
+// than sitting outside it.
 type Editor struct {
-	view *tview.TextArea
+	view      *tview.TextArea
+	gutter    *tview.TextView
+	container *editorLayout
 }
 
 // NewEditor creates an empty editor.
 func NewEditor(msgs *i18n.Strings) *Editor {
 	area := tview.NewTextArea().SetWrap(true)
-	area.SetBorder(true).SetTitle(msgs.EditorTitle)
-	return &Editor{view: area}
+	// Left-aligned (tview's default): each number is already right-padded
+	// to a fixed digit width by gutterText, so left-aligning here is what
+	// leaves gutterPadding's trailing columns blank *after* the number,
+	// between it and the request text — right-aligning the box itself would
+	// push that same blank margin to the wrong side (see gutterPadding).
+	gutter := tview.NewTextView().SetDynamicColors(true)
+
+	e := &Editor{view: area, gutter: gutter}
+	e.wireAutoClose()
+
+	flex := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(gutter, initialGutterWidth, 0, false).
+		AddItem(area, 0, 1, true)
+	flex.SetBorder(true).SetTitle(msgs.EditorTitle)
+	e.container = &editorLayout{Flex: flex, editor: e}
+
+	return e
 }
 
-// Widget returns the tview component to insert into the layout.
+// Widget returns the tview component to insert into the layout: the
+// gutter+TextArea container, not the TextArea alone (see Editor).
 func (e *Editor) Widget() tview.Primitive {
-	return e.view
+	return e.container
 }
 
-// Primitive returns the underlying TextArea (for SetFocus, focus comparisons...).
+// Primitive returns the underlying TextArea (for SetFocus, focus
+// comparisons...) — typing/cursor/focus must target the TextArea
+// specifically, not the container that also holds the (never focusable)
+// gutter.
 func (e *Editor) Primitive() tview.Primitive {
 	return e.view
 }
@@ -36,7 +68,7 @@ func (e *Editor) Primitive() tview.Primitive {
 // SetLanguage re-applies the panel's chrome (border title) in msgs' language
 // — the content itself (the requests being edited) is untouched.
 func (e *Editor) SetLanguage(msgs *i18n.Strings) {
-	e.view.SetTitle(msgs.EditorTitle)
+	e.container.SetTitle(msgs.EditorTitle)
 }
 
 // Text returns the editor's full content.
@@ -213,4 +245,60 @@ func (e *Editor) ApplyCompletion(start, end int, replacement string) {
 	e.view.Replace(start, end, replacement)
 	newPos := start + len(replacement)
 	e.view.Select(newPos, newPos)
+}
+
+// lineRangeOffsets returns the byte offset range [start,end) in text
+// spanning logical lines startLine to endLine inclusive (0-indexed, no
+// trailing "\n" included) — used by ReformatBody to turn the line indices
+// parser.Request already reports (StartLine/EndLine, see SPEC.md §3.2) into
+// the byte offsets TextArea.Replace needs (see CursorOffset for why bytes,
+// not runes). Returns start == end if the range is out of bounds.
+func lineRangeOffsets(text string, startLine, endLine int) (start, end int) {
+	lines := strings.Split(text, "\n")
+	if startLine < 0 || endLine < startLine || endLine >= len(lines) {
+		return 0, 0
+	}
+	for i := 0; i < startLine; i++ {
+		start += len(lines[i]) + 1 // +1 for the "\n" separator
+	}
+	end = start
+	for i := startLine; i <= endLine; i++ {
+		end += len(lines[i])
+		if i < endLine {
+			end++
+		}
+	}
+	return start, end
+}
+
+// ReformatBody re-indents (json.Indent, matching ResultView.Show's own
+// formatting) the request body spanning logical lines bodyStartLine to
+// bodyEndLine inclusive — the same range parser.Request reports via
+// StartLine+1/EndLine once a body is confirmed present — and replaces it in
+// place, cursor moved to the end of the reformatted text. Returns false,
+// with no change made, if the range is empty, already exactly reformatted,
+// or isn't valid JSON (the caller is expected to validate the body first —
+// see parser.ValidateBody — so this should only be reached for a body
+// that's already known-valid).
+func (e *Editor) ReformatBody(bodyStartLine, bodyEndLine int) bool {
+	text := e.Text()
+	start, end := lineRangeOffsets(text, bodyStartLine, bodyEndLine)
+	if end <= start {
+		return false
+	}
+	raw := text[start:end]
+
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, []byte(raw), "", "  "); err != nil {
+		return false
+	}
+	formatted := buf.String()
+	if formatted == raw {
+		return false
+	}
+
+	e.view.Replace(start, end, formatted)
+	newPos := start + len(formatted)
+	e.view.Select(newPos, newPos)
+	return true
 }

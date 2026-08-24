@@ -54,15 +54,17 @@ const (
 // App assembles the main layout (editor, result, status bar) and manages
 // focus as well as global keyboard shortcuts. See SPEC.md §3-4.
 type App struct {
-	tapp        *tview.Application
-	client      *esclient.Client
-	cfg         *config.Config
-	timeout     time.Duration
-	exportsDir  string
-	queriesPath string
-	endpoints   []string
-	catColumns  map[string][]string
-	msgs        *i18n.Strings
+	tapp          *tview.Application
+	client        *esclient.Client
+	cfg           *config.Config
+	timeout       time.Duration
+	exportsDir    string
+	queriesPath   string
+	variablesPath string
+	variables     map[string]string
+	endpoints     []string
+	catColumns    map[string][]string
+	msgs          *i18n.Strings
 
 	editor *Editor
 	result *ResultView
@@ -120,6 +122,19 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 		a.status.SetError(err.Error())
 	}
 	a.queriesPath = queriesPath
+
+	variablesPath, err := config.VariablesPathForURL(cr.Cluster.URL)
+	if err != nil {
+		a.status.SetError(err.Error())
+	}
+	a.variablesPath = variablesPath
+	if variablesPath != "" {
+		if vars, err := LoadVariablesFile(variablesPath); err != nil {
+			a.status.SetError(fmt.Sprintf(msgs.ErrLoadFailedFmt, variablesPath, err))
+		} else {
+			a.variables = vars
+		}
+	}
 
 	endpoints, err := LoadEndpointsFile(paths.Endpoints)
 	if err != nil {
@@ -322,6 +337,22 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case event.Key() == tcell.KeyF3:
 		a.toggleLanguage()
+		return nil
+	case event.Key() == tcell.KeyF4:
+		if a.focusedIsEditor {
+			a.reformatBody()
+		}
+		return nil
+	case event.Key() == tcell.KeyF9:
+		if a.focusedIsEditor {
+			a.copyAsCurl()
+		}
+		return nil
+	case event.Key() == tcell.KeyF7:
+		// Not gated on focusedIsEditor, unlike F4/F9: this reloads a
+		// background data source (SPEC.md §7 backlog #4), it doesn't act on
+		// whatever request happens to be under the cursor.
+		a.reloadVariables()
 		return nil
 	}
 	return event
@@ -543,13 +574,18 @@ func (a *App) executeCurrent() {
 		a.status.SetError(err.Error())
 		return
 	}
-	if err := parser.ValidateBody(req.Body); err != nil {
+	path, body, err := a.resolveRequest(req)
+	if err != nil {
+		a.status.SetError(err.Error())
+		return
+	}
+	if err := parser.ValidateBody(body); err != nil {
 		a.status.SetError(err.Error())
 		return
 	}
 
 	a.status.SetRunning()
-	method, path, body := req.Method, req.Path, req.Body
+	method := req.Method
 
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), a.timeout)
@@ -563,9 +599,104 @@ func (a *App) executeCurrent() {
 				return
 			}
 			a.status.SetResult(result.StatusCode, result.Duration)
-			a.result.Show(method, path, result.Body)
+			a.result.Show(method, path, result.Headers, result.Body)
 		})
 	}()
+}
+
+// reformatBody implements F4 (SPEC.md §7 backlog #1, Kibana's "auto
+// indent"): re-indents the JSON body of the request under the cursor, in
+// place. Validated the same way as Ctrl+E (parser.ValidateBody) so the
+// error shown for genuinely malformed JSON matches what execution would
+// have reported.
+func (a *App) reformatBody() {
+	req, err := parser.RequestAtLine(a.editor.Text(), a.editor.CursorLine())
+	if err != nil {
+		a.status.SetError(err.Error())
+		return
+	}
+	if len(req.Body) == 0 {
+		a.status.SetError(a.msgs.ErrNoBodyToFormat)
+		return
+	}
+	if err := parser.ValidateBody(req.Body); err != nil {
+		a.status.SetError(err.Error())
+		return
+	}
+	if a.editor.ReformatBody(req.StartLine+1, req.EndLine) {
+		a.status.SetIdle()
+	}
+}
+
+// copyAsCurl implements F9 (SPEC.md §7 backlog #3, "copy as cURL"): copies
+// an equivalent curl command for the request under the cursor to the
+// clipboard (OSC 52, same mechanism as F2/copyResult) — handy to replicate
+// a call outside the tool (a script, a colleague, a bug report). See
+// esclient.Client.CurlCommand for why the actual secret (password, API key
+// secret, key passphrase) is replaced with a placeholder rather than
+// included as-is.
+func (a *App) copyAsCurl() {
+	req, err := parser.RequestAtLine(a.editor.Text(), a.editor.CursorLine())
+	if err != nil {
+		a.status.SetError(err.Error())
+		return
+	}
+	path, body, err := a.resolveRequest(req)
+	if err != nil {
+		a.status.SetError(err.Error())
+		return
+	}
+	cmd := a.client.CurlCommand(req.Method, path, body)
+	if a.screen != nil {
+		a.screen.SetClipboard([]byte(cmd))
+	}
+	a.status.SetInfo(a.msgs.InfoCurlCopied)
+}
+
+// resolveRequest applies variable substitution (${name}, SPEC.md §7
+// backlog #4) to req's path and body — shared by executeCurrent and
+// copyAsCurl, the two "what would actually be sent" operations.
+// reformatBody deliberately does NOT go through this: it edits the saved
+// query text itself, which must keep ${name} literal, not the resolved
+// value, or the placeholder would be lost from the editor for good.
+//
+// Returns an error naming every undefined variable referenced (deduplicated
+// across path and body) instead of silently sending a request with literal
+// "${name}" text still in it.
+func (a *App) resolveRequest(req *parser.Request) (path string, body []byte, err error) {
+	path, missingPath := substituteVariables(req.Path, a.variables)
+	bodyText, missingBody := substituteVariables(string(req.Body), a.variables)
+
+	seen := make(map[string]bool)
+	var missing []string
+	for _, name := range append(missingPath, missingBody...) {
+		if !seen[name] {
+			seen[name] = true
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		return "", nil, fmt.Errorf(a.msgs.ErrUnknownVariablesFmt, strings.Join(missing, ", "))
+	}
+	return path, []byte(bodyText), nil
+}
+
+// reloadVariables implements F7: re-reads the current cluster's variables
+// file from disk (SPEC.md §7 backlog #4) — there's no in-app editor for it
+// (hand-edited, like endpoints.txt/cat_columns.txt, §9.1), and the file
+// isn't watched, so this is how a change made in an external editor while
+// the app is already running takes effect without a full reconnect.
+func (a *App) reloadVariables() {
+	if a.variablesPath == "" {
+		return
+	}
+	vars, err := LoadVariablesFile(a.variablesPath)
+	if err != nil {
+		a.status.SetError(fmt.Sprintf(a.msgs.ErrLoadFailedFmt, a.variablesPath, err))
+		return
+	}
+	a.variables = vars
+	a.status.SetInfo(fmt.Sprintf(a.msgs.InfoVariablesReloadedFmt, len(vars)))
 }
 
 // tryCompletion implements Tab in the left panel (SPEC.md §3.2, §4):

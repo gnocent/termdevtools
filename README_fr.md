@@ -2,7 +2,31 @@
 
 # TermDevTools
 
-Simulateur en mode terminal de la vue **DevTools** de Kibana, pour interroger un cluster Elasticsearch directement depuis un terminal Linux (RHEL 8/9/10), sans navigateur ni Kibana fonctionnel.
+Simulateur en mode terminal de la vue **DevTools** de Kibana, pour interroger un cluster Elasticsearch directement depuis un terminal — Linux (dont RHEL 8/9/10), Windows ou macOS — sans navigateur ni Kibana fonctionnel.
+
+- [Captures d'écran](#captures-décran)
+- [Pourquoi](#pourquoi)
+- [Fonctionnalités](#fonctionnalités)
+- [Installation](#installation)
+- [Démarrage rapide](#démarrage-rapide)
+- [Configuration](#configuration)
+- [Variables réutilisables](#variables-réutilisables)
+- [Raccourcis clavier](#raccourcis-clavier)
+- [Sécurité](#sécurité)
+- [Licence](#licence)
+
+## Captures d'écran
+
+<table>
+<tr>
+<td width="50%"><img src="screenshot_search.png" alt="Résultat JSON formaté d'une requête _search"><br><sub>Résultat JSON formaté d'une requête <code>_search</code></sub></td>
+<td width="50%"><img src="screenshot_completion.png" alt="Menu d'auto-complétion des endpoints"><br><sub>Auto-complétion (<code>Tab</code>/<code>F10</code>) sur <code>_cluster/...</code></sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="screenshot_mappings.png" alt="Réponse de mapping d'un index"><br><sub>Consultation du mapping d'un index (<code>_mapping</code>)</sub></td>
+<td width="50%"><img src="screenshot_cat-indices.png" alt="Résultat de _cat/indices"><br><sub>Résultat de <code>_cat/indices?v</code></sub></td>
+</tr>
+</table>
 
 ## Pourquoi
 
@@ -10,13 +34,15 @@ Il arrive qu'un cluster Elasticsearch n'ait pas de Kibana disponible, ou que son
 
 ## Fonctionnalités
 
-- **Interface en deux panneaux** : éditeur de requêtes à gauche (`MÉTHODE endpoint` + corps JSON optionnel), résultat JSON formaté à droite.
+- **Interface en deux panneaux** : éditeur de requêtes (avec numéros de ligne et auto-fermeture des `{`/`[`/`"`) à gauche (`MÉTHODE endpoint` + corps JSON optionnel), résultat JSON formaté — rappel de la requête et en-têtes de réponse inclus — à droite.
 - **Exécution au curseur** (`Ctrl+Entrée`) : plusieurs requêtes peuvent cohabiter dans l'éditeur, séparées par des lignes vides ; celle sous le curseur est exécutée.
 - **Auto-complétion** (`Tab`) des endpoints (`_cat/*`, `_cluster/*`, `_nodes/*`, gestion d'index, ILM/SLM, snapshots, licence...) et, pour les commandes `_cat/*`, des noms de colonnes des paramètres `h=`/`s=`. Listes personnalisables sans recompiler via `endpoints.txt` et `cat_columns.txt`.
+- **Reformater le JSON** du corps sous le curseur sur place (`F4`) et **copier la requête en commande `curl`** équivalente (`F9`, secrets masqués).
+- **Variables réutilisables `${nom}`** (`F7` pour recharger après une modification à la main) — voir [Variables réutilisables](#variables-réutilisables).
 - **Recherche** (`Ctrl+F`) dans l'éditeur comme dans le résultat.
 - **Sauvegarde automatique** des requêtes en cours par cluster et par utilisateur (à la fermeture et via `Ctrl+S`), rechargées à la reconnexion.
 - **Export** du résultat affiché vers un fichier horodaté (`Ctrl+S`, panneau droit) et **copie presse-papier** via OSC 52 (`F2`, fonctionne à travers SSH).
-- **Connexion** : Basic Auth, API Key ou certificat client (mTLS), avec ou sans vérification TLS ; historique des clusters déjà utilisés (sans jamais y stocker de secret — voir [Sécurité](#sécurité)).
+- **Connexion** : Basic Auth, API Key ou certificat client (mTLS), avec ou sans vérification TLS ; historique des clusters déjà utilisés (sans jamais y stocker de secret — voir [Sécurité](#sécurité)) ; un sélecteur de certificat (`Entrée` sur les champs CA/certificat client) parcourt le dossier configuré plutôt que de taper un nom de fichier de mémoire.
 - **Aide intégrée** (`F1`) : rappel des raccourcis et de l'emplacement des fichiers.
 
 Détail complet des choix et du comportement : [SPEC_fr.md](SPEC_fr.md).
@@ -79,6 +105,18 @@ Tout ce qui suit est **facultatif**, à l'exception du binaire lui-même — Ter
 | à côté du binaire | `cat_columns.txt` | Table commande `_cat/*` → colonnes, pour l'auto-complétion des paramètres `h=`/`s=`. Absent → utilise une table intégrée. |
 | `~/.config/termdevtools/config.yaml` | — | **Créé automatiquement** à la première connexion réussie — rien à préparer à la main. Voir [Configuration](#configuration) ci-dessous. |
 
+## Démarrage rapide
+
+1. **Lancer l'outil** : `termdevtools` (`termdevtools.exe` sous Windows). L'écran de connexion liste les clusters déjà utilisés, plus une option **« + Nouvelle connexion »**.
+2. **Se connecter** : saisir l'URL du cluster, choisir un type d'authentification (aucune, Basic Auth, API Key, ou certificat client), puis le secret s'il y en a un. Tout est mémorisé pour la prochaine fois, sauf le secret (voir [Configuration](#configuration) ci-dessous).
+3. **Écrire une requête** dans le panneau de gauche, façon Kibana Console — méthode, endpoint, puis un corps JSON optionnel sur les lignes suivantes :
+   ```
+   GET _cluster/health
+   ```
+   Plusieurs requêtes peuvent cohabiter dans l'éditeur, séparées par des lignes vides ; celle sous le curseur est celle qui s'exécute.
+4. **L'exécuter** : `Ctrl+E`. Le résultat JSON formaté apparaît dans le panneau de droite (voir les [captures d'écran](#captures-décran) ci-dessus).
+5. Ensuite : `Tab` ou `F10` complète un endpoint en cours de frappe, `F4` reformate le corps JSON sous le curseur, `F9` copie la requête en commande `curl` équivalente, `Ctrl+S` sauvegarde le travail en cours. Référence complète : [Raccourcis clavier](#raccourcis-clavier).
+
 ## Configuration
 
 Aucune configuration n'est nécessaire pour démarrer : un écran de connexion permet de saisir directement l'URL et les identifiants d'un cluster, et `~/.config/termdevtools/config.yaml` est créé automatiquement à la première connexion réussie. Un exemple est fourni à titre indicatif dans `config.yaml.example` — **il ne contient jamais de secret** : mots de passe, clés d'API et passphrases sont redemandés à chaque connexion, jamais écrits sur disque (voir [Sécurité](#sécurité)).
@@ -86,6 +124,12 @@ Aucune configuration n'est nécessaire pour démarrer : un écran de connexion p
 La langue de l'interface (français par défaut, ou anglais) se règle via `language: fr` / `language: en` dans ce même `config.yaml` — ou se change à la volée dans l'appli avec `F3`, qui enregistre le choix pour la prochaine fois.
 
 Le support de la souris (cliquer pour donner le focus à un champ ou sélectionner une entrée de liste) est **désactivé par défaut** — mettre `mouse: true` dans `config.yaml` pour l'activer. Toute interaction souris a un équivalent clavier complet (voir [Raccourcis clavier](#raccourcis-clavier)) ; le laisser désactivé garde la sélection/collage natifs du terminal disponibles, puisque l'activer capte les événements souris pour l'appli à la place (`F2` copie toujours le résultat, avec ou sans souris).
+
+## Variables réutilisables
+
+Référencez un placeholder `${nom}` n'importe où dans l'URL ou le corps JSON d'une requête : il est substitué par une vraie valeur juste avant l'envoi de la requête (`Ctrl+E`) ou la génération d'une commande `curl` (`F9`) — c'est le placeholder lui-même qui est sauvegardé avec vos requêtes, pas la valeur résolue. Une variable non définie bloque l'action avec une erreur claire plutôt que d'envoyer `${nom}` tel quel au cluster.
+
+Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un fichier par cluster et par utilisateur, même principe que la sauvegarde des requêtes (`Ctrl+S`), au format `nom=valeur` (une par ligne, `#` pour les commentaires). Pas d'éditeur intégré pour ça : ouvrez le fichier directement dans votre éditeur de texte habituel, puis appuyez sur `F7` pour prendre en compte le changement sans redémarrer. Le fichier est créé automatiquement, avec un commentaire explicatif, à la première connexion à un cluster donné.
 
 ## Raccourcis clavier
 
@@ -97,7 +141,10 @@ Le support de la souris (cliquer pour donner le focus à un champ ou sélectionn
 | Rechercher dans les requêtes / dans le résultat | `Ctrl+F` (selon le panneau focus) |
 | Redimensionner le split gauche/droite | `F5` / `F6` [^redim] |
 | Sauvegarder (gauche) / exporter (droite) | `Ctrl+S` (selon le panneau focus) |
-| Compléter un endpoint / une colonne | `Tab` ou `F10` (panneau gauche) [^tab] |
+| Compléter un endpoint / une colonne | `Tab`, `F10` ou `Ctrl+Espace` (panneau gauche) [^tab] |
+| Reformater (indenter) le JSON sous le curseur | `F4` (panneau gauche) |
+| Copier la requête sous le curseur en commande `curl` | `F9` (panneau gauche) — secrets masqués, voir [Sécurité](#sécurité) |
+| Recharger les variables `${nom}` depuis le disque | `F7` — voir [Variables réutilisables](#variables-réutilisables) |
 | Copier le résultat dans le presse-papier | `F2` |
 | Changer la langue de l'interface (fr/en) | `F3` |
 | Aide | `F1` (`Echap` pour fermer) |

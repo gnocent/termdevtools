@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -76,44 +78,86 @@ func (r *ResultView) Clear() {
 	r.view.ScrollToBeginning()
 }
 
-// requestReminder formats the "# METHOD path" comment line prepended to the
-// result panel (Show/ShowError) — a reminder of which request produced this
-// output, no JSON body included. Kept out of the JSON-colorizing pass (a
-// digit in path, e.g. "_search?size=10", would otherwise be mistaken for a
-// JSON number token) and displayed in gray, echoing the "#" comment
-// convention already used for editor lines (SPEC.md §3.2). Included in
-// plain (not just displayedText) so it also ends up in exports (Ctrl+S) and
-// clipboard copy (F2) — the point of the reminder, per the user's request.
-func requestReminder(method, path string) string {
-	return "# " + method + " " + path + "\n"
+// reminderLines returns the "# METHOD path" comment line — a reminder of
+// which request produced this result — followed by one "# Header: value"
+// line per response header, sorted by name for determinism (SPEC.md §7
+// backlog #2). headers may be nil (ShowError: a transport-level failure
+// never got a response to have headers from). Header names/casing are
+// whatever Go's http.Header canonicalized them to (e.g. "Warning", not
+// "warning").
+func reminderLines(method, path string, headers http.Header) []string {
+	lines := []string{"# " + method + " " + path}
+
+	names := make([]string, 0, len(headers))
+	for name := range headers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		for _, v := range headers[name] {
+			lines = append(lines, "# "+name+": "+v)
+		}
+	}
+	return lines
+}
+
+// requestReminder joins reminderLines' lines into the plain-text block
+// prepended to the result panel — no JSON body included, no color tags:
+// this is what ends up in plain (not just displayedText), so it also
+// carries over to exports (Ctrl+S) and clipboard copy (F2), per the
+// original request-reminder feature request.
+func requestReminder(method, path string, headers http.Header) string {
+	return strings.Join(reminderLines(method, path, headers), "\n") + "\n"
+}
+
+// colorizeReminder is requestReminder's colorized counterpart, for
+// displayedText: kept out of the JSON-colorizing pass (a digit in path,
+// e.g. "_search?size=10", would otherwise be mistaken for a JSON number
+// token), gray like the "#" comment convention already used for editor
+// lines (SPEC.md §3.2) — except a "Warning" header (RFC 7234; Elasticsearch
+// sets it to flag a deprecated API in use) shown in yellow instead, so a
+// deprecation notice doesn't blend into the rest of the metadata.
+func colorizeReminder(method, path string, headers http.Header) string {
+	var b strings.Builder
+	for _, line := range reminderLines(method, path, headers) {
+		color := "gray"
+		if strings.HasPrefix(line, "# Warning:") {
+			color = "yellow"
+		}
+		b.WriteString("[" + color + "]" + tview.Escape(line) + "[white]\n")
+	}
+	return b.String()
 }
 
 // Show displays the response body body: pretty-printed and colorized JSON
-// if valid, plain text (fixed-width) otherwise. method and path identify
-// the request that produced it (see requestReminder).
-func (r *ResultView) Show(method, path string, body []byte) {
-	header := requestReminder(method, path)
+// if valid, plain text (fixed-width) otherwise. method, path and headers
+// identify the request/response that produced it (see reminderLines).
+func (r *ResultView) Show(method, path string, headers http.Header, body []byte) {
+	header := requestReminder(method, path, headers)
+	coloredHeader := colorizeReminder(method, path, headers)
 	var buf bytes.Buffer
 	if err := json.Indent(&buf, body, "", "  "); err == nil {
 		r.plain = header + buf.String()
 		r.isJSON = true
-		r.displayedText = "[gray]" + tview.Escape(header) + "[white]" + colorizeJSON(buf.String())
+		r.displayedText = coloredHeader + colorizeJSON(buf.String())
 	} else {
 		r.plain = header + string(body)
 		r.isJSON = false
-		r.displayedText = "[gray]" + tview.Escape(header) + "[white]" + tview.Escape(string(body))
+		r.displayedText = coloredHeader + tview.Escape(string(body))
 	}
 	r.view.SetText(r.displayedText)
 	r.view.ScrollToBeginning()
 }
 
 // ShowError displays an error message in red. method and path identify the
-// request that produced it (see requestReminder).
+// request that produced it (see reminderLines) — no headers: a
+// transport-level failure never got a response to have any.
 func (r *ResultView) ShowError(method, path, message string) {
-	header := requestReminder(method, path)
+	header := requestReminder(method, path, nil)
+	coloredHeader := colorizeReminder(method, path, nil)
 	r.plain = header + message
 	r.isJSON = false
-	r.displayedText = "[gray]" + tview.Escape(header) + "[white][red]" + tview.Escape(message) + "[white]"
+	r.displayedText = coloredHeader + "[red]" + tview.Escape(message) + "[white]"
 	r.view.SetText(r.displayedText)
 	r.view.ScrollToBeginning()
 }

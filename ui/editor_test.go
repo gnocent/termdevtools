@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"bytes"
+	"encoding/json"
 	"testing"
 
 	"termdevtools/i18n"
@@ -108,5 +110,58 @@ func TestApplyCompletion(t *testing.T) {
 
 	if got := e.Text(); got != "GET _cat/shards" {
 		t.Errorf("expected %q, got %q", "GET _cat/shards", got)
+	}
+}
+
+// TestReformatBodyIndentsCompactJSON checks F4's core behavior (SPEC.md §7
+// backlog #1, Kibana's "auto indent"): a compact JSON body gets re-indented
+// in place, the method line above it left untouched.
+func TestReformatBodyIndentsCompactJSON(t *testing.T) {
+	e := NewEditor(i18n.For(""))
+	const compact = `{"query":{"match_all":{}}}`
+	e.view.SetText("POST _search\n"+compact, true)
+
+	if ok := e.ReformatBody(1, 1); !ok {
+		t.Fatal("expected ReformatBody to report a change")
+	}
+
+	var want bytes.Buffer
+	if err := json.Indent(&want, []byte(compact), "", "  "); err != nil {
+		t.Fatalf("json.Indent: %v", err)
+	}
+	if got, wantText := e.Text(), "POST _search\n"+want.String(); got != wantText {
+		t.Errorf("expected:\n%s\ngot:\n%s", wantText, got)
+	}
+}
+
+// TestReformatBodyNoOpOnInvalidJSON checks that a body that isn't valid
+// JSON (e.g. still being typed) is left untouched rather than mangled.
+func TestReformatBodyNoOpOnInvalidJSON(t *testing.T) {
+	e := NewEditor(i18n.For(""))
+	const text = "POST _search\n{not json"
+	e.view.SetText(text, true)
+
+	if ok := e.ReformatBody(1, 1); ok {
+		t.Error("expected no-op for invalid JSON")
+	}
+	if got := e.Text(); got != text {
+		t.Errorf("expected the text to stay unchanged, got %q", got)
+	}
+}
+
+// TestReformatBodyMultiLineNoOpWhenAlreadyIndented checks that
+// lineRangeOffsets correctly reconstructs a body spanning several lines
+// (not just a single-line compact one) — reformatting an already-indented
+// body is a no-op, and content after it (a second request) stays untouched.
+func TestReformatBodyMultiLineNoOpWhenAlreadyIndented(t *testing.T) {
+	e := NewEditor(i18n.For(""))
+	const text = "POST _search\n{\n  \"query\": {}\n}\nGET _cat/health"
+	e.view.SetText(text, true)
+
+	if ok := e.ReformatBody(1, 3); ok {
+		t.Error("expected no-op: the body is already indented")
+	}
+	if got := e.Text(); got != text {
+		t.Errorf("expected the text to stay unchanged, got %q", got)
 	}
 }

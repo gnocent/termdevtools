@@ -3,6 +3,9 @@ package ui
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -203,14 +206,17 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 			// A client certificate is part of the TLS handshake: doesn't
 			// make sense if the connection isn't over https.
 			if isHTTPS {
-				form.AddInputField(msgs.FieldClientCert, clientCert, 60, nil, func(v string) { clientCert = v })
-				form.AddInputField(msgs.FieldClientKey, clientKey, 60, nil, func(v string) { clientKey = v })
+				form.AddInputField(msgs.FieldClientCert+msgs.BrowseHint, clientCert, 60, nil, func(v string) { clientCert = v })
+				cs.attachCertPicker(form, cs.cfg.DefaultClientCertDir, "default_client_cert_dir")
+				form.AddInputField(msgs.FieldClientKey+msgs.BrowseHint, clientKey, 60, nil, func(v string) { clientKey = v })
+				cs.attachCertPicker(form, cs.cfg.DefaultClientCertDir, "default_client_cert_dir")
 				form.AddPasswordField(msgs.FieldKeyPassphrase, "", 40, '*', func(v string) { keyPassphrase = v })
 			}
 		}
 
 		if isHTTPS {
-			form.AddInputField(msgs.FieldCAFile, caFile, 60, nil, func(v string) { caFile = v })
+			form.AddInputField(msgs.FieldCAFile+msgs.BrowseHint, caFile, 60, nil, func(v string) { caFile = v })
+			cs.attachCertPicker(form, cs.cfg.DefaultCADir, "default_ca_dir")
 			form.AddCheckbox(msgs.FieldVerifyTLS, verify, func(v bool) { verify = v })
 		}
 	}
@@ -229,6 +235,208 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 	})
 
 	return form
+}
+
+// certPickerPageName is the tview.Pages key for the certificate-picker
+// popup (openCertPicker) — added/removed on top of the "form" page, same
+// idiom as the main app's completion list and help overlay.
+const certPickerPageName = "certpicker"
+
+// attachCertPicker wires Enter, on the InputField most recently added to
+// form, to open a popup listing the files in dir (the configured
+// default_ca_dir/default_client_cert_dir, identified by settingName purely
+// for the error message when dir is empty) instead of the form's usual
+// "confirm and move to the next field" behavior — lets a CA/client-cert/
+// client-key path be picked instead of typed from memory (SPEC.md §5).
+//
+// Intercepted via SetInputCapture rather than SetDoneFunc: InputField's
+// internal finish() calls both the "done" and Form's own "finished"
+// callback on Enter, and the latter unconditionally advances focus to the
+// next field — racing our own SetFocus into the popup right after. Capturing
+// the event before InputField.InputHandler ever runs avoids that race
+// entirely; every other key (typing, Tab, Backtab, Escape) passes through
+// untouched.
+func (cs *connectScreen) attachCertPicker(form *highlightForm, dir, settingName string) {
+	item := form.GetFormItem(form.GetFormItemCount() - 1)
+	field, ok := item.(*tview.InputField)
+	if !ok {
+		return
+	}
+	field.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEnter {
+			cs.openCertPicker(dir, settingName, field)
+			return nil
+		}
+		return event
+	})
+}
+
+// openCertPicker shows a popup — a small file browser — listing the entries
+// directly inside dir and, on picking a file, fills field with its full
+// path (see attachCertPicker). Enter on a subdirectory browses into it,
+// Backspace goes back up to the parent directory, Escape cancels entirely.
+// dir isn't a gate: if it doesn't exist (a stale path, or default_ca_dir's
+// own Linux-only default not applying here — see config.defaultCertDir),
+// the popup falls back to browsing the user's home directory instead of
+// dead-ending, so a certificate kept anywhere else can still be reached by
+// navigating there, or the field can simply be typed by hand. Reports an
+// error in the status message instead of opening an empty popup only when
+// dir isn't configured at all (settingName names the config.yaml key to
+// set, e.g. "default_ca_dir"), or when even the home-directory fallback
+// isn't usable.
+func (cs *connectScreen) openCertPicker(dir, settingName string, field *tview.InputField) {
+	msgs := cs.msgs
+	if strings.TrimSpace(dir) == "" {
+		cs.setMessage(fmt.Sprintf(msgs.ErrNoCertDirConfiguredFmt, settingName), "red")
+		return
+	}
+
+	entries, err := certEntriesIn(dir)
+	if os.IsNotExist(err) {
+		if home, homeErr := os.UserHomeDir(); homeErr == nil {
+			if homeEntries, homeErr := certEntriesIn(home); homeErr == nil {
+				dir, entries, err = home, homeEntries, nil
+			}
+		}
+	}
+	if os.IsNotExist(err) {
+		// The configured directory doesn't exist, and the home-directory
+		// fallback above didn't pan out either (also missing/unreadable) —
+		// only then is this worth surfacing, naming the setting to fix
+		// rather than a raw filesystem error.
+		cs.setMessage(fmt.Sprintf(msgs.ErrCertDirNotFoundFmt, dir), "red")
+		return
+	}
+	if err != nil {
+		cs.setMessage(fmt.Sprintf(msgs.ErrLoadFailedFmt, dir, err), "red")
+		return
+	}
+	if len(entries) == 0 {
+		cs.setMessage(fmt.Sprintf(msgs.ErrNoCertFilesInDirFmt, dir), "red")
+		return
+	}
+
+	list := tview.NewList().ShowSecondaryText(false)
+	list.SetBorder(true)
+
+	// currentDir tracks whichever directory render last drew — updated only
+	// on success, so a read error while navigating (into a subdirectory, or
+	// back up via Backspace) reports the error without leaving the popup on
+	// a directory it never actually managed to list.
+	currentDir := dir
+	var render func(d string, entries []certEntry)
+	render = func(d string, entries []certEntry) {
+		currentDir = d
+		list.Clear()
+		list.SetTitle(fmt.Sprintf(msgs.CertPickerTitleFmt, currentDir))
+		for _, e := range entries {
+			e := e
+			label := e.name
+			if e.isDir {
+				label += string(filepath.Separator)
+			}
+			list.AddItem(label, "", 0, func() {
+				target := filepath.Join(currentDir, e.name)
+				if !e.isDir {
+					field.SetText(target)
+					cs.closeCertPicker(field)
+					return
+				}
+				subEntries, err := certEntriesIn(target)
+				if err != nil {
+					cs.setMessage(fmt.Sprintf(msgs.ErrLoadFailedFmt, target, err), "red")
+					return
+				}
+				render(target, subEntries)
+			})
+		}
+	}
+	render(dir, entries)
+
+	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			cs.closeCertPicker(field)
+			return nil
+		case tcell.KeyBackspace, tcell.KeyBackspace2:
+			parent := filepath.Dir(currentDir)
+			if parent == currentDir {
+				return nil
+			}
+			parentEntries, err := certEntriesIn(parent)
+			if err != nil {
+				cs.setMessage(fmt.Sprintf(msgs.ErrLoadFailedFmt, parent, err), "red")
+				return nil
+			}
+			render(parent, parentEntries)
+			return nil
+		}
+		return event
+	})
+
+	// Centered popup, margins around it to let the form show through in the
+	// background — same nested-Flex idiom as the main app's help overlay
+	// (ui/app.go). 70 columns wide: enough to fit a full absolute Windows
+	// path (see TestOpenCertPickerFillsFieldWithFullPath) without the popup
+	// itself dominating the screen.
+	overlay := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().
+			AddItem(nil, 0, 1, false).
+			AddItem(list, 70, 0, true).
+			AddItem(nil, 0, 1, false),
+			0, 9, true).
+		AddItem(nil, 0, 1, false)
+
+	cs.pages.AddPage(certPickerPageName, overlay, true, true)
+	cs.tapp.SetFocus(list)
+}
+
+// closeCertPicker removes the certificate-picker popup and returns focus to
+// the field it was opened from — whether closed by picking a file or by
+// Escape.
+func (cs *connectScreen) closeCertPicker(field *tview.InputField) {
+	cs.pages.RemovePage(certPickerPageName)
+	cs.tapp.SetFocus(field)
+}
+
+// certEntry describes one file or subdirectory as listed by openCertPicker.
+type certEntry struct {
+	name  string
+	isDir bool
+}
+
+// certEntriesIn lists the regular files and subdirectories directly inside
+// dir (no dotfiles), subdirectories first then files, each group sorted
+// alphabetically — what openCertPicker's file browser offers to navigate
+// into or pick from.
+func certEntriesIn(dir string) ([]certEntry, error) {
+	raw, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var dirNames, fileNames []string
+	for _, e := range raw {
+		if strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		if e.IsDir() {
+			dirNames = append(dirNames, e.Name())
+		} else {
+			fileNames = append(fileNames, e.Name())
+		}
+	}
+	sort.Strings(dirNames)
+	sort.Strings(fileNames)
+
+	entries := make([]certEntry, 0, len(dirNames)+len(fileNames))
+	for _, name := range dirNames {
+		entries = append(entries, certEntry{name: name, isDir: true})
+	}
+	for _, name := range fileNames {
+		entries = append(entries, certEntry{name: name, isDir: false})
+	}
+	return entries, nil
 }
 
 func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecrets) {

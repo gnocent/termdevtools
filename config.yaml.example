@@ -19,9 +19,13 @@ language: fr
 mouse: false
 
 # Dossiers utilisés pour pré-remplir les champs de certificat lors de la
-# saisie d'une nouvelle connexion (§3.0). Facultatifs.
-default_ca_dir: /etc/pki/termdevtools/ca
-default_client_cert_dir: /etc/pki/termdevtools/certs
+# saisie d'une nouvelle connexion (§3.0), et par le sélecteur de certificat
+# (Entrée sur le champ) pour y lister les fichiers disponibles. Par défaut :
+# le dossier système standard des certificats TLS sur RHEL/CentOS, mais
+# uniquement sous Linux — vide ("", comme ci-dessous) sous Windows et macOS,
+# où ce chemin n'existe pas. Laissez vide pour désactiver toute pré-sélection.
+default_ca_dir: ""
+default_client_cert_dir: ""
 
 # L'ordre de cette liste fait office d'historique d'utilisation : le cluster
 # le plus récemment utilisé est automatiquement replacé en tête (§9.2).

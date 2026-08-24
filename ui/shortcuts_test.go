@@ -155,3 +155,110 @@ func TestOptionAltEnterExecutes(t *testing.T) {
 		t.Errorf("expected Option/Alt+Enter to trigger execution (status bar no longer idle), got:\n%s", text)
 	}
 }
+
+// TestF4ReformatsBodyUnderCursor checks the F4 shortcut end-to-end (SPEC.md
+// §7 backlog #1): re-indents the compact JSON body of the request under the
+// cursor, only when the editor is focused.
+func TestF4ReformatsBodyUnderCursor(t *testing.T) {
+	app, screen := newTestApp(t)
+
+	injectText(screen, `POST _search`)
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
+	injectText(screen, `{"query":{"match_all":{}}}`)
+	waitForDraw(t, screen)
+
+	screen.InjectKey(tcell.KeyF4, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	got := app.editor.Text()
+	want := "POST _search\n{\n  \"query\": {\n    \"match_all\": {}\n  }\n}"
+	if got != want {
+		t.Errorf("expected the body to be reindented, got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestF4DoesNothingWhenResultPanelFocused checks that F4 only acts on the
+// editor, like Ctrl+E and Tab/F10 — no effect when the right panel has
+// focus.
+func TestF4DoesNothingWhenResultPanelFocused(t *testing.T) {
+	app, screen := newTestApp(t)
+
+	injectText(screen, `POST _search`)
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
+	injectText(screen, `{"query":{"match_all":{}}}`)
+	waitForDraw(t, screen)
+	want := app.editor.Text()
+
+	app.focusResultPanel()
+	waitForDraw(t, screen)
+
+	screen.InjectKey(tcell.KeyF4, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	if got := app.editor.Text(); got != want {
+		t.Errorf("expected F4 to have no effect while the result panel is focused, got:\n%s", got)
+	}
+}
+
+// TestF4ReportsNoBodyToFormat checks the "nothing to reformat" case (a
+// request with no JSON body) reports a clear status message instead of
+// silently doing nothing.
+func TestF4ReportsNoBodyToFormat(t *testing.T) {
+	app, screen := newTestApp(t)
+
+	injectText(screen, "GET _cat/health")
+	waitForDraw(t, screen)
+
+	screen.InjectKey(tcell.KeyF4, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	// A short, stable prefix rather than the full message: the 80-column
+	// simulated screen truncates the status bar before the end of the
+	// (longer, French) message text.
+	prefix := app.msgs.ErrNoBodyToFormat[:15]
+	if text := screenText(screen); !strings.Contains(text, prefix) {
+		t.Errorf("expected an error starting with %q, got:\n%s", prefix, text)
+	}
+}
+
+// TestF9CopiesRequestAsCurl checks the F9 shortcut end-to-end (SPEC.md §7
+// backlog #3): copies an equivalent curl command for the request under the
+// cursor to the clipboard. Auth redaction itself is covered exhaustively by
+// esclient's own CurlCommand tests — this just confirms the shortcut is
+// wired up and actually reaches the clipboard.
+func TestF9CopiesRequestAsCurl(t *testing.T) {
+	_, screen := newTestApp(t)
+
+	injectText(screen, "GET _cat/health?v")
+	waitForDraw(t, screen)
+
+	screen.InjectKey(tcell.KeyF9, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	got := string(screen.GetClipboardData())
+	// newTestApp's esclient.Params doesn't set Verify (defaults to false,
+	// see esclient.New), hence -k here — unrelated to what's under test.
+	want := "curl -X GET -k 'http://127.0.0.1:1/_cat/health?v'"
+	if got != want {
+		t.Errorf("expected the clipboard to contain %q, got %q", want, got)
+	}
+}
+
+// TestF9DoesNothingWhenResultPanelFocused checks that F9 only acts on the
+// editor, like F4/Ctrl+E/Tab — no effect when the right panel has focus.
+func TestF9DoesNothingWhenResultPanelFocused(t *testing.T) {
+	app, screen := newTestApp(t)
+
+	injectText(screen, "GET _cat/health?v")
+	waitForDraw(t, screen)
+
+	app.focusResultPanel()
+	waitForDraw(t, screen)
+
+	screen.InjectKey(tcell.KeyF9, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	if got := screen.GetClipboardData(); len(got) != 0 {
+		t.Errorf("expected F9 to have no effect while the result panel is focused, got clipboard %q", got)
+	}
+}

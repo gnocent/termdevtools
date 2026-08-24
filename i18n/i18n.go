@@ -48,6 +48,15 @@ type Strings struct {
 	WarnConnectedSaveFailedFmt string // "Connecté, mais échec de sauvegarde de config.yaml : %s"
 	DisplayUserNoAuth          string
 
+	// Certificate picker popup (connect.go): Enter on the CA/client-cert/
+	// client-key fields browses the configured default_ca_dir/
+	// default_client_cert_dir instead of typing a filename from memory.
+	BrowseHint                string
+	CertPickerTitleFmt        string
+	ErrNoCertDirConfiguredFmt string
+	ErrNoCertFilesInDirFmt    string
+	ErrCertDirNotFoundFmt     string // "the %s directory doesn't exist"
+
 	// Main layout (app.go, editor.go, result.go)
 	EditorTitle     string
 	ResultTitle     string
@@ -73,6 +82,12 @@ type Strings struct {
 	ErrNothingToCopy   string
 	InfoCopied         string
 	ErrNothingToExport string // result.go's Export()
+	ErrNoBodyToFormat  string // F4 (reformat JSON body, SPEC.md §7 backlog #1): nothing under the cursor to reformat
+	InfoCurlCopied     string // F9 ("copy as cURL", SPEC.md §7 backlog #3)
+
+	// Reusable variables (${name}, F7, SPEC.md §7 backlog #4)
+	ErrUnknownVariablesFmt   string // "unknown variable(s): %s"
+	InfoVariablesReloadedFmt string // "%d variable(s) reloaded"
 
 	// Help popup content (F1)
 	HelpContent string
@@ -121,6 +136,11 @@ var fr = Strings{
 	ErrClusterHTTPFmt:          "Le cluster a répondu HTTP %d",
 	WarnConnectedSaveFailedFmt: "Connecté, mais échec de sauvegarde de config.yaml : %s",
 	DisplayUserNoAuth:          "(aucune auth)",
+	BrowseHint:                 " (Entrée : parcourir)",
+	CertPickerTitleFmt:         " Choisir un fichier — %s (Entrée: ouvrir, Retour: dossier parent, Echap: annuler) ",
+	ErrNoCertDirConfiguredFmt:  "aucun dossier configuré (%s dans config.yaml)",
+	ErrNoCertFilesInDirFmt:     "aucun fichier dans %s",
+	ErrCertDirNotFoundFmt:      "le dossier %s n'existe pas",
 
 	EditorTitle:     " Requêtes ",
 	ResultTitle:     " Résultat ",
@@ -140,18 +160,22 @@ var fr = Strings{
 	ShortcutsHelpBar: "[gray]F1[white] aide   [gray]F3[white] langue   [gray]Ctrl+C[white] quitter   " +
 		"[gray]Ctrl+E[white] exécuter   [gray]Tab/F10[white] compléter   [gray]Ctrl(/Opt)+←/→[white] changer de panneau   " +
 		"[gray]F5/F6[white] redimensionner   [gray]Ctrl+F[white] rechercher   [gray]Ctrl+S[white] sauvegarder/exporter   " +
-		"[gray]F2[white] copier",
+		"[gray]F2[white] copier   [gray]F4[white] reformater le JSON   [gray]F9[white] copier en cURL   [gray]F7[white] recharger les variables",
 
-	ErrLoadFailedFmt:   "échec du chargement de %s : %s",
-	ErrNoMatchFound:    "aucune occurrence trouvée",
-	ErrNoCompletion:    "aucune complétion",
-	ErrSaveFailedFmt:   "échec de sauvegarde : %s",
-	InfoSavedFmt:       "requêtes sauvegardées dans %s",
-	ErrExportFailedFmt: "échec d'export : %s",
-	InfoExportedFmt:    "résultat exporté dans %s",
-	ErrNothingToCopy:   "aucun résultat à copier",
-	InfoCopied:         "résultat copié (OSC 52 — nécessite un terminal compatible)",
-	ErrNothingToExport: "aucun résultat à exporter",
+	ErrLoadFailedFmt:         "échec du chargement de %s : %s",
+	ErrNoMatchFound:          "aucune occurrence trouvée",
+	ErrNoCompletion:          "aucune complétion",
+	ErrSaveFailedFmt:         "échec de sauvegarde : %s",
+	InfoSavedFmt:             "requêtes sauvegardées dans %s",
+	ErrExportFailedFmt:       "échec d'export : %s",
+	InfoExportedFmt:          "résultat exporté dans %s",
+	ErrNothingToCopy:         "aucun résultat à copier",
+	InfoCopied:               "résultat copié (OSC 52 — nécessite un terminal compatible)",
+	ErrNothingToExport:       "aucun résultat à exporter",
+	ErrNoBodyToFormat:        "aucun corps JSON à reformater",
+	InfoCurlCopied:           "commande cURL copiée (OSC 52 — nécessite un terminal compatible)",
+	ErrUnknownVariablesFmt:   "variable(s) inconnue(s) : %s",
+	InfoVariablesReloadedFmt: "%d variable(s) rechargée(s)",
 
 	HelpContent: `[yellow]TermDevTools[white] — client Elasticsearch en mode terminal
 
@@ -176,6 +200,9 @@ doute, préférez Ctrl+E, F5/F6 et Tab/F10.[white]
                      (aussi : Ctrl+Maj+←/→, Option/Alt+Maj+←/→ sur macOS — non garanti partout)
   [aqua]Ctrl+F[white]           Rechercher dans le panneau actif
   [aqua]Ctrl+S[white]           Sauvegarder (gauche) / exporter (droite)
+  [aqua]F4[white]               Reformater (indenter) le JSON de la requête sous le curseur
+  [aqua]F9[white]               Copier la requête sous le curseur en commande cURL (secrets non inclus)
+  [aqua]F7[white]               Recharger les variables ${nom} depuis leur fichier (édité à la main)
   [aqua]F2[white]               Copier le résultat (panneau droit) dans le presse-papier
   [aqua]F1[white]               Afficher cette aide
   [aqua]F3[white]               Changer la langue de l'interface (fr/en)
@@ -235,6 +262,11 @@ var en = Strings{
 	ErrClusterHTTPFmt:          "The cluster responded HTTP %d",
 	WarnConnectedSaveFailedFmt: "Connected, but failed to save config.yaml: %s",
 	DisplayUserNoAuth:          "(no auth)",
+	BrowseHint:                 " (Enter: browse)",
+	CertPickerTitleFmt:         " Choose a file — %s (Enter: open, Backspace: parent dir, Esc: cancel) ",
+	ErrNoCertDirConfiguredFmt:  "no directory configured (%s in config.yaml)",
+	ErrNoCertFilesInDirFmt:     "no files in %s",
+	ErrCertDirNotFoundFmt:      "the %s directory doesn't exist",
 
 	EditorTitle:     " Requests ",
 	ResultTitle:     " Result ",
@@ -254,18 +286,22 @@ var en = Strings{
 	ShortcutsHelpBar: "[gray]F1[white] help   [gray]F3[white] language   [gray]Ctrl+C[white] quit   " +
 		"[gray]Ctrl+E[white] execute   [gray]Tab/F10[white] complete   [gray]Ctrl(/Opt)+←/→[white] switch panel   " +
 		"[gray]F5/F6[white] resize   [gray]Ctrl+F[white] search   [gray]Ctrl+S[white] save/export   " +
-		"[gray]F2[white] copy",
+		"[gray]F2[white] copy   [gray]F4[white] reformat JSON   [gray]F9[white] copy as cURL   [gray]F7[white] reload variables",
 
-	ErrLoadFailedFmt:   "failed to load %s: %s",
-	ErrNoMatchFound:    "no match found",
-	ErrNoCompletion:    "no completion",
-	ErrSaveFailedFmt:   "save failed: %s",
-	InfoSavedFmt:       "requests saved to %s",
-	ErrExportFailedFmt: "export failed: %s",
-	InfoExportedFmt:    "result exported to %s",
-	ErrNothingToCopy:   "nothing to copy",
-	InfoCopied:         "result copied (OSC 52 — requires a compatible terminal)",
-	ErrNothingToExport: "nothing to export",
+	ErrLoadFailedFmt:         "failed to load %s: %s",
+	ErrNoMatchFound:          "no match found",
+	ErrNoCompletion:          "no completion",
+	ErrSaveFailedFmt:         "save failed: %s",
+	InfoSavedFmt:             "requests saved to %s",
+	ErrExportFailedFmt:       "export failed: %s",
+	InfoExportedFmt:          "result exported to %s",
+	ErrNothingToCopy:         "nothing to copy",
+	InfoCopied:               "result copied (OSC 52 — requires a compatible terminal)",
+	ErrNothingToExport:       "nothing to export",
+	ErrNoBodyToFormat:        "no JSON body to reformat",
+	InfoCurlCopied:           "cURL command copied (OSC 52 — requires a compatible terminal)",
+	ErrUnknownVariablesFmt:   "unknown variable(s): %s",
+	InfoVariablesReloadedFmt: "%d variable(s) reloaded",
 
 	HelpContent: `[yellow]TermDevTools[white] — terminal-mode Elasticsearch client
 
@@ -290,6 +326,9 @@ Ctrl+E, F5/F6, and Tab/F10.[white]
                      (also: Ctrl+Shift+←/→, Option/Alt+Shift+←/→ on macOS — not guaranteed everywhere)
   [aqua]Ctrl+F[white]           Search in the active panel
   [aqua]Ctrl+S[white]           Save (left) / export (right)
+  [aqua]F4[white]               Reformat (indent) the JSON body of the request under the cursor
+  [aqua]F9[white]               Copy the request under the cursor as a cURL command (secrets not included)
+  [aqua]F7[white]               Reload ${name} variables from their file (hand-edited)
   [aqua]F2[white]               Copy the result (right panel) to the clipboard
   [aqua]F1[white]               Show this help
   [aqua]F3[white]               Switch the interface language (fr/en)

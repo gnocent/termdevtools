@@ -4,7 +4,7 @@
 
 Simulateur en mode terminal de la vue **DevTools** de Kibana, pour interroger un cluster Elasticsearch directement depuis un terminal — Linux (dont RHEL 8/9/10), Windows ou macOS — sans navigateur ni Kibana fonctionnel.
 
-- [Captures d'écran](#captures-décran)
+- [Démo](#démo)
 - [Pourquoi](#pourquoi)
 - [Fonctionnalités](#fonctionnalités)
 - [Installation](#installation)
@@ -15,18 +15,9 @@ Simulateur en mode terminal de la vue **DevTools** de Kibana, pour interroger un
 - [Sécurité](#sécurité)
 - [Licence](#licence)
 
-## Captures d'écran
+## Démo
 
-<table>
-<tr>
-<td width="50%"><img src="screenshot_search.png" alt="Résultat JSON formaté d'une requête _search"><br><sub>Résultat JSON formaté d'une requête <code>_search</code></sub></td>
-<td width="50%"><img src="screenshot_completion.png" alt="Menu d'auto-complétion des endpoints"><br><sub>Auto-complétion (<code>Tab</code>/<code>F10</code>) sur <code>_cluster/...</code></sub></td>
-</tr>
-<tr>
-<td width="50%"><img src="screenshot_mappings.png" alt="Réponse de mapping d'un index"><br><sub>Consultation du mapping d'un index (<code>_mapping</code>)</sub></td>
-<td width="50%"><img src="screenshot_cat-indices.png" alt="Résultat de _cat/indices"><br><sub>Résultat de <code>_cat/indices?v</code></sub></td>
-</tr>
-</table>
+<p align="center"><img src="demotermdevtools.gif" alt="Démo animée : connexion à un cluster, exécution de requêtes, consultation du mapping d'un index et de _cat/shards, et recherche dans un résultat"></p>
 
 ## Pourquoi
 
@@ -114,7 +105,7 @@ Tout ce qui suit est **facultatif**, à l'exception du binaire lui-même — Ter
    GET _cluster/health
    ```
    Plusieurs requêtes peuvent cohabiter dans l'éditeur, séparées par des lignes vides ; celle sous le curseur est celle qui s'exécute.
-4. **L'exécuter** : `Ctrl+E`. Le résultat JSON formaté apparaît dans le panneau de droite (voir les [captures d'écran](#captures-décran) ci-dessus).
+4. **L'exécuter** : `Ctrl+E`. Le résultat JSON formaté apparaît dans le panneau de droite (voir la [démo](#démo) ci-dessus).
 5. Ensuite : `Tab` ou `F10` complète un endpoint en cours de frappe, `F4` reformate le corps JSON sous le curseur, `F9` copie la requête en commande `curl` équivalente, `Ctrl+S` sauvegarde le travail en cours. Référence complète : [Raccourcis clavier](#raccourcis-clavier).
 
 ## Configuration

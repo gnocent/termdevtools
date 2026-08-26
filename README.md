@@ -4,7 +4,7 @@
 
 A terminal-mode simulator of Kibana's **DevTools** view, for querying an Elasticsearch cluster directly from a terminal — Linux (including RHEL 8/9/10), Windows, or macOS — without a browser or a working Kibana.
 
-- [Screenshots](#screenshots)
+- [Demo](#demo)
 - [Why](#why)
 - [Features](#features)
 - [Installation](#installation)
@@ -15,18 +15,9 @@ A terminal-mode simulator of Kibana's **DevTools** view, for querying an Elastic
 - [Security](#security)
 - [License](#license)
 
-## Screenshots
+## Demo
 
-<table>
-<tr>
-<td width="50%"><img src="screenshot_search.png" alt="Formatted JSON result of a _search query"><br><sub>Formatted JSON result of a <code>_search</code> query</sub></td>
-<td width="50%"><img src="screenshot_completion.png" alt="Endpoint auto-completion dropdown"><br><sub>Auto-completion (<code>Tab</code>/<code>F10</code>) on <code>_cluster/...</code></sub></td>
-</tr>
-<tr>
-<td width="50%"><img src="screenshot_mappings.png" alt="Index mapping response"><br><sub>Browsing an index's mapping (<code>_mapping</code>)</sub></td>
-<td width="50%"><img src="screenshot_cat-indices.png" alt="_cat/indices output"><br><sub><code>_cat/indices?v</code> output</sub></td>
-</tr>
-</table>
+<p align="center"><img src="demotermdevtools.gif" alt="Animated demo: connecting to a cluster, running requests, browsing an index mapping and _cat/shards, and searching within a result"></p>
 
 ## Why
 
@@ -114,7 +105,7 @@ Everything below is **optional** except the binary itself — TermDevTools runs 
    GET _cluster/health
    ```
    Several requests can coexist in the editor, separated by blank lines; the one under the cursor is the one that runs.
-4. **Run it**: `Ctrl+E`. The formatted JSON response shows up in the right panel (see the [screenshots](#screenshots) above).
+4. **Run it**: `Ctrl+E`. The formatted JSON response shows up in the right panel (see the [demo](#demo) above).
 5. From there: `Tab` or `F10` auto-completes an endpoint while typing, `F4` reformats the JSON body under the cursor, `F9` copies the request as an equivalent `curl` command, `Ctrl+S` saves your work for next time. Full reference: [Keyboard shortcuts](#keyboard-shortcuts).
 
 ## Configuration

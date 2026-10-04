@@ -1,0 +1,42 @@
+# @group Index lifecycle
+
+# @recipe Is index lifecycle management running?
+# @es
+# @tags ilm status
+GET _ilm/status
+
+# @recipe Lifecycle policies
+# @es
+# @tags ilm
+GET _ilm/policy
+
+# @recipe Where is this index in its lifecycle?
+# @es
+# @tags ilm explain phase step
+GET ${index}/_ilm/explain
+
+# @recipe Indices stuck on a lifecycle error
+# @es
+# @tags ilm error failed step
+GET */_ilm/explain?only_errors=true
+
+# @recipe Retry the failed lifecycle step of an index
+# @es
+# @tags ilm error
+# Once the cause shown by the previous recipe is fixed.
+POST ${index}/_ilm/retry
+
+# @recipe Lifecycle policies
+# @opensearch
+# @tags ism
+GET _plugins/_ism/policies
+
+# @recipe Where is this index in its lifecycle?
+# @opensearch
+# @tags ism explain state action
+GET _plugins/_ism/explain/${index}
+
+# @recipe Retry the failed lifecycle step of an index
+# @opensearch
+# @tags ism error
+POST _plugins/_ism/retry/${index}

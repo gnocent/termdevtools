@@ -5,6 +5,7 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -77,6 +78,13 @@ type Cluster struct {
 	Username string `yaml:"username,omitempty"`
 	APIKeyID string `yaml:"api_key_id,omitempty"`
 	TLS      TLS    `yaml:"tls"`
+	// Distribution ("elasticsearch" or "opensearch") and Version ("8.19")
+	// override what is detected from the cluster's "GET /" at connection —
+	// for a cluster hidden behind a proxy that masks it, or an OpenSearch in
+	// compatibility mode whose reported version is fake. Both optional, never
+	// written by the program itself. See SPEC.md §3.0 and §9.2.
+	Distribution string `yaml:"distribution,omitempty"`
+	Version      string `yaml:"version,omitempty"`
 }
 
 // Config is the full content of config.yaml.
@@ -84,7 +92,7 @@ type Config struct {
 	DefaultTimeoutSeconds int    `yaml:"default_timeout_seconds"`
 	DefaultCADir          string `yaml:"default_ca_dir,omitempty"`
 	DefaultClientCertDir  string `yaml:"default_client_cert_dir,omitempty"`
-	// Language selects the interface language: "fr" (default) or "en". See
+	// Language selects the interface language: "en" (default) or "fr". See
 	// the i18n package and SPEC.md §3.
 	Language string `yaml:"language,omitempty"`
 	// Mouse enables mouse support (click to focus/select). Off by default —
@@ -227,16 +235,117 @@ func (c *Config) Save() error {
 		c.path = path
 	}
 
-	if err := os.MkdirAll(filepath.Dir(c.path), 0o700); err != nil {
-		return fmt.Errorf("creating %s: %w", filepath.Dir(c.path), err)
-	}
-
-	data, err := yaml.Marshal(c)
+	data, err := c.render()
 	if err != nil {
 		return fmt.Errorf("serializing config.yaml: %w", err)
 	}
-	if err := os.WriteFile(c.path, data, 0o600); err != nil {
+	if err := WriteFileAtomic(c.path, data); err != nil {
 		return fmt.Errorf("writing %s: %w", c.path, err)
+	}
+	return nil
+}
+
+// WriteFileAtomic replaces path's content with data without ever leaving it
+// cut short: the data goes to a temporary file in the same directory (created
+// if needed, like the file, readable by its owner only), which then takes
+// path's place. Written in place instead, a full disk or a crash midway
+// would cost the previous content as well as the new one — the file is
+// truncated before the first byte is written. Used for everything of the
+// user's that is rewritten: config.yaml, the saved requests.
+func WriteFileAtomic(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".*.tmp") // created 0600
+	if err != nil {
+		return err
+	}
+	_, err = tmp.Write(data)
+	if closeErr := tmp.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(tmp.Name(), path)
+	}
+	if err != nil {
+		_ = os.Remove(tmp.Name())
+	}
+	return err
+}
+
+// render returns config.yaml's new content: the file as it stands — or, if
+// there is none yet, the self-documented default — with the values held in
+// memory written into it, and everything else left as it is.
+//
+// Writing the file back from the structure alone, as this used to do, lost
+// on every successful connection the comments explaining each setting, any
+// key this version doesn't know, and — the keys of empty values being left
+// out — a default directory deliberately set to "": its built-in default
+// came back on the next start.
+func (c *Config) render() ([]byte, error) {
+	fresh, err := yaml.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+
+	existing, err := os.ReadFile(c.path)
+	if err != nil {
+		existing = []byte(defaultConfigFileContent())
+	}
+	var document, values yaml.Node
+	if yaml.Unmarshal(existing, &document) != nil || yaml.Unmarshal(fresh, &values) != nil ||
+		len(document.Content) != 1 || document.Content[0].Kind != yaml.MappingNode ||
+		len(values.Content) != 1 || values.Content[0].Kind != yaml.MappingNode {
+		// Not a file that can be updated in place (empty, or not a mapping):
+		// nothing in it to preserve.
+		return fresh, nil
+	}
+
+	settings, updated := document.Content[0], values.Content[0]
+	for i := 0; i+1 < len(updated.Content); i += 2 {
+		key, value := updated.Content[i], updated.Content[i+1]
+		current := mappingValue(settings, key.Value)
+		if current == nil {
+			settings.Content = append(settings.Content, key, value)
+			continue
+		}
+		// The value changes, the comments around it stay.
+		head, line, foot := current.HeadComment, current.LineComment, current.FootComment
+		*current = *value
+		current.HeadComment, current.LineComment, current.FootComment = head, line, foot
+	}
+
+	var out bytes.Buffer
+	encoder := yaml.NewEncoder(&out)
+	if err := encoder.Encode(&document); err != nil {
+		return nil, err
+	}
+	if err := encoder.Close(); err != nil {
+		return nil, err
+	}
+
+	// The encoder keeps the comments but not the blank lines that set each
+	// documented setting apart from the previous one: put one back in front
+	// of every top-level comment block.
+	lines := strings.Split(out.String(), "\n")
+	spaced := make([]string, 0, len(lines))
+	for i, line := range lines {
+		if i > 0 && strings.HasPrefix(line, "#") && lines[i-1] != "" && !strings.HasPrefix(lines[i-1], "#") {
+			spaced = append(spaced, "")
+		}
+		spaced = append(spaced, line)
+	}
+	return []byte(strings.Join(spaced, "\n")), nil
+}
+
+// mappingValue returns the value node of key in a YAML mapping, nil if the
+// mapping has no such key.
+func mappingValue(mapping *yaml.Node, key string) *yaml.Node {
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		if mapping.Content[i].Value == key {
+			return mapping.Content[i+1]
+		}
 	}
 	return nil
 }
@@ -245,15 +354,14 @@ func (c *Config) Save() error {
 // defaultConfigFileContent) — written once, above every setting, on first
 // launch only (an existing header is never touched by the backfill in
 // backfillMissingSettings).
-const configFileHeader = `# Fichier de configuration de TermDevTools — généré automatiquement au
-# premier lancement (voir SPEC.md §9.1-§9.2). Propre à cet utilisateur :
-# deux personnes lançant le même binaire partagé n'ont pas le même
-# historique de connexions. Aucun secret n'y est jamais stocké : mots de
-# passe, API key secrets et passphrases de clé privée sont toujours
-# redemandés à la connexion.
+const configFileHeader = `# TermDevTools configuration file — generated automatically on first launch
+# (see SPEC.md §9.1-§9.2). Specific to this user: two people running the
+# same shared binary don't share a connection history. No secret is ever
+# stored here: passwords, API key secrets and private key passphrases are
+# always asked again on connection.
 #
-# Chaque paramètre ci-dessous est affiché à sa valeur par défaut ; modifiez
-# ou supprimez selon vos besoins.
+# Every setting below is shown at its default value; change or remove them
+# as you see fit.
 `
 
 // configSettings lists every top-level config.yaml setting, in the order
@@ -271,40 +379,41 @@ const configFileHeader = `# Fichier de configuration de TermDevTools — génér
 // so they're shown here as active values like every other setting.
 var configSettings = []struct{ key, block string }{
 	{"default_timeout_seconds", fmt.Sprintf(`
-# Délai maximum (en secondes) avant qu'une requête n'échoue en timeout.
+# Maximum time (in seconds) before a request fails with a timeout.
 default_timeout_seconds: %d
 `, defaultTimeoutSeconds)},
 	{"language", `
-# Langue de l'interface : "fr" ou "en". Bascule aussi en direct avec F3
-# (qui met à jour cette ligne automatiquement).
-language: fr
+# Interface language: "en" or "fr". Also switched live with F3 (which
+# updates this line automatically).
+language: en
 `},
 	{"mouse", `
-# Support de la souris (cliquer pour donner le focus à un champ/une entrée
-# de liste). Désactivé par défaut : toute interaction souris a un
-# équivalent clavier complet (SPEC.md §3-4), et la laisser désactivée
-# garde la sélection/collage natifs du terminal disponibles (F2 copie
-# quand même le résultat, voir SPEC.md §3.3).
+# Mouse support (click to give the focus to a field or a list entry). Off by
+# default: every mouse interaction has a full keyboard equivalent (SPEC.md
+# §3-4), and leaving it off keeps the terminal's own selection and paste
+# available (F2 copies the result either way, see SPEC.md §3.3).
 mouse: false
 `},
 	{"default_ca_dir", fmt.Sprintf(`
-# Dossier pré-rempli pour le champ CA lors de la saisie d'une nouvelle
-# connexion (§3.0), et utilisé par le sélecteur de certificat (Entrée sur
-# le champ) pour y lister les fichiers disponibles à choisir.
+# Directory pre-filled in the CA field when entering a new connection
+# (§3.0), and browsed by the certificate picker (Enter on the field) to list
+# the files to choose from.
 default_ca_dir: %s
 `, defaultCertDir)},
 	{"default_client_cert_dir", fmt.Sprintf(`
-# Dossier pré-rempli pour les champs de certificat client (mTLS) lors de la
-# saisie d'une nouvelle connexion (§3.0), même usage que default_ca_dir
-# ci-dessus. Identique par défaut : ajustez si vos certificats client sont
-# ailleurs.
+# Directory pre-filled in the client certificate fields (mTLS) when entering
+# a new connection (§3.0), used like the CA directory above. The same by
+# default: change it if your client certificates live elsewhere.
 default_client_cert_dir: %s
 `, defaultCertDir)},
 	{"clusters", `
-# Historique des clusters connus. L'ordre fait office d'historique
-# d'utilisation : le plus récemment utilisé est automatiquement replacé en
-# tête (§9.2). Rempli/mis à jour automatiquement après chaque connexion
-# réussie — vide au premier lancement.
+# History of known clusters. Its order is the usage history: the most
+# recently used one is automatically moved to the top (§9.2). Filled in and
+# updated automatically after every successful connection — empty on first
+# launch.
+# Optional, per cluster: "distribution: opensearch" (or elasticsearch) and
+# "version: 2.19" replace the automatic detection when it can't succeed (a
+# proxy hiding the cluster, OpenSearch in compatibility mode).
 clusters: []
 `},
 }
@@ -364,19 +473,9 @@ func backfillMissingSettings(path, content string) {
 	}
 
 	updated := strings.TrimRight(content, "\n") + "\n" +
-		"\n# Paramètres ajoutés automatiquement au démarrage (absents de ce fichier) :\n" +
+		"\n# Settings added automatically at startup (missing from this file):\n" +
 		missing.String()
-	_ = os.WriteFile(path, []byte(updated), 0o600)
-}
-
-// FindByURL returns a copy of the cluster at url, if it exists.
-func (c *Config) FindByURL(url string) (Cluster, bool) {
-	for _, cl := range c.Clusters {
-		if cl.URL == url {
-			return cl, true
-		}
-	}
-	return Cluster{}, false
+	_ = WriteFileAtomic(path, []byte(updated))
 }
 
 // Promote inserts or updates cluster (identified by its URL) then moves it

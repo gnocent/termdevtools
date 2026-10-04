@@ -1,0 +1,20 @@
+# Welcome to TermDevTools.
+#
+# Write requests the Kibana Console way: a METHOD and an endpoint, then an
+# optional JSON body on the following lines. Put the cursor anywhere in a
+# request and press Ctrl+E to run it. Lines starting with # are comments.
+#
+# F8 opens the recipe catalog: ready-made requests for the usual
+# investigations (cluster health, unassigned shards, disk, tasks,
+# snapshots...), selected for this cluster's version. F1 lists every
+# shortcut. What you write here is saved per cluster (Ctrl+S, and on exit).
+
+GET /
+
+GET _cluster/health
+
+GET _cat/nodes?v&h=name,node.role,heap.percent,ram.percent,cpu,load_1m,disk.used_percent,uptime
+
+GET _cat/indices?v&s=store.size:desc
+
+GET _cat/shards?v&h=index,shard,prirep,state,unassigned.reason,node&s=state:desc

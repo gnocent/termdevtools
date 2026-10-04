@@ -1,14 +1,24 @@
 package ui
 
 import (
-	"os"
-	"path/filepath"
 	"sort"
 	"testing"
+
+	"termdevtools/refdata"
 )
 
+// es95 is the cluster the tests in this package select reference data for
+// when they assert on exact contents: what is offered depends on the
+// distribution and version (OpenSearch has its own _cat commands, for one).
+var es95 = refdata.Target{Distribution: refdata.Elasticsearch, Version: refdata.Version{Major: 9, Minor: 5, Patch: 4}, HasVersion: true}
+
+// builtinEndpoints is the endpoints built into the binary for es95.
+func builtinEndpoints() []string {
+	return refdata.Load(refdata.Sources{}).Endpoints(es95)
+}
+
 func TestMatchEndpointsPrefix(t *testing.T) {
-	got := matchPrefix("_cat/s", knownEndpoints)
+	got := matchPrefix("_cat/s", builtinEndpoints())
 	want := []string{"_cat/segments?v", "_cat/shards?v", "_cat/snapshots?v"}
 	if !sort.StringsAreSorted(got) {
 		t.Errorf("expected sorted results, got %v", got)
@@ -25,55 +35,23 @@ func TestMatchEndpointsPrefix(t *testing.T) {
 }
 
 func TestMatchEndpointsEmptyPrefixReturnsAll(t *testing.T) {
-	got := matchPrefix("", knownEndpoints)
-	if len(got) != len(knownEndpoints) {
-		t.Errorf("expected all %d known endpoints, got %d", len(knownEndpoints), len(got))
+	all := builtinEndpoints()
+	got := matchPrefix("", all)
+	if len(got) != len(all) {
+		t.Errorf("expected all %d endpoints, got %d", len(all), len(got))
 	}
 }
 
 func TestMatchEndpointsNoMatch(t *testing.T) {
-	got := matchPrefix("does_not_exist", knownEndpoints)
+	got := matchPrefix("does_not_exist", builtinEndpoints())
 	if len(got) != 0 {
 		t.Errorf("expected no matches, got %v", got)
 	}
 }
 
 func TestMatchEndpointsCaseInsensitive(t *testing.T) {
-	got := matchPrefix("_CAT/SH", knownEndpoints)
+	got := matchPrefix("_CAT/SH", builtinEndpoints())
 	if len(got) == 0 {
 		t.Error("expected case-insensitive matching to find results")
-	}
-}
-
-func TestLoadEndpointsFileMissing(t *testing.T) {
-	endpoints, err := LoadEndpointsFile(filepath.Join(t.TempDir(), "does-not-exist.txt"))
-	if err != nil {
-		t.Fatalf("unexpected error for a missing file: %v", err)
-	}
-	if endpoints != nil {
-		t.Errorf("expected nil endpoints for a missing file, got %v", endpoints)
-	}
-}
-
-func TestLoadEndpointsFileParsing(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "endpoints.txt")
-	content := "# commentaire\n\n_cat/indices\n  _cat/shards  \n# encore un commentaire\n_search\n"
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		t.Fatalf("setup: %v", err)
-	}
-
-	endpoints, err := LoadEndpointsFile(path)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	want := []string{"_cat/indices", "_cat/shards", "_search"}
-	if len(endpoints) != len(want) {
-		t.Fatalf("expected %v, got %v", want, endpoints)
-	}
-	for i := range want {
-		if endpoints[i] != want[i] {
-			t.Errorf("expected %v, got %v", want, endpoints)
-			break
-		}
 	}
 }

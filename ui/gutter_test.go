@@ -125,7 +125,7 @@ func TestGutterTextEmptyWindow(t *testing.T) {
 // confirms refreshGutter's wiring (container rect, ResizeItem, scroll
 // offset) on top of the two pieces already tested in isolation above.
 func TestRefreshGutterRendersLineNumbers(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("GET _cat/health\nPOST _search\nGET _cat/indices", false)
 	e.container.SetRect(0, 0, 40, 24) // wide enough that nothing wraps
 
@@ -156,7 +156,7 @@ func TestRefreshGutterRendersLineNumbers(t *testing.T) {
 // TestRefreshGutterWidthGrowsWithLineCount) leaves that margin trailing,
 // next to the request text — not leading, next to the border.
 func TestGutterIsColoredAndPaddedAfterTheNumber(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("GET _cat/health", false)
 	screen := tcell.NewSimulationScreen("")
 	if err := screen.Init(); err != nil {
@@ -184,7 +184,7 @@ func TestGutterIsColoredAndPaddedAfterTheNumber(t *testing.T) {
 // this whole feature: a single logical line that wraps across several
 // display rows gets its number once, not once per display row.
 func TestRefreshGutterBlanksWrappedContinuation(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("aaaa bbbb cccc dddd\nGET _cat/health", false)
 	// GetInnerRect subtracts the container's own border (SetBorder(true) in
 	// NewEditor): -2 columns, -2 rows. Inner width will be
@@ -214,7 +214,7 @@ func TestRefreshGutterBlanksWrappedContinuation(t *testing.T) {
 // updates the container Flex's target size for its next layout — the
 // gutter's own rect (what GetRect reports) is applied by Flex.Draw itself.
 func TestRefreshGutterWidthGrowsWithLineCount(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	screen := tcell.NewSimulationScreen("")
 	if err := screen.Init(); err != nil {
 		t.Fatalf("screen.Init: %v", err)

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
@@ -9,14 +10,14 @@ import (
 func TestCopyResultSendsPlainTextToClipboard(t *testing.T) {
 	app, screen := newTestApp(t)
 
-	app.result.Show("GET", "_cluster/health", nil, []byte(`{"status":"green"}`))
+	onUI(app, func() { app.result.Show("GET", "_cluster/health", nil, []byte(`{"status":"green"}`)) })
 	waitForDraw(t, screen)
 
 	screen.InjectKey(tcell.KeyF2, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
 	got := string(screen.GetClipboardData())
-	want := app.result.PlainText()
+	want := uiValue(app, app.result.PlainText)
 	if got != want {
 		t.Errorf("expected clipboard to contain %q, got %q", want, got)
 	}
@@ -35,5 +36,9 @@ func TestCopyResultEmptyShowsError(t *testing.T) {
 	if got := string(screen.GetClipboardData()); got != "" {
 		t.Errorf("expected clipboard untouched when there is nothing to copy, got %q", got)
 	}
-	_ = app
+	// An untouched clipboard is also what a silent F2 would leave: the error
+	// must have been reported.
+	if status := statusText(app); !strings.Contains(status, app.msgs.ErrNothingToCopy) {
+		t.Errorf("expected the status bar to say there is nothing to copy, got %q", status)
+	}
 }

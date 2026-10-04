@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,6 +16,7 @@ import (
 	"termdevtools/config"
 	"termdevtools/esclient"
 	"termdevtools/i18n"
+	"termdevtools/refdata"
 )
 
 // ConnectResult gathers what's needed to start the main application after a
@@ -23,6 +25,13 @@ type ConnectResult struct {
 	Client      *esclient.Client
 	Cluster     config.Cluster
 	DisplayUser string
+	// Target is the cluster's distribution and version, detected from the
+	// "GET /" that validated the connection (SPEC.md §3.0) — what reference
+	// data (endpoints, _cat columns, recipes) gets selected for.
+	Target refdata.Target
+	// Warning, when set, is shown in the status bar once the main screen is
+	// up: something worth knowing that didn't prevent the connection.
+	Warning string
 }
 
 type connectSecrets struct {
@@ -71,6 +80,14 @@ type connectScreen struct {
 	pages   *tview.Pages
 	list    *tview.List
 	message *tview.TextView
+
+	// attempt numbers the connection attempts: an answer is only acted on if
+	// it belongs to the latest one, and none once connected. Without it a
+	// slow cluster given up on (Esc, then another one chosen) would, on
+	// finally answering, replace the session opened since — and a second
+	// press on Connect would open two.
+	attempt   int
+	connected bool
 }
 
 // BuildConnectPage builds the connection screen. onConnected is called
@@ -152,7 +169,13 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 	// (return to the first field) that turned out to freeze focus in
 	// practice (e.g. Esc on the authentication dropdown). So we give Esc an
 	// explicit, already-tested behavior instead: return to the list.
-	form.SetCancelFunc(func() { cs.pages.SwitchToPage("list") })
+	// Esc and the Cancel button both give up on an attempt still in progress,
+	// if any, and return to the list.
+	cancel := func() {
+		cs.attempt++
+		cs.pages.SwitchToPage("list")
+	}
+	form.SetCancelFunc(cancel)
 
 	// The first 2 fields (URL, Authentication) are static and never
 	// rebuilt, so as not to lose focus/cursor while typing. Everything
@@ -227,12 +250,13 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 			URL: url, AuthType: authType,
 			Username: username, APIKeyID: apiKeyID,
 			TLS: config.TLS{Verify: verify, CAFile: caFile, ClientCert: clientCert, ClientKey: clientKey},
+			// Not form fields: carried over from config.yaml as-is, or
+			// Promote would erase them on every reconnection.
+			Distribution: cluster.Distribution, Version: cluster.Version,
 		}
 		cs.attemptConnect(cl, connectSecrets{password: password, apiKeySecret: apiKeySecret, keyPassphrase: keyPassphrase})
 	})
-	form.AddButton(msgs.ButtonCancel, func() {
-		cs.pages.SwitchToPage("list")
-	})
+	form.AddButton(msgs.ButtonCancel, cancel)
 
 	return form
 }
@@ -445,7 +469,16 @@ func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecret
 		cs.setMessage(msgs.ErrURLRequired, "red")
 		return
 	}
+	// "https://user:password@host" would work — and put the password in
+	// config.yaml, in the status bar and in every curl command copied: the
+	// URL is the one thing about a cluster that is saved and shown as is.
+	if parsed, err := url.Parse(cl.URL); err == nil && parsed.User != nil {
+		cs.setMessage(msgs.ErrURLCredentials, "red")
+		return
+	}
 	cs.setMessage(msgs.StatusConnecting, "yellow")
+	cs.attempt++
+	attempt := cs.attempt
 
 	timeout := time.Duration(cs.cfg.DefaultTimeoutSeconds) * time.Second
 	params := esclient.Params{
@@ -467,23 +500,51 @@ func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecret
 		}
 
 		cs.tapp.QueueUpdateDraw(func() {
+			if attempt != cs.attempt || cs.connected {
+				return // superseded, or given up on: see connectScreen.attempt
+			}
 			if err != nil {
 				cs.setMessage(fmt.Sprintf(msgs.ErrConnectFailedFmt, err), "red")
 				return
 			}
-			if result.StatusCode >= 400 {
-				cs.setMessage(fmt.Sprintf(msgs.ErrClusterHTTPFmt, result.StatusCode), "red")
+			// A redirection included: it isn't followed (see esclient.New),
+			// and what answers isn't the cluster's root.
+			if result.StatusCode >= 300 {
+				message := fmt.Sprintf(msgs.ErrClusterHTTPFmt, result.StatusCode)
+				if location := result.Headers.Get("Location"); location != "" {
+					message += " → " + location
+				}
+				cs.setMessage(message, "red")
 				return
 			}
+			cs.connected = true
 
 			cs.cfg.Promote(cl)
 			if err := cs.cfg.Save(); err != nil {
 				cs.setMessage(fmt.Sprintf(msgs.WarnConnectedSaveFailedFmt, err), "yellow")
 			}
 
-			cs.on(ConnectResult{Client: client, Cluster: cl, DisplayUser: displayUserFor(cl, msgs)})
+			target, warning := resolveTarget(result.Body, cl, msgs)
+			cs.on(ConnectResult{
+				Client: client, Cluster: cl, DisplayUser: displayUserFor(cl, msgs),
+				Target: target, Warning: warning,
+			})
 		})
 	}()
+}
+
+// resolveTarget detects the cluster's distribution and version from the body
+// of its "GET /" response, then applies cl's optional override from
+// config.yaml. An invalid override is reported (warning) and ignored rather
+// than failing the connection: a typo in config.yaml shouldn't lock anyone
+// out of a cluster.
+func resolveTarget(rootBody []byte, cl config.Cluster, msgs *i18n.Strings) (target refdata.Target, warning string) {
+	detected := refdata.DetectTarget(rootBody)
+	target, err := detected.WithOverride(cl.Distribution, cl.Version)
+	if err != nil {
+		return detected, fmt.Sprintf(msgs.WarnTargetOverrideFmt, err)
+	}
+	return target, ""
 }
 
 func displayUserFor(cl config.Cluster, msgs *i18n.Strings) string {

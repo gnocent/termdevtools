@@ -57,6 +57,11 @@ func (e *Editor) handleAutoCloseRune(r rune) bool {
 
 	switch b {
 	case '{', '[':
+		if e.insideString() {
+			// Plain content of a string ("age:[10 TO *]"): not a structure
+			// to close.
+			return false
+		}
 		return e.insertPair(b, autoCloseOpen[b])
 	case '"':
 		if e.skipOverIfNext(b) {

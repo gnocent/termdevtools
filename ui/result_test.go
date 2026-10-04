@@ -16,7 +16,7 @@ import (
 // PlainText() too, since that's what export (Ctrl+S) and clipboard copy
 // (F2) send.
 func TestShowPrependsRequestReminder(t *testing.T) {
-	r := NewResultView(i18n.For(""))
+	r := NewResultView(i18n.For(i18n.FR))
 	r.Show("GET", "_cat/health?v", nil, []byte(`{"status":"green"}`))
 
 	want := "# GET _cat/health?v\n{\n  \"status\": \"green\"\n}"
@@ -28,7 +28,7 @@ func TestShowPrependsRequestReminder(t *testing.T) {
 // TestShowPrependsRequestReminderNonJSON checks the same reminder line for
 // a plain-text (non-JSON) response, e.g. a _cat/* command.
 func TestShowPrependsRequestReminderNonJSON(t *testing.T) {
-	r := NewResultView(i18n.For(""))
+	r := NewResultView(i18n.For(i18n.FR))
 	r.Show("GET", "_cat/health?v", nil, []byte("epoch cluster status\n123 mycluster green"))
 
 	want := "# GET _cat/health?v\nepoch cluster status\n123 mycluster green"
@@ -41,7 +41,7 @@ func TestShowPrependsRequestReminderNonJSON(t *testing.T) {
 // carries the reminder, so a failure can still be traced back to which
 // request caused it once exported or copied.
 func TestShowErrorPrependsRequestReminder(t *testing.T) {
-	r := NewResultView(i18n.For(""))
+	r := NewResultView(i18n.For(i18n.FR))
 	r.ShowError("POST", "_search", "connection refused")
 
 	want := "# POST _search\nconnection refused"
@@ -54,7 +54,7 @@ func TestShowErrorPrependsRequestReminder(t *testing.T) {
 // into the exported file (Ctrl+S, right panel) — the main point of adding
 // it, per the user's request.
 func TestExportIncludesRequestReminder(t *testing.T) {
-	r := NewResultView(i18n.For(""))
+	r := NewResultView(i18n.For(i18n.FR))
 	r.Show("GET", "_cat/indices?v", nil, []byte(`{"a":1}`))
 
 	dir := t.TempDir()
@@ -81,7 +81,7 @@ func TestExportIncludesRequestReminder(t *testing.T) {
 // PlainText() so they carry over to exports and clipboard copy too
 // (SPEC.md §7 backlog #2).
 func TestShowIncludesResponseHeaders(t *testing.T) {
-	r := NewResultView(i18n.For(""))
+	r := NewResultView(i18n.For(i18n.FR))
 	headers := http.Header{
 		"X-Elastic-Product": {"Elasticsearch"},
 		"Content-Type":      {"application/json"},
@@ -102,7 +102,7 @@ func TestShowIncludesResponseHeaders(t *testing.T) {
 // shown in yellow, distinct from the other, plain gray header lines — so a
 // deprecation notice doesn't blend in and go unnoticed.
 func TestShowHighlightsWarningHeader(t *testing.T) {
-	r := NewResultView(i18n.For(""))
+	r := NewResultView(i18n.For(i18n.FR))
 	headers := http.Header{
 		"Content-Type": {"application/json"},
 		"Warning":      {`299 Elasticsearch-9.0.0 "[types removal] Specifying types is deprecated"`},
@@ -120,7 +120,7 @@ func TestShowHighlightsWarningHeader(t *testing.T) {
 // TestExportIncludesResponseHeaders checks that headers, like the request
 // reminder, survive into the exported file.
 func TestExportIncludesResponseHeaders(t *testing.T) {
-	r := NewResultView(i18n.For(""))
+	r := NewResultView(i18n.For(i18n.FR))
 	headers := http.Header{"X-Elastic-Product": {"Elasticsearch"}}
 	r.Show("GET", "_cat/indices?v", headers, []byte(`{"a":1}`))
 

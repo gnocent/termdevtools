@@ -7,6 +7,17 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
+// editorFocused tells which panel the application considers focused, and
+// leftWeight how the two share the width — both read from the application's
+// own goroutine (see uiValue).
+func editorFocused(app *App) bool {
+	return uiValue(app, func() bool { return app.focusedIsEditor })
+}
+
+func leftWeight(app *App) int {
+	return uiValue(app, func() int { return app.leftWeight })
+}
+
 // TestOptionAltFocusSwitch checks that Option/Alt+←/→ switches panel focus
 // just like Ctrl+←/→ — added for macOS, where Ctrl+←/→ is intercepted at
 // the OS level by default (Mission Control desktop switching, see
@@ -14,31 +25,31 @@ import (
 func TestOptionAltFocusSwitch(t *testing.T) {
 	app, screen := newTestApp(t)
 
-	if !app.focusedIsEditor {
+	if !editorFocused(app) {
 		t.Fatal("expected the editor to be focused initially")
 	}
 
 	screen.InjectKey(tcell.KeyRight, 0, tcell.ModCtrl)
 	waitForDraw(t, screen)
-	if app.focusedIsEditor {
+	if editorFocused(app) {
 		t.Fatal("expected Ctrl+Right to switch focus to the result panel")
 	}
 
 	screen.InjectKey(tcell.KeyLeft, 0, tcell.ModAlt)
 	waitForDraw(t, screen)
-	if !app.focusedIsEditor {
+	if !editorFocused(app) {
 		t.Fatal("expected Option/Alt+Left to switch focus back to the editor, like Ctrl+Left")
 	}
 
 	screen.InjectKey(tcell.KeyRight, 0, tcell.ModAlt)
 	waitForDraw(t, screen)
-	if app.focusedIsEditor {
+	if editorFocused(app) {
 		t.Fatal("expected Option/Alt+Right to switch focus to the result panel, like Ctrl+Right")
 	}
 }
 
 // TestAltWordNavigationSwitchesFocus checks the Meta-b/Meta-f rune encoding
-// (ESC b / ESC f) confirmed, via cmd/keydebug on a real macOS terminal, to
+// (ESC b / ESC f) confirmed, in a dump of a real macOS terminal's key events, to
 // be what that terminal actually sends for Option/Alt+Left and
 // Option/Alt+Right — not a modified KeyLeft/KeyRight at all, but a plain
 // KeyRune event with Rune 'b'/'f' and only ModAlt set (see
@@ -51,36 +62,36 @@ func TestAltWordNavigationSwitchesFocus(t *testing.T) {
 
 	screen.InjectKey(tcell.KeyRune, 'f', tcell.ModAlt)
 	waitForDraw(t, screen)
-	if app.focusedIsEditor {
+	if editorFocused(app) {
 		t.Fatal("expected Option/Alt+Right (reported as rune 'f'+Alt) to switch focus to the result panel")
 	}
 
 	screen.InjectKey(tcell.KeyRune, 'b', tcell.ModAlt)
 	waitForDraw(t, screen)
-	if !app.focusedIsEditor {
+	if !editorFocused(app) {
 		t.Fatal("expected Option/Alt+Left (reported as rune 'b'+Alt) to switch focus back to the editor")
 	}
 }
 
 // TestF5F6ResizeSplit checks that F5/F6 — the primary, guaranteed-reliable
 // resize shortcuts — shrink/grow the left panel. Added after confirming,
-// via cmd/keydebug on a real macOS terminal, that Shift+Alt+←/→ arrives
+// in a dump of a real macOS terminal's key events, that Shift+Alt+←/→ arrives
 // there as a plain KeyLeft/KeyRight with zero modifiers, indistinguishable
 // from an unmodified arrow key press (see isShrinkShortcut/isGrowShortcut).
 func TestF5F6ResizeSplit(t *testing.T) {
 	app, screen := newTestApp(t)
-	initial := app.leftWeight
+	initial := leftWeight(app)
 
 	screen.InjectKey(tcell.KeyF6, 0, tcell.ModNone)
 	waitForDraw(t, screen)
-	if app.leftWeight != initial+1 {
-		t.Fatalf("expected F6 to grow the left panel by 1, got leftWeight=%d (was %d)", app.leftWeight, initial)
+	if leftWeight(app) != initial+1 {
+		t.Fatalf("expected F6 to grow the left panel by 1, got leftWeight=%d (was %d)", leftWeight(app), initial)
 	}
 
 	screen.InjectKey(tcell.KeyF5, 0, tcell.ModNone)
 	waitForDraw(t, screen)
-	if app.leftWeight != initial {
-		t.Fatalf("expected F5 to shrink the left panel back by 1, got leftWeight=%d (want %d)", app.leftWeight, initial)
+	if leftWeight(app) != initial {
+		t.Fatalf("expected F5 to shrink the left panel back by 1, got leftWeight=%d (want %d)", leftWeight(app), initial)
 	}
 }
 
@@ -91,31 +102,31 @@ func TestF5F6ResizeSplit(t *testing.T) {
 // isShrinkShortcut/isGrowShortcut).
 func TestOptionAltResizeSplit(t *testing.T) {
 	app, screen := newTestApp(t)
-	initial := app.leftWeight
+	initial := leftWeight(app)
 
 	screen.InjectKey(tcell.KeyRight, 0, tcell.ModCtrl|tcell.ModShift)
 	waitForDraw(t, screen)
-	if app.leftWeight != initial+1 {
-		t.Fatalf("expected Ctrl+Shift+Right to grow the left panel by 1, got leftWeight=%d (was %d)", app.leftWeight, initial)
+	if leftWeight(app) != initial+1 {
+		t.Fatalf("expected Ctrl+Shift+Right to grow the left panel by 1, got leftWeight=%d (was %d)", leftWeight(app), initial)
 	}
 
 	screen.InjectKey(tcell.KeyLeft, 0, tcell.ModAlt|tcell.ModShift)
 	waitForDraw(t, screen)
-	if app.leftWeight != initial {
-		t.Fatalf("expected Option/Alt+Shift+Left to shrink the left panel back by 1, got leftWeight=%d (want %d)", app.leftWeight, initial)
+	if leftWeight(app) != initial {
+		t.Fatalf("expected Option/Alt+Shift+Left to shrink the left panel back by 1, got leftWeight=%d (want %d)", leftWeight(app), initial)
 	}
 
 	screen.InjectKey(tcell.KeyLeft, 0, tcell.ModAlt|tcell.ModShift)
 	waitForDraw(t, screen)
-	if app.leftWeight != initial-1 {
-		t.Fatalf("expected a second Option/Alt+Shift+Left to shrink further, got leftWeight=%d (want %d)", app.leftWeight, initial-1)
+	if leftWeight(app) != initial-1 {
+		t.Fatalf("expected a second Option/Alt+Shift+Left to shrink further, got leftWeight=%d (want %d)", leftWeight(app), initial-1)
 	}
 }
 
 // TestCtrlEExecutes checks that Ctrl+E — the primary, always-reliable
 // execute shortcut (a raw control byte, like Ctrl+F/Ctrl+S) — triggers
-// request execution. Added after confirming, via cmd/keydebug on a real
-// macOS terminal, that Ctrl+Enter/Option+Enter/Alt+Enter are all reported
+// request execution. Added after confirming, in a dump of a real macOS
+// terminal's key events, that Ctrl+Enter/Option+Enter/Alt+Enter are all reported
 // identically to plain Enter (Ctrl+M *is* Enter's control byte, and that
 // terminal attaches no modifier information to it at all).
 func TestCtrlEExecutes(t *testing.T) {
@@ -170,7 +181,7 @@ func TestF4ReformatsBodyUnderCursor(t *testing.T) {
 	screen.InjectKey(tcell.KeyF4, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	got := app.editor.Text()
+	got := editorText(app)
 	want := "POST _search\n{\n  \"query\": {\n    \"match_all\": {}\n  }\n}"
 	if got != want {
 		t.Errorf("expected the body to be reindented, got:\n%s\nwant:\n%s", got, want)
@@ -187,15 +198,15 @@ func TestF4DoesNothingWhenResultPanelFocused(t *testing.T) {
 	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
 	injectText(screen, `{"query":{"match_all":{}}}`)
 	waitForDraw(t, screen)
-	want := app.editor.Text()
+	want := editorText(app)
 
-	app.focusResultPanel()
+	onUI(app, app.focusResultPanel)
 	waitForDraw(t, screen)
 
 	screen.InjectKey(tcell.KeyF4, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	if got := app.editor.Text(); got != want {
+	if got := editorText(app); got != want {
 		t.Errorf("expected F4 to have no effect while the result panel is focused, got:\n%s", got)
 	}
 }
@@ -252,7 +263,7 @@ func TestF9DoesNothingWhenResultPanelFocused(t *testing.T) {
 	injectText(screen, "GET _cat/health?v")
 	waitForDraw(t, screen)
 
-	app.focusResultPanel()
+	onUI(app, app.focusResultPanel)
 	waitForDraw(t, screen)
 
 	screen.InjectKey(tcell.KeyF9, 0, tcell.ModNone)

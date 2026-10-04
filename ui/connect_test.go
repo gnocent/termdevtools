@@ -1,16 +1,20 @@
 package ui
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"termdevtools/config"
 	"termdevtools/i18n"
+	"termdevtools/refdata"
 )
 
 // newTestConnectScreen starts the connection screen (pre-connection, see
@@ -89,7 +93,7 @@ func TestCertPickerFillsFieldFromConfiguredDir(t *testing.T) {
 			t.Fatalf("WriteFile: %v", err)
 		}
 	}
-	cfg := &config.Config{DefaultTimeoutSeconds: 5, DefaultCADir: certDir}
+	cfg := &config.Config{Language: i18n.FR, DefaultTimeoutSeconds: 5, DefaultCADir: certDir}
 
 	screen := newTestConnectScreen(t, cfg)
 
@@ -124,7 +128,7 @@ func TestCertPickerFillsFieldFromConfiguredDir(t *testing.T) {
 // reports a clear error instead of opening an empty popup when the
 // corresponding config.yaml directory setting isn't set.
 func TestCertPickerReportsUnconfiguredDir(t *testing.T) {
-	cfg := &config.Config{DefaultTimeoutSeconds: 5} // DefaultCADir left empty
+	cfg := &config.Config{Language: i18n.FR, DefaultTimeoutSeconds: 5} // DefaultCADir left empty
 
 	screen := newTestConnectScreen(t, cfg)
 
@@ -166,7 +170,7 @@ func TestCertPickerFallsBackToHomeDirWhenConfiguredDirMissing(t *testing.T) {
 	cs.tapp.QueueUpdateDraw(func() { cs.openCertPicker(missing, "default_ca_dir", field) })
 	waitForDraw(t, screen)
 
-	if msg := cs.message.GetText(true); msg != "" {
+	if msg := connectValue(cs, func() string { return cs.message.GetText(true) }); msg != "" {
 		t.Errorf("expected no error message when falling back to the home directory, got: %q", msg)
 	}
 
@@ -174,7 +178,7 @@ func TestCertPickerFallsBackToHomeDirWhenConfiguredDirMissing(t *testing.T) {
 	waitForDraw(t, screen)
 
 	want := filepath.Join(home, "home-ca.pem")
-	if got := field.GetText(); got != want {
+	if got := connectValue(cs, field.GetText); got != want {
 		t.Errorf("expected the field to contain the home-directory file %q, got %q", want, got)
 	}
 }
@@ -195,7 +199,7 @@ func TestCertPickerReportsErrorWhenHomeFallbackAlsoMissing(t *testing.T) {
 	cs.tapp.QueueUpdateDraw(func() { cs.openCertPicker(missingConfigured, "default_ca_dir", field) })
 	waitForDraw(t, screen)
 
-	got := cs.message.GetText(true)
+	got := connectValue(cs, func() string { return cs.message.GetText(true) })
 	if strings.Contains(got, "cannot find") || strings.Contains(got, "no such file") {
 		t.Errorf("expected a clean error message, not a raw OS error, got: %q", got)
 	}
@@ -212,7 +216,7 @@ func TestCertPickerEscapeCancelsWithoutChange(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(certDir, "ca.pem"), []byte("x"), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
-	cfg := &config.Config{DefaultTimeoutSeconds: 5, DefaultCADir: certDir}
+	cfg := &config.Config{Language: i18n.FR, DefaultTimeoutSeconds: 5, DefaultCADir: certDir}
 
 	screen := newTestConnectScreen(t, cfg)
 
@@ -242,6 +246,14 @@ func TestCertPickerEscapeCancelsWithoutChange(t *testing.T) {
 // the picked file can be read back precisely via field.GetText(), unaffected
 // by a long t.TempDir() path scrolling out of a rendered field's visible
 // width (see TestCertPickerFillsFieldFromConfiguredDir).
+// connectValue returns what f evaluates to on the connection screen's own
+// application goroutine — the only place its widgets may be read from.
+func connectValue[T any](cs *connectScreen, f func() T) T {
+	var value T
+	cs.tapp.QueueUpdate(func() { value = f() })
+	return value
+}
+
 func newTestCertPickerField(t *testing.T) (*connectScreen, *tview.InputField, tcell.SimulationScreen) {
 	t.Helper()
 	screen := tcell.NewSimulationScreen("")
@@ -259,7 +271,7 @@ func newTestCertPickerField(t *testing.T) (*connectScreen, *tview.InputField, tc
 	t.Cleanup(tapp.Stop)
 	waitForDraw(t, screen)
 
-	cs := &connectScreen{tapp: tapp, cfg: &config.Config{}, msgs: i18n.For(""), pages: pages, message: tview.NewTextView()}
+	cs := &connectScreen{tapp: tapp, cfg: &config.Config{Language: i18n.FR}, msgs: i18n.For(i18n.FR), pages: pages, message: tview.NewTextView()}
 	return cs, field, screen
 }
 
@@ -281,7 +293,7 @@ func TestOpenCertPickerFillsFieldWithFullPath(t *testing.T) {
 	waitForDraw(t, screen)
 
 	want := filepath.Join(certDir, "ca.pem")
-	if got := field.GetText(); got != want {
+	if got := connectValue(cs, field.GetText); got != want {
 		t.Errorf("expected the field to contain %q, got %q", want, got)
 	}
 	if cs.tapp.GetFocus() != field {
@@ -322,8 +334,8 @@ func TestCertPickerNavigatesIntoSubdirectoryAndBack(t *testing.T) {
 	if text := screenText(screen); !strings.Contains(text, "sub-ca.pem") || strings.Contains(text, "top-ca.pem") {
 		t.Fatalf("expected to be browsing sub/ now (only sub-ca.pem listed), got:\n%s", text)
 	}
-	if field.GetText() != "" {
-		t.Errorf("expected the field to stay empty while merely browsing, got %q", field.GetText())
+	if got := connectValue(cs, field.GetText); got != "" {
+		t.Errorf("expected the field to stay empty while merely browsing, got %q", got)
 	}
 
 	// Backspace goes back up: top-level listing again.
@@ -341,7 +353,116 @@ func TestCertPickerNavigatesIntoSubdirectoryAndBack(t *testing.T) {
 	waitForDraw(t, screen)
 
 	want := filepath.Join(subDir, "sub-ca.pem")
-	if got := field.GetText(); got != want {
+	if got := connectValue(cs, field.GetText); got != want {
 		t.Errorf("expected the field to contain %q, got %q", want, got)
+	}
+}
+
+// connectToTestServer drives the real connection flow against handler: the
+// (single) known cluster is picked from the list, its form confirmed, and
+// the ConnectResult handed to the main application is returned.
+func connectToTestServer(t *testing.T, cluster config.Cluster, handler http.HandlerFunc) (ConnectResult, *config.Config) {
+	t.Helper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	cluster.URL = srv.URL
+	cluster.AuthType = config.AuthNone
+	cfg := &config.Config{Language: i18n.FR, DefaultTimeoutSeconds: 5, Clusters: []config.Cluster{cluster}}
+
+	screen := tcell.NewSimulationScreen("")
+	if err := screen.Init(); err != nil {
+		t.Fatalf("screen.Init: %v", err)
+	}
+	screen.SetSize(100, 30)
+
+	results := make(chan ConnectResult, 1)
+	tapp := tview.NewApplication().SetScreen(screen)
+	tapp.SetRoot(BuildConnectPage(tapp, cfg, func(cr ConnectResult) { results <- cr }), true)
+	go func() { _ = tapp.Run() }()
+	t.Cleanup(tapp.Stop)
+	waitForDraw(t, screen)
+
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone) // the cluster, first in the list
+	waitForDraw(t, screen)
+	// An http:// cluster with no authentication: the form holds the
+	// authentication dropdown (focused), then the Connect button.
+	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
+
+	select {
+	case cr := <-results:
+		return cr, cfg
+	case <-time.After(5 * time.Second):
+		t.Fatalf("no connection result; screen:\n%s", screenText(screen))
+		return ConnectResult{}, nil
+	}
+}
+
+func rootHandler(body string) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	}
+}
+
+// TestConnectDetectsTarget checks that a successful connection reports the
+// cluster's distribution and version, read from the same "GET /" that
+// validates the connection.
+func TestConnectDetectsTarget(t *testing.T) {
+	cr, _ := connectToTestServer(t, config.Cluster{},
+		rootHandler(`{"version": {"distribution": "opensearch", "number": "2.19.6"}, "tagline": "The OpenSearch Project: https://opensearch.org/"}`))
+
+	want := refdata.Target{Distribution: refdata.OpenSearch, Version: refdata.Version{Major: 2, Minor: 19, Patch: 6}, HasVersion: true}
+	if cr.Target != want {
+		t.Errorf("got target %+v, want %+v", cr.Target, want)
+	}
+	if cr.Warning != "" {
+		t.Errorf("unexpected warning: %q", cr.Warning)
+	}
+}
+
+// TestConnectAppliesAndKeepsOverride checks config.yaml's per-cluster
+// distribution/version override: it wins over detection, and — not being a
+// form field — survives the rewrite of the cluster's entry that every
+// successful connection performs.
+func TestConnectAppliesAndKeepsOverride(t *testing.T) {
+	cr, cfg := connectToTestServer(t, config.Cluster{Distribution: "opensearch", Version: "2.11"},
+		rootHandler(`{"version": {"number": "7.10.2"}, "tagline": "You Know, for Search"}`))
+
+	want := refdata.Target{Distribution: refdata.OpenSearch, Version: refdata.Version{Major: 2, Minor: 11}, HasVersion: true}
+	if cr.Target != want {
+		t.Errorf("got target %+v, want %+v", cr.Target, want)
+	}
+	if got := cfg.Clusters[0]; got.Distribution != "opensearch" || got.Version != "2.11" {
+		t.Errorf("override lost from the saved cluster entry: %+v", got)
+	}
+}
+
+// TestConnectIgnoresInvalidOverride checks that a typo in the override
+// doesn't lock the user out: the connection succeeds on the detected target,
+// with a warning.
+func TestConnectIgnoresInvalidOverride(t *testing.T) {
+	cr, _ := connectToTestServer(t, config.Cluster{Distribution: "elastik"},
+		rootHandler(`{"version": {"number": "9.5.4", "build_flavor": "default"}, "tagline": "You Know, for Search"}`))
+
+	want := refdata.Target{Distribution: refdata.Elasticsearch, Version: refdata.Version{Major: 9, Minor: 5, Patch: 4}, HasVersion: true}
+	if cr.Target != want {
+		t.Errorf("got target %+v, want %+v", cr.Target, want)
+	}
+	if !strings.Contains(cr.Warning, "elastik") {
+		t.Errorf("expected a warning naming the rejected value, got %q", cr.Warning)
+	}
+}
+
+// TestConnectUnrecognizedRootStillConnects checks that a cluster whose
+// "GET /" body can't be interpreted (a proxy in front of it, another fork)
+// connects all the same, with nothing detected.
+func TestConnectUnrecognizedRootStillConnects(t *testing.T) {
+	cr, _ := connectToTestServer(t, config.Cluster{}, rootHandler(`<html>ok</html>`))
+	if cr.Target != (refdata.Target{}) {
+		t.Errorf("got target %+v, want none", cr.Target)
 	}
 }

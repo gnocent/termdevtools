@@ -1,0 +1,80 @@
+*(Version française : [CHANGELOG_fr.md](CHANGELOG_fr.md))*
+
+# Changelog
+
+## 0.6 (beta) — October 2026
+
+**In one sentence**: TermDevTools now needs nothing but its binary, recognizes Elasticsearch and OpenSearch and their version, and offers a catalog of ready-made requests suited to the cluster.
+
+**Why "beta"**: the recipe catalog, OpenSearch support and the selection by version are new. They were checked against eleven real clusters (see below), but not yet by users other than their author. Feedback is welcome.
+
+### What's new
+
+- **Recipe catalog (`F8`)**: about a hundred ready-made requests, filed by theme — overview, shards and allocation, nodes and resources, indices, tasks, snapshots, index lifecycle, upgrade and maintenance, search. Filter by typing, preview, `Enter` inserts the recipe at the end of the editor, cursor on its request. Recipes are written in English.
+- **Elasticsearch and OpenSearch, by version**: the distribution and version of the cluster are detected at connection and shown in the status bar (`ES 9.5.4`, `OS 2.19.6`). Only the recipes and endpoints that exist on that cluster are offered. Coverage: Elasticsearch 7.17 to 9.x, self-managed OpenSearch 2.x and 3.x.
+- **No file to install next to the binary anymore**: recipes, endpoints and `_cat` columns are built in. Releases are plain binaries, with their SHA-256 checksums.
+- **Your own recipes and endpoints**: plain text files in `~/.config/termdevtools/` (or next to the binary, to share them), added to the built-in ones without replacing them. `F7` reloads them; a mistake in a file is reported with the file and the line.
+- **`_cat` columns asked from the cluster**: completion of the `h=` and `s=` parameters queries the cluster itself, so it is exact whatever its version.
+- **Client keys encrypted in the PKCS#8 format** (mTLS): the format OpenSSL writes by default is now read, in addition to the older encrypted PEM format.
+- **`termdevtools --version`** and **`termdevtools --export-defaults <directory>`** (writes the built-in recipes and endpoints out as files, to read them or start from them).
+
+### Security and reliability
+
+- **HTTP redirections are no longer followed.** A redirection is displayed as it is. Previously, a `302` answer silently turned a `DELETE` or a `POST` into a `GET` of the new address.
+- **A URL carrying credentials is refused** (`https://user:password@host`): the URL is saved in `config.yaml`, where the password would have ended up.
+- **`Ctrl+C` always saves before quitting**, including when the help, the search bar or a list is open. If the save fails, the program says so and waits for a second `Ctrl+C`.
+- **Atomic saves**: a full disk or an interruption during a write no longer destroys the previous content (requests, `config.yaml`).
+- **`config.yaml` keeps its comments** after every connection, as well as the keys this version doesn't know and a default directory deliberately left empty.
+- **A response larger than 64 MB is no longer loaded**: the request is reported as failed, with the advice to narrow it down.
+- **Fixes**: crash of the search in the result after a shorter result; a slow connection given up on can no longer replace the session opened since; only the answer to the last request sent is displayed; with the mouse enabled, the focus follows clicks.
+
+### Before upgrading from 0.5
+
+- **Companion files**: `cat_columns.txt` is no longer read and can be deleted. `endpoints.txt`, if left next to the binary, is read as an *addition* to the built-in list: delete it unless you had added endpoints of your own to it. `cheatsheet.txt` keeps its role; delete it to get the built-in starting content.
+- **Starting content of the editor**: a few universal requests instead of a long cheatsheet, whose content is now in the catalog (`F8`). Requests you already saved don't change.
+- **An `http://` address that redirected to `https://`**: the connection now fails, naming the new address; correct the URL.
+- **Credentials in the URL**: such an entry in `config.yaml` is refused at connection; remove them from the URL and choose Basic Auth.
+- **`F7`** now reloads all your files (variables, recipes, endpoints), not only the variables.
+- **Interface in English by default**: the program starts in English as long as no language was chosen; `F3` switches to French and remembers that choice. This also applies to an existing installation where `F3` was never used (0.5 didn't durably record the language until it had been changed): press `F3` once. A language already chosen with `F3` is kept.
+- **Generated files are in English**: the comments of a new `config.yaml` and of a new variables file are in English. Existing files are not rewritten.
+
+### Checks
+
+- Detection, endpoints, `_cat` columns and **every request of every recipe** run against eleven real clusters: Elasticsearch 7.17.29, 8.0.1, 8.11.4, 8.19.22, 9.0.8, 9.5.4; OpenSearch 2.0.1, 2.11.1, 2.19.6, 3.0.0, 3.9.0.
+- PKCS#8 keys: checked against keys written by OpenSSL and through a full mTLS connection.
+- `govulncheck`: no known vulnerability in the dependencies.
+
+### Known limits
+
+- OpenSearch managed by AWS with IAM authentication (SigV4) is not supported.
+- No HTTP(S) proxy: `HTTPS_PROXY` is not honored.
+- API keys are entered as identifier + secret, not in their `encoded` form.
+- Exports (`Ctrl+S` on the result) are written next to the binary: in a shared or read-only installation, exporting fails.
+- The demo animation of the README was recorded with 0.5: it doesn't show the recipe catalog.
+
+## 0.5 — 24 August 2026
+
+- Reusable `${name}` variables, per cluster, reloaded with `F7`.
+- Line numbers in the editor, automatic closing of braces, brackets and quotes.
+- File picker for the certificates of the connection screen.
+
+## 0.4 — 14 August 2026
+
+- `F10` as an alternative to `Tab` for completion, on terminals that intercept `Tab`.
+- Mouse off by default.
+- Crash report written to a file.
+- Improved completion, reminder of the request at the top of the result.
+- Fixed an offset in search, completion and request targeting after accented characters.
+
+## 0.3 — 13 August 2026
+
+- Install scripts (`install.sh`, `install.ps1`).
+- On macOS, `Option`/`Alt` accepted in place of `Ctrl` for three shortcuts.
+
+## 0.2 — 13 August 2026
+
+- Interface in French or English, `F3` to switch language.
+
+## 0.1 — 12 August 2026
+
+- First published version: request editor, execution of the request under the cursor, formatted JSON result.

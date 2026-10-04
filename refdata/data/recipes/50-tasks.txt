@@ -1,0 +1,28 @@
+# @group Tasks and pending work
+
+# @recipe Running tasks, longest first
+# @tags slow long-running
+GET _cat/tasks?v&detailed=true&s=running_time:desc
+
+# @recipe Running searches, with their query
+# @tags slow query long-running
+GET _tasks?actions=*search*&detailed=true
+
+# @recipe Reindex, update-by-query and delete-by-query in progress
+# @tags progress
+GET _tasks?actions=*reindex,*byquery&detailed=true
+
+# @recipe Force-merges and snapshots in progress
+GET _tasks?actions=*forcemerge*,*snapshot*&detailed=true
+
+# @recipe Cancel a task
+# @tags kill stop
+# ${task_id} is the task's identifier as the recipes above list it, made of
+# a node id and a number: "oTUltX4IQMOUUVeiohTt8A:12345". The answer is 200
+# even when nothing was cancelled: read its body.
+POST _tasks/${task_id}/_cancel
+
+# @recipe Pending cluster-state updates
+# @tags master queue
+# A queue that keeps growing means the elected master cannot keep up.
+GET _cluster/pending_tasks

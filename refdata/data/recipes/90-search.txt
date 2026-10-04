@@ -1,0 +1,72 @@
+# @group Search and documents
+
+# @recipe A few documents of an index
+# @tags sample
+GET ${index}/_search
+{
+  "size": 3
+}
+
+# @recipe Most recent documents of an index
+# @tags latest timestamp
+GET ${index}/_search
+{
+  "size": 3,
+  "sort": [
+    { "@timestamp": { "order": "desc", "unmapped_type": "date" } }
+  ]
+}
+
+# @recipe Documents per value of a field
+# @tags aggregation terms count
+GET ${index}/_search
+{
+  "size": 0,
+  "aggs": {
+    "by_value": {
+      "terms": { "field": "${field}", "size": 20 }
+    }
+  }
+}
+
+# @recipe Why is this search slow?
+# @tags profile
+# "profile" details the time spent in each part of the query, shard by shard.
+GET ${index}/_search
+{
+  "profile": true,
+  "size": 0,
+  "query": { "match_all": {} }
+}
+
+# @recipe Check a query without running it
+# @tags validate explain
+GET ${index}/_validate/query?explain=true
+{
+  "query": { "match_all": {} }
+}
+
+# @recipe How a text is analyzed
+# @tags analyzer tokens
+GET _analyze
+{
+  "analyzer": "standard",
+  "text": "Quick brown foxes"
+}
+
+# @recipe Fields of an index and how they can be used
+# @tags field_caps searchable aggregatable
+GET ${index}/_field_caps?fields=*
+
+# @recipe Which shards would a search query?
+# @tags routing
+GET ${index}/_search_shards
+
+# @recipe Slow log thresholds of an index
+# @tags slowlog
+GET ${index}/_settings/index.search.slowlog*,index.indexing.slowlog*?flat_settings&include_defaults=true
+
+# @recipe Most expensive recent queries
+# @opensearch >=2.19
+# @tags insights top slow
+GET _insights/top_queries

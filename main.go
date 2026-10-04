@@ -3,6 +3,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -17,30 +18,74 @@ import (
 
 	"termdevtools/config"
 	"termdevtools/i18n"
+	"termdevtools/refdata"
 	"termdevtools/ui"
 )
 
+// version identifies the build. Release binaries are stamped by
+// build-release.sh (-ldflags "-X main.version=..."); anything else — go
+// build, go run, the install scripts — says "dev".
+var version = "dev"
+
 func main() {
+	// Before anything is read or created: asking a binary what it is must
+	// work on a machine where it has never run.
+	for _, arg := range os.Args[1:] {
+		if arg == "--version" || arg == "-version" {
+			fmt.Println("termdevtools " + version)
+			return
+		}
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		// cfg (and so cfg.Language) isn't available yet at this point —
-		// i18n.For("") falls back to French, matching the interface's
-		// original default language.
+		// i18n.For("") gives the interface's default language, English.
 		fmt.Fprintf(os.Stderr, i18n.For("").ErrConfigLoadFmt+"\n", err)
 		os.Exit(1)
 	}
 	msgs := i18n.For(cfg.Language)
+
+	exportDir := flag.String("export-defaults", "", msgs.UsageExportDefaults)
+	flag.Bool("version", false, msgs.UsageVersion) // handled above; declared for the usage text
+	flag.Parse()
 
 	exeDir, err := config.ExecutableDir()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, msgs.ErrExecDirFmt+"\n", err)
 		os.Exit(1)
 	}
+	// Empty if the configuration directory can't be resolved: the user's
+	// reference files are then simply not looked for (config.Load above
+	// would already have failed for the same reason anyway).
+	userDir, _ := config.ConfigDir()
+	reference := refdata.Sources{TeamDir: exeDir, UserDir: userDir}
+
+	if *exportDir != "" {
+		// Exported where reference files are read from, the built-in recipes
+		// would all come back as the user's own: frozen copies, hiding the
+		// corrections of every later version.
+		if reference.Reads(*exportDir) {
+			fmt.Fprintf(os.Stderr, msgs.ErrExportIntoSourceFmt+"\n", *exportDir)
+			os.Exit(1)
+		}
+		written, err := refdata.ExportDefaults(*exportDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, msgs.ErrExportDefaultsFmt+"\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf(msgs.InfoExportedDefaultsFmt+"\n", len(written), *exportDir)
+		return
+	}
+
+	// Best-effort, like the other self-documenting files (config.yaml,
+	// variables): without it the user's recipes simply have no template.
+	_ = refdata.CreateUserTemplate(userDir)
 	paths := ui.Paths{
 		Cheatsheet: filepath.Join(exeDir, ui.CheatsheetFileName),
+		Starter:    refdata.Starter(),
 		Exports:    filepath.Join(exeDir, ui.ExportsDirName),
-		Endpoints:  filepath.Join(exeDir, ui.EndpointsFileName),
-		CatColumns: filepath.Join(exeDir, ui.CatColumnsFileName),
+		Reference:  reference,
 	}
 
 	tapp := tview.NewApplication()
@@ -83,7 +128,7 @@ func main() {
 	go func() {
 		<-sig
 		if app := currentApp.Load(); app != nil {
-			app.SaveQueriesOnExit()
+			app.SaveQueriesOnSignal()
 		}
 		tapp.Stop()
 	}()
@@ -99,8 +144,7 @@ func main() {
 // tview.Application.Run processes events — and writes it, with a full stack
 // trace, to a timestamped file next to the binary: the only way to get a
 // real diagnosis for a crash nobody watching can reproduce or transcribe by
-// hand (same idea as cmd/keydebug, applied to panics instead of raw key
-// events). Best-effort only: a panic inside tcell's own separate
+// hand. Best-effort only: a panic inside tcell's own separate
 // input-reading goroutine, rather than in the application code Run() itself
 // processes, would not be caught here — Go's recover only catches panics in
 // the same goroutine as the deferred call.

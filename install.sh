@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Builds TermDevTools for the current platform (native build, no
-# cross-compilation) and installs it together with its companion files
-# (cat_columns.txt, endpoints.txt, cheatsheet.txt) into a self-contained
-# directory, then symlinks the binary onto your PATH.
+# cross-compilation), installs the binary — all there is to install: its
+# reference data and recipes are built in — then symlinks it onto your PATH.
 #
 # Run from anywhere; it locates the repository from its own path. Override
 # the install locations with TERMDEVTOOLS_INSTALL_DIR / TERMDEVTOOLS_BIN_DIR
@@ -15,23 +14,32 @@ bin_dir="${TERMDEVTOOLS_BIN_DIR:-$HOME/.local/bin}"
 
 mkdir -p "$install_dir" "$bin_dir"
 
-echo "Building termdevtools into $install_dir ..."
-CGO_ENABLED=0 go build -trimpath -o "$install_dir/termdevtools" .
+# What "termdevtools --version" will answer: the tag of the checkout, or how
+# far past it this build is.
+version="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
 
-# cat_columns.txt/endpoints.txt are team-shared reference data (SPEC.md
-# §9.1): always refreshed from the source tree. cheatsheet.txt is a personal
-# starting point instead — only seeded once, never overwritten, so a
-# previous customization survives re-running this script.
-cp -f cat_columns.txt endpoints.txt "$install_dir/"
-if [ ! -f "$install_dir/cheatsheet.txt" ]; then
-	cp cheatsheet.txt.example "$install_dir/cheatsheet.txt"
-fi
+echo "Building termdevtools $version into $install_dir ..."
+CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=$version" -o "$install_dir/termdevtools" .
 
 ln -sf "$install_dir/termdevtools" "$bin_dir/termdevtools"
 
 echo
 echo "Installed to:  $install_dir"
 echo "Symlinked as:  $bin_dir/termdevtools"
+
+# Versions up to 0.5 installed companion files next to the binary. Nothing is
+# deleted here: endpoints.txt and cheatsheet.txt are still read, as the
+# team's own additions (SPEC.md §9.1), and may have been customized.
+for legacy in cat_columns.txt endpoints.txt cheatsheet.txt; do
+	if [ -f "$install_dir/$legacy" ]; then
+		case "$legacy" in
+		cat_columns.txt) note="no longer read, can be deleted" ;;
+		endpoints.txt) note="now built in; keep it only if you added endpoints of your own to it" ;;
+		cheatsheet.txt) note="still the editor's starting content; delete it to get the built-in one" ;;
+		esac
+		echo "Left over from an earlier version: $install_dir/$legacy ($note)"
+	fi
+done
 
 case ":$PATH:" in
 *":$bin_dir:"*) echo ; echo "Run: termdevtools" ;;

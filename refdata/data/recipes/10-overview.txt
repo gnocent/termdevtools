@@ -1,0 +1,70 @@
+# @group Overview
+
+# @recipe Cluster identity and version
+# @tags info root
+# The node answering, the cluster's name and the exact version it runs.
+GET /
+
+# @recipe Cluster health
+# @tags status red yellow green
+# green: every shard is assigned. yellow: some replicas are missing. red: at
+# least one primary is missing — some data is unavailable.
+GET _cluster/health
+
+# @recipe Cluster health, index by index
+# @tags status red yellow
+# Narrows a red or yellow status down to the indices responsible.
+GET _cluster/health?level=indices
+
+# @recipe Health report with diagnosis
+# @es >=8.7
+# @tags status diagnosis indicators
+# Elasticsearch's own diagnosis: each indicator (shards, disk, master
+# stability...) with the cause found and the action it recommends.
+GET _health_report
+
+# @recipe Nodes at a glance
+# @es
+# @tags heap cpu load disk roles master
+GET _cat/nodes?v&h=name,node.role,master,heap.percent,ram.percent,cpu,load_1m,load_5m,disk.used_percent,uptime&s=name
+
+# @recipe Nodes at a glance
+# @opensearch
+# @tags heap cpu load disk roles cluster_manager
+GET _cat/nodes?v&h=name,node.role,cluster_manager,heap.percent,ram.percent,cpu,load_1m,load_5m,disk.used_percent,uptime&s=name
+
+# @recipe Elected master
+# @es
+GET _cat/master?v
+
+# @recipe Elected cluster manager
+# @opensearch
+# @tags master
+GET _cat/cluster_manager?v
+
+# @recipe Cluster-wide statistics
+# @tags usage docs store versions
+# Node counts by role and by version, total documents and store size, JVM
+# and OS versions in use: handy to spot a node left behind by an upgrade.
+GET _cluster/stats?human
+
+# @recipe Cluster settings that differ from the defaults
+# @tags persistent transient
+GET _cluster/settings?flat_settings
+
+# @recipe Every cluster setting, defaults included
+# @tags persistent transient defaults
+GET _cluster/settings?flat_settings&include_defaults=true
+
+# @recipe Installed plugins
+GET _cat/plugins?v&s=name,component
+
+# @recipe License
+# @es
+# @tags expiry basic trial
+GET _license
+
+# @recipe Features in use
+# @es
+# @tags xpack usage
+GET _xpack/usage

@@ -1,0 +1,99 @@
+# @group Indices
+
+# @recipe Largest indices
+# @tags size store
+GET _cat/indices?v&s=store.size:desc&h=health,status,index,pri,rep,docs.count,store.size,pri.store.size
+
+# @recipe Indices that are not green
+# @tags red yellow
+GET _cat/indices?v&health=red
+
+GET _cat/indices?v&health=yellow
+
+# @recipe Settings of an index
+GET ${index}/_settings?flat_settings
+
+# @recipe Mapping of an index
+# @tags fields types
+GET ${index}/_mapping
+
+# @recipe Shards of an index
+GET _cat/shards/${index}?v
+
+# @recipe Segments of an index
+# @tags merge lucene
+GET _cat/segments/${index}?v&s=size:desc
+
+# @recipe Statistics of an index
+# @tags docs indexing search merges
+GET ${index}/_stats?human
+
+# @recipe Number of documents in an index
+GET ${index}/_count
+
+# @recipe Indices carrying a block
+# @tags read_only flood disk
+# "read_only_allow_delete" is the block set automatically when a node's disk
+# goes over the flood-stage watermark.
+GET _all/_settings/index.blocks*?flat_settings
+
+# @recipe Remove the read-only block left by a full disk
+# @tags flood_stage read_only_allow_delete
+# The cluster lifts it by itself once disk space is back; this forces it on
+# every index.
+PUT _all/_settings
+{
+  "index.blocks.read_only_allow_delete": null
+}
+
+# @recipe Change the number of replicas of an index
+PUT ${index}/_settings
+{
+  "index.number_of_replicas": 1
+}
+
+# @recipe Aliases
+GET _cat/aliases?v&s=alias
+
+# @recipe Index templates
+# @tags composable
+GET _index_template
+
+# @recipe Component templates
+GET _component_template
+
+# @recipe Legacy index templates
+GET _template
+
+# @recipe Which template would a new index get?
+# @tags simulate
+# Resolves the settings, mappings and aliases an index of that name would
+# be created with, without creating it.
+POST _index_template/_simulate_index/${index}
+
+# @recipe Data streams
+GET _data_stream
+
+# @recipe Size of each data stream
+GET _data_stream/_stats?human
+
+# @recipe Refresh an index
+# Makes the documents indexed so far visible to searches.
+POST ${index}/_refresh
+
+# @recipe Force-merge an index down to one segment
+# @tags optimize
+# For an index that is no longer written to: frees deleted documents and
+# speeds searches up, at the cost of heavy I/O while it runs.
+POST ${index}/_forcemerge?max_num_segments=1
+
+# @recipe Dangling indices
+# @tags orphan
+# Indices found on a node's disk that the cluster state knows nothing of.
+GET _dangling
+
+# @recipe Indices, one page at a time
+# @opensearch >=2.18
+# @tags paginated list
+# Like _cat/indices, for clusters with too many indices to list at once.
+GET _list/indices?v

@@ -69,10 +69,16 @@ func (e *Editor) refreshGutter() {
 	if textWidth < 1 {
 		textWidth = 1
 	}
-	rowStarts := wrapRowStarts(text, textWidth)
+	// This runs before every draw — each keystroke, each answer received —
+	// and wrapping the whole buffer is by far its most expensive part: only
+	// redone when the text or the width actually changed (comparing two
+	// strings costs next to nothing next to it).
+	if e.wrappedStarts == nil || textWidth != e.wrappedWidth || text != e.wrappedText {
+		e.wrappedText, e.wrappedWidth, e.wrappedStarts = text, textWidth, wrapRowStarts(text, textWidth)
+	}
 	rowOffset, _ := e.view.GetOffset()
 
-	e.gutter.SetText(gutterText(text, rowStarts, rowOffset, height, digits))
+	e.gutter.SetText(gutterText(text, e.wrappedStarts, rowOffset, height, digits))
 }
 
 // gutterText renders the gutter's content for the display rows [rowOffset,

@@ -32,6 +32,27 @@ type ResultView struct {
 	displayedText string // last text actually sent to SetText (with color tags), for HighlightLine
 	isJSON        bool
 	msgs          *i18n.Strings
+
+	// The lines of plain (lowercased) and of displayedText, split on first
+	// use by search and kept until the next result: each "next match"
+	// would otherwise split, and lowercase, the whole result again.
+	searchLines    []string
+	displayedLines []string
+}
+
+// renderedResult is a result ready to be displayed: what turning a response
+// into text — indenting and colorizing its JSON — produces. A separate step
+// from displaying it so that it can be done outside the interface's own
+// goroutine, which a response of several megabytes would otherwise freeze.
+type renderedResult struct {
+	plain, displayed string
+	isJSON           bool
+}
+
+// OnFocus registers f to be called whenever the panel receives the focus,
+// however it got it (shortcut, popup closing, mouse click).
+func (r *ResultView) OnFocus(f func()) {
+	r.view.SetFocusFunc(f)
 }
 
 // NewResultView creates an empty result panel.
@@ -74,6 +95,7 @@ func (r *ResultView) Clear() {
 	r.plain = ""
 	r.displayedText = ""
 	r.isJSON = false
+	r.searchLines, r.displayedLines = nil, nil
 	r.view.Clear()
 	r.view.ScrollToBeginning()
 }
@@ -133,18 +155,25 @@ func colorizeReminder(method, path string, headers http.Header) string {
 // if valid, plain text (fixed-width) otherwise. method, path and headers
 // identify the request/response that produced it (see reminderLines).
 func (r *ResultView) Show(method, path string, headers http.Header, body []byte) {
+	r.display(renderResult(method, path, headers, body))
+}
+
+// renderResult prepares a response for display (see Show). Touches no
+// widget: safe to call from any goroutine.
+func renderResult(method, path string, headers http.Header, body []byte) renderedResult {
 	header := requestReminder(method, path, headers)
 	coloredHeader := colorizeReminder(method, path, headers)
 	var buf bytes.Buffer
 	if err := json.Indent(&buf, body, "", "  "); err == nil {
-		r.plain = header + buf.String()
-		r.isJSON = true
-		r.displayedText = coloredHeader + colorizeJSON(buf.String())
-	} else {
-		r.plain = header + string(body)
-		r.isJSON = false
-		r.displayedText = coloredHeader + tview.Escape(string(body))
+		return renderedResult{plain: header + buf.String(), displayed: coloredHeader + colorizeJSON(buf.String()), isJSON: true}
 	}
+	return renderedResult{plain: header + string(body), displayed: coloredHeader + tview.Escape(string(body))}
+}
+
+// display shows a prepared result, from the top.
+func (r *ResultView) display(res renderedResult) {
+	r.plain, r.displayedText, r.isJSON = res.plain, res.displayed, res.isJSON
+	r.searchLines, r.displayedLines = nil, nil
 	r.view.SetText(r.displayedText)
 	r.view.ScrollToBeginning()
 }
@@ -153,13 +182,10 @@ func (r *ResultView) Show(method, path string, headers http.Header, body []byte)
 // request that produced it (see reminderLines) — no headers: a
 // transport-level failure never got a response to have any.
 func (r *ResultView) ShowError(method, path, message string) {
-	header := requestReminder(method, path, nil)
-	coloredHeader := colorizeReminder(method, path, nil)
-	r.plain = header + message
-	r.isJSON = false
-	r.displayedText = coloredHeader + "[red]" + tview.Escape(message) + "[white]"
-	r.view.SetText(r.displayedText)
-	r.view.ScrollToBeginning()
+	r.display(renderedResult{
+		plain:     requestReminder(method, path, nil) + message,
+		displayed: colorizeReminder(method, path, nil) + "[red]" + tview.Escape(message) + "[white]",
+	})
 }
 
 // Export writes the currently displayed result to a timestamped file in
@@ -193,7 +219,10 @@ func (r *ResultView) Export(dir string) (string, error) {
 // wrap is active (SPEC.md §3.1): a plain ScrollTo would target the wrong
 // spot as soon as a preceding line had wrapped across several display lines.
 func (r *ResultView) HighlightLine(line int) {
-	lines := strings.Split(r.displayedText, "\n")
+	if r.displayedLines == nil {
+		r.displayedLines = strings.Split(r.displayedText, "\n")
+	}
+	lines := r.displayedLines
 	if line < 0 || line >= len(lines) {
 		return
 	}
@@ -217,12 +246,20 @@ func (r *ResultView) FindNext(query string, afterLine int) (int, bool) {
 	if query == "" || r.plain == "" {
 		return 0, false
 	}
-	lines := strings.Split(r.plain, "\n")
+	if r.searchLines == nil {
+		r.searchLines = strings.Split(strings.ToLower(r.plain), "\n")
+	}
+	lines := r.searchLines
 	lowerQuery := strings.ToLower(query)
+	// afterLine is the caller's memory of the previous match: it may come
+	// from a longer result than the one displayed now.
+	if afterLine >= len(lines) {
+		afterLine = len(lines) - 1
+	}
 
 	search := func(from, to int) (int, bool) {
 		for i := from; i < to; i++ {
-			if strings.Contains(strings.ToLower(lines[i]), lowerQuery) {
+			if strings.Contains(lines[i], lowerQuery) {
 				return i, true
 			}
 		}

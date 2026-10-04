@@ -37,7 +37,7 @@ func TestLoadCreatesCommentedDefaultConfigOnFirstLaunch(t *testing.T) {
 
 	for _, want := range []string{
 		"default_timeout_seconds: 120",
-		"language: fr",
+		"language: en",
 		"mouse: false",
 		"default_ca_dir: " + defaultCertDir,
 		"default_client_cert_dir: " + defaultCertDir,

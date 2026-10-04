@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -24,13 +25,19 @@ func screenText(screen tcell.SimulationScreen) string {
 	return b.String()
 }
 
+// helpVisible tells whether the application considers the help popup open,
+// read from its own goroutine (see uiValue).
+func helpVisible(app *App) bool {
+	return uiValue(app, func() bool { return app.helpVisible })
+}
+
 func TestHelpOpensAndClosesWithEscape(t *testing.T) {
 	app, screen := newTestApp(t)
 
 	screen.InjectKey(tcell.KeyF1, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	if !app.helpVisible {
+	if !helpVisible(app) {
 		t.Fatal("expected helpVisible=true after F1")
 	}
 	if app.tapp.GetFocus() != app.helpView {
@@ -54,7 +61,7 @@ func TestHelpOpensAndClosesWithEscape(t *testing.T) {
 	screen.InjectKey(tcell.KeyEscape, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	if app.helpVisible {
+	if helpVisible(app) {
 		t.Error("expected helpVisible=false after Escape")
 	}
 	if app.tapp.GetFocus() != app.editor.Primitive() {
@@ -73,7 +80,7 @@ func TestHelpDoesNotModifyEditorContent(t *testing.T) {
 	screen.InjectKey(tcell.KeyEscape, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	if got, want := app.editor.Text(), "GET _cat/health?v"; got != want {
+	if got, want := editorText(app), "GET _cat/health?v"; got != want {
 		t.Errorf("expected editor text unchanged by the help popup, got %q want %q", got, want)
 	}
 }
@@ -93,8 +100,13 @@ func TestHelpIgnoresOtherShortcutsWhileOpen(t *testing.T) {
 	screen.InjectKey(tcell.KeyCtrlS, 0, tcell.ModCtrl)
 	waitForDraw(t, screen)
 
-	if !app.helpVisible {
+	if !helpVisible(app) {
 		t.Error("expected help to remain open, unaffected by other shortcuts")
+	}
+	// Help staying open is what Ctrl+S would leave in any case: what matters
+	// is that nothing was saved behind it.
+	if _, err := os.Stat(app.queriesPath); !os.IsNotExist(err) {
+		t.Errorf("expected Ctrl+S not to save while help is displayed (stat of the save file: %v)", err)
 	}
 }
 
@@ -125,6 +137,28 @@ func TestInterfaceLanguageEnglish(t *testing.T) {
 	}
 }
 
+// TestInterfaceLanguageDefault checks what a configuration that doesn't
+// mention the language gets: English, and French from the first F3 — which
+// then says so in config.yaml.
+func TestInterfaceLanguageDefault(t *testing.T) {
+	app, screen := newTestAppWith(t, testAppOptions{defaultLang: true})
+
+	text := screenText(screen)
+	if !strings.Contains(text, "ready") || strings.Contains(text, "prêt") {
+		t.Errorf("expected the English status bar without a language setting, got:\n%s", text)
+	}
+
+	screen.InjectKey(tcell.KeyF3, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+
+	if text := screenText(screen); !strings.Contains(text, "Langue : Français") {
+		t.Errorf("expected F3 to switch from the default to French, got:\n%s", text)
+	}
+	if language := uiValue(app, func() string { return app.cfg.Language }); language != "fr" {
+		t.Errorf("expected cfg.Language=%q after toggling from the default, got %q", "fr", language)
+	}
+}
+
 // TestLanguageToggleF3SwitchesAndPersists checks the F3 shortcut: it
 // re-renders the already-open help screen and the status bar in the other
 // language without rebuilding the layout, and persists the choice to
@@ -142,7 +176,7 @@ func TestLanguageToggleF3SwitchesAndPersists(t *testing.T) {
 	screen.InjectKey(tcell.KeyF3, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	if !app.helpVisible {
+	if !helpVisible(app) {
 		t.Error("expected help to remain open across a language toggle")
 	}
 	text := screenText(screen)
@@ -152,8 +186,8 @@ func TestLanguageToggleF3SwitchesAndPersists(t *testing.T) {
 	if !strings.Contains(text, "Language: English") {
 		t.Errorf("expected a status bar confirmation of the switch, got:\n%s", text)
 	}
-	if app.cfg.Language != "en" {
-		t.Errorf("expected cfg.Language=%q after toggling, got %q", "en", app.cfg.Language)
+	if language := uiValue(app, func() string { return app.cfg.Language }); language != "en" {
+		t.Errorf("expected cfg.Language=%q after toggling, got %q", "en", language)
 	}
 
 	reloaded, err := config.Load()

@@ -34,6 +34,24 @@ func TestFindNextByteOffsets(t *testing.T) {
 	}
 }
 
+// TestFindNextAfterALetterWhoseLowercaseIsLonger checks the offsets when the
+// text holds a letter whose lowercase form takes more bytes than the letter
+// itself ("İ", the Turkish dotted capital I): lowercasing the whole text
+// would shift everything after it, and the match with it.
+func TestFindNextAfterALetterWhoseLowercaseIsLonger(t *testing.T) {
+	text := "# İstanbul cluster\nGET _cat/HEALTH"
+	start, end, found := findNext(text, "health", -1)
+	if !found {
+		t.Fatal("expected to find \"health\", whatever its case")
+	}
+	if got := text[start:end]; got != "HEALTH" {
+		t.Errorf("expected the match itself, got %q at [%d,%d)", got, start, end)
+	}
+	if _, _, found := findNext(text, "İSTANBUL", -1); !found {
+		t.Error("expected the letter itself to be found too")
+	}
+}
+
 // TestSearchSelectsCorrectMatchAfterAccentedText is the end-to-end version
 // of TestFindNextByteOffsets: a real Ctrl+F search, after a line containing
 // accented French text, must select exactly the matched word — not
@@ -52,7 +70,10 @@ func TestSearchSelectsCorrectMatchAfterAccentedText(t *testing.T) {
 	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	selected, _, _ := app.editor.view.GetSelection()
+	selected := uiValue(app, func() string {
+		text, _, _ := app.editor.view.GetSelection()
+		return text
+	})
 	if selected != "health" {
 		t.Errorf("expected the search to select %q, got %q — landed on the wrong byte range after accented text", "health", selected)
 	}

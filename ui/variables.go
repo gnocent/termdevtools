@@ -37,7 +37,7 @@ func substituteVariables(text string, vars map[string]string) (result string, mi
 // parseVariables reads a variables file's content: one "name=value" pair
 // per line (split on the first "=" only, so a value may itself contain
 // "="), blank lines and lines starting with "#" ignored — same convention
-// as endpoints.txt/cat_columns.txt (LoadEndpointsFile, SPEC.md §9.1).
+// as the reference files (endpoints.txt, recipes; SPEC.md §9.1).
 func parseVariables(data []byte) map[string]string {
 	vars := make(map[string]string)
 	for _, line := range strings.Split(string(data), "\n") {
@@ -62,16 +62,19 @@ func parseVariables(data []byte) map[string]string {
 // first time a cluster is connected to and has no variables file yet (see
 // LoadVariablesFile) — explains the feature in place, the same
 // self-documenting approach as config.yaml (config.WriteDefaultConfigFile).
-const defaultVariablesFileContent = `# Variables réutilisables pour ce cluster — une par ligne, "nom=valeur".
-# Référencez-les dans vos requêtes (URL ou corps JSON) avec ${nom} : la
-# valeur est substituée juste avant l'exécution (Ctrl+E) ou la génération
-# de la commande cURL (F9) — jamais écrite dans la sauvegarde de vos
-# requêtes elle-même, qui garde ${nom} tel quel.
+const defaultVariablesFileContent = `# Reusable variables for this cluster — one per line, "name=value".
+# Refer to them in your requests (URL or JSON body) as ${name}: the value is
+# substituted right before execution (Ctrl+E) or when the cURL command is
+# generated (F9) — never written into the save of your requests itself,
+# which keeps ${name} as is.
 #
-# Une ligne commençant par # est un commentaire (ignorée).
-# Rechargez ce fichier sans relancer le programme avec F7.
+# A line starting with # is a comment (ignored).
+# Reload this file without restarting the program with F7.
 #
-# Exemple :
+# The recipes of the catalog (F8) use these names: index, node, repository,
+# snapshot, field, task_id.
+#
+# Example:
 # index=my-index-000001
 `
 

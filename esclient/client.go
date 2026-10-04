@@ -51,6 +51,15 @@ type Params struct {
 	KeyPassphrase string
 }
 
+// maxResponseBytes bounds how much of a response is read. A result is
+// displayed whole — indented, colorized, searchable — which a terminal can't
+// usefully do for hundreds of megabytes, and without a bound such a response
+// (a full cluster state, a search with no size limit) would exhaust memory
+// before the user could tell why. Past the bound the request is reported as
+// failed, with what to do about it, rather than shown cut short: half a JSON
+// document is worse than none. A variable only so that tests can lower it.
+var maxResponseBytes int64 = 64 << 20
+
 // Client executes requests against an already-authenticated Elasticsearch cluster.
 type Client struct {
 	baseURL string
@@ -98,7 +107,18 @@ func New(p Params) (*Client, error) {
 	return &Client{
 		baseURL: strings.TrimRight(p.URL, "/"),
 		params:  p,
-		http:    &http.Client{Transport: transport, Timeout: p.Timeout},
+		http: &http.Client{
+			Transport: transport,
+			Timeout:   p.Timeout,
+			// A redirection is shown for what it is — its status and its
+			// Location header — never followed. Followed, a 301 or 302 turns
+			// a POST, PUT or DELETE into a GET of the new address without a
+			// word, and a 307 or 308 replays the request, body included, to
+			// wherever the answer points: neither is what the user wrote.
+			// curl, which F9 gives the equivalent command for, doesn't
+			// follow them either.
+			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		},
 	}, nil
 }
 
@@ -127,16 +147,21 @@ func (c *Client) Execute(ctx context.Context, method, path string, body []byte) 
 
 	start := time.Now()
 	resp, err := c.http.Do(req)
-	duration := time.Since(start)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP call: %w", err)
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
+	if int64(len(respBody)) > maxResponseBytes {
+		return nil, fmt.Errorf("response larger than %d MB, not displayed: narrow the request down (filter_path, size, h=...)", maxResponseBytes>>20)
+	}
+	// Measured once the whole body is in: the time the user waited, not just
+	// the time to the first byte.
+	duration := time.Since(start)
 
 	return &Result{StatusCode: resp.StatusCode, Duration: duration, Headers: resp.Header, Body: respBody}, nil
 }
@@ -175,7 +200,19 @@ func loadClientCertificate(certFile, keyFile, passphrase string) (tls.Certificat
 		return tls.Certificate{}, fmt.Errorf("reading key %s: %w", keyFile, err)
 	}
 
-	if passphrase != "" {
+	// Two formats of encrypted key exist: PKCS#8 ("BEGIN ENCRYPTED PRIVATE
+	// KEY"), what OpenSSL has written by default since 1.1.0, and the legacy
+	// PEM encryption ("BEGIN RSA PRIVATE KEY" with a DEK-Info header).
+	if block, _ := pem.Decode(keyPEM); block != nil && block.Type == "ENCRYPTED PRIVATE KEY" {
+		if passphrase == "" {
+			return tls.Certificate{}, fmt.Errorf("the private key %s is encrypted: its passphrase is required", keyFile)
+		}
+		der, err := decryptPKCS8(block.Bytes, passphrase)
+		if err != nil {
+			return tls.Certificate{}, fmt.Errorf("decrypting private key %s: %w", keyFile, err)
+		}
+		keyPEM = pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})
+	} else if passphrase != "" {
 		keyPEM, err = decryptPEMKey(keyPEM, passphrase)
 		if err != nil {
 			return tls.Certificate{}, fmt.Errorf("decrypting private key: %w", err)
@@ -187,11 +224,12 @@ func loadClientCertificate(certFile, keyFile, passphrase string) (tls.Certificat
 
 // decryptPEMKey decrypts a legacy PEM private key (e.g. "-----BEGIN RSA
 // PRIVATE KEY-----" encrypted by openssl with DES/AES-CBC and a "DEK-Info"
-// header). Does not cover the modern encrypted PKCS8 format.
+// header). The encrypted PKCS#8 format is handled by decryptPKCS8.
 //
-// simplest way to decrypt this legacy format without an external dependency.
+// x509.DecryptPEMBlock is deprecated, but remains the simplest way to
+// decrypt this legacy format without an external dependency.
 //
-//nolint:staticcheck // x509.DecryptPEMBlock is deprecated but remains the
+//nolint:staticcheck
 func decryptPEMKey(keyPEM []byte, passphrase string) ([]byte, error) {
 	block, _ := pem.Decode(keyPEM)
 	if block == nil {

@@ -1,0 +1,56 @@
+# @group Nodes and resources
+
+# @recipe Hot threads
+# @tags cpu busy stuck
+# What each node's busiest threads are doing right now: the first thing to
+# look at when a node burns CPU or stops answering.
+GET _nodes/hot_threads
+
+# @recipe Thread pools: queues and rejections
+# @tags rejected queue saturation write search
+# A "rejected" count that keeps growing means the node is turning requests
+# down.
+GET _cat/thread_pool?v&h=node_name,name,active,queue,rejected,completed&s=rejected:desc
+
+# @recipe JVM heap and garbage collection per node
+# @tags memory heap gc
+GET _nodes/stats/jvm?filter_path=nodes.*.name,nodes.*.jvm.mem.heap_used_percent,nodes.*.jvm.gc.collectors
+
+# @recipe Circuit breakers
+# @tags memory breaker tripped
+# "tripped" above zero: requests were refused to protect the heap.
+GET _nodes/stats/breaker
+
+# @recipe Disk space per node
+# @tags filesystem
+GET _nodes/stats/fs?human&filter_path=nodes.*.name,nodes.*.fs.total
+
+# @recipe File descriptors and OS memory per node
+# @tags process ulimit
+GET _nodes/stats/process,os?human&filter_path=nodes.*.name,nodes.*.process.open_file_descriptors,nodes.*.process.max_file_descriptors,nodes.*.os.mem
+
+# @recipe Node versions, roles and JVM
+# @tags upgrade jdk
+GET _cat/nodes?v&h=name,version,jdk,node.role,ip&s=name
+
+# @recipe Node attributes
+# @tags awareness zone rack
+GET _cat/nodeattrs?v&h=node,attr,value
+
+# @recipe Cache and field data memory per node
+# @tags fielddata query_cache request_cache
+GET _cat/nodes?v&h=name,fielddata.memory_size,query_cache.memory_size,request_cache.memory_size,segments.count
+
+# @recipe Indexing and search counters per node
+# @tags throughput rate
+# Cumulative since the node started: run it twice to get a rate.
+GET _nodes/stats/indices/indexing,search?filter_path=nodes.*.name,nodes.*.indices.indexing.index_total,nodes.*.indices.indexing.index_time_in_millis,nodes.*.indices.search.query_total,nodes.*.indices.search.query_time_in_millis
+
+# @recipe Settings each node was started with
+# @tags configuration elasticsearch.yml opensearch.yml
+GET _nodes/settings?flat_settings
+
+# @recipe Nodes being shut down
+# @es
+# @tags restart remove replace
+GET _nodes/shutdown

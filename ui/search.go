@@ -1,6 +1,24 @@
 package ui
 
-import "strings"
+import (
+	"strings"
+	"unicode"
+	"unicode/utf8"
+)
+
+// foldCase lowercases s without ever changing its length in bytes: a rune
+// whose lowercase form is encoded on a different number of bytes ("İ", two
+// bytes, becomes "i̇", three) is left as it is. What is found at an offset
+// in the folded text is then at the same offset in the original — which
+// strings.ToLower doesn't guarantee.
+func foldCase(s string) string {
+	return strings.Map(func(r rune) rune {
+		if lower := unicode.ToLower(r); utf8.RuneLen(lower) == utf8.RuneLen(r) {
+			return lower
+		}
+		return r
+	}, s)
+}
 
 // findNext looks for the next occurrence of query (case-insensitive) in
 // text, starting from the byte offset after (exclusive), wrapping back to
@@ -8,16 +26,14 @@ import "strings"
 // offsets are byte offsets, compatible with TextArea.Select/Replace — which
 // count UTF-8 bytes internally (confirmed in tview's own source: position
 // tracking advances by len(cluster), a string's byte length, not a rune
-// count), not runes. Assumes strings.ToLower does not change text's byte
-// length, true in practice for the content this app deals with (JSON,
-// endpoint paths, French comments) — same assumption already relied on
-// implicitly before this function counted bytes instead of runes.
+// count), not runes. Case is folded by foldCase, so that the offsets found
+// in the folded text are those of the original.
 func findNext(text, query string, after int) (start, end int, found bool) {
 	if query == "" {
 		return 0, 0, false
 	}
-	lower := strings.ToLower(text)
-	lowerQuery := strings.ToLower(query)
+	lower := foldCase(text)
+	lowerQuery := foldCase(query)
 
 	search := func(from int) (int, bool) {
 		if from < 0 {

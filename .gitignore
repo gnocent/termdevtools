@@ -1,29 +1,32 @@
-# Secrets et configuration locale de l'assistant (peuvent contenir des
-# commandes exécutées, donc potentiellement des IP/identifiants/clés du
-# cluster utilisé pendant le développement) : ne doit jamais être publié.
+# The assistant's local secrets and configuration (may hold commands that
+# were run, hence possibly IPs, credentials or keys of the cluster used
+# during development): must never be published.
 .claude/
 
-# Configuration personnelle réelle (l'exemple versionné est config.yaml.example).
+# The real personal configuration (the versioned sample is config.yaml.example).
 config.yaml
 
-# Binaires compilés, quel que soit le nom de sortie ou la plateforme.
+# Working notes (plans, progress), kept out of the repository.
+/plans/
+
+# Compiled binaries, whatever the output name or platform.
 /termdevtools
 /termdevtools.exe
 /dist/
 
-# Requêtes/résultats exportés à l'exécution (Ctrl+S, F2) : données locales
-# de session, jamais du contenu à publier.
+# Requests/results exported at run time (Ctrl+S, F2): local session data,
+# never content to publish.
 /exports/
 
-# Rapports de plantage (recoverCrash, main.go) : diagnostic local, peut
-# contenir des détails d'exécution propres à la machine.
+# Crash reports (recoverCrash, main.go): a local diagnosis, which may hold
+# execution details specific to the machine.
 crash-*.log
 
-# Artefacts Go standards.
+# Standard Go artifacts.
 *.test
 *.out
 
-# Fichiers spécifiques à l'éditeur / l'OS.
+# Editor- and OS-specific files.
 .vscode/
 .idea/
 *.swp

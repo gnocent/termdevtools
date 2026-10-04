@@ -1,0 +1,57 @@
+# @group Snapshots
+
+# @recipe Snapshot repositories
+GET _snapshot
+
+# @recipe Check that every node can write to a repository
+# @tags verify
+POST _snapshot/${repository}/_verify
+
+# @recipe Snapshots of a repository, most recent first
+GET _cat/snapshots/${repository}?v&s=end_epoch:desc
+
+# @recipe Snapshots currently running
+# @tags progress
+GET _snapshot/_status
+
+# @recipe Detail of a snapshot
+# @tags indices failures
+GET _snapshot/${repository}/${snapshot}
+
+# @recipe Take a snapshot now
+# @tags backup manual
+# Named after today's date ("manual-2026.10.04"); returns at once, follow
+# it with "Snapshots currently running".
+PUT _snapshot/${repository}/%3Cmanual-%7Bnow%2Fd%7D%3E?wait_for_completion=false
+
+# @recipe Restore one index from a snapshot, under another name
+# @tags recover
+# The index comes back as "restored-<name>", next to the original — and
+# without its aliases, which would otherwise now point at both copies.
+POST _snapshot/${repository}/${snapshot}/_restore
+{
+  "indices": "${index}",
+  "rename_pattern": "(.+)",
+  "rename_replacement": "restored-$1",
+  "include_global_state": false,
+  "include_aliases": false
+}
+
+# @recipe Snapshot lifecycle policies
+# @es
+# @tags slm schedule retention
+GET _slm/policy
+
+# @recipe Snapshot lifecycle status and statistics
+# @es
+# @tags slm
+GET _slm/status
+
+GET _slm/stats
+
+# @recipe Snapshot management policies
+# @opensearch >=2.1
+# @tags sm schedule retention
+# Some 2.x versions answer 404 ("config index not found") as long as no
+# policy was ever created.
+GET _plugins/_sm/policies

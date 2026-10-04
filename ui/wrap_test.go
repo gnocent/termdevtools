@@ -27,11 +27,11 @@ func TestCursorLineWrapSafe(t *testing.T) {
 	injectText(screen, "GET _cat/indices")
 	waitForDraw(t, screen)
 
-	text := app.editor.Text()
+	text := editorText(app)
 	logicalLines := strings.Split(text, "\n")
 	wantRow := len(logicalLines) - 1 // cursor at end of input, last logical line
 
-	if got := app.editor.CursorLine(); got != wantRow {
+	if got := uiValue(app, app.editor.CursorLine); got != wantRow {
 		t.Errorf("expected logical CursorLine=%d, got %d\ntext=%q", wantRow, got, text)
 	}
 	if logicalLines[wantRow] != "GET _cat/indices" {
@@ -58,7 +58,7 @@ func TestCompletionPrefixWrapSafe(t *testing.T) {
 	waitForDraw(t, screen)
 
 	// The default list always appends "?v" to _cat commands.
-	got := app.editor.Text()
+	got := editorText(app)
 	if !strings.HasSuffix(got, "GET _cat/health?v") {
 		t.Errorf("expected completion to apply to the last line despite wrapping, got %q", got)
 	}
@@ -85,11 +85,19 @@ func TestEditorSearchScrollsMatchIntoView(t *testing.T) {
 		}
 		lines = append(lines, "# filler line")
 	}
-	app.editor.view.SetText(strings.Join(lines, "\n"), false)
-	app.editor.SelectRange(0, 0) // cursor/scroll back to the top before searching
+	onUI(app, func() {
+		app.editor.view.SetText(strings.Join(lines, "\n"), false)
+		app.editor.SelectRange(0, 0) // cursor/scroll back to the top before searching
+	})
 	waitForDraw(t, screen)
 
-	if row, _ := app.editor.view.GetOffset(); row != 0 {
+	rowOffset := func() int {
+		return uiValue(app, func() int {
+			row, _ := app.editor.view.GetOffset()
+			return row
+		})
+	}
+	if row := rowOffset(); row != 0 {
 		t.Fatalf("test setup sanity check failed: expected to start scrolled to the top, got row offset %d", row)
 	}
 
@@ -99,13 +107,22 @@ func TestEditorSearchScrollsMatchIntoView(t *testing.T) {
 	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	row, _ := app.editor.view.GetOffset()
+	row := rowOffset()
 	if row == 0 {
 		t.Error("expected the match on line 35 to scroll the viewport, row offset is still 0")
 	}
-	cursorFromRow, _, _, _ := app.editor.view.GetCursor()
-	if cursorFromRow < row || cursorFromRow >= row+24 {
-		t.Errorf("expected the matched row (%d) to fall within the visible viewport [%d, %d), it doesn't", cursorFromRow, row, row+24)
+	var cursorFromRow, height int
+	onUI(app, func() {
+		cursorFromRow, _, _, _ = app.editor.view.GetCursor()
+		// The editor's own height, not the terminal's: borders, the status
+		// bar and the search bar leave it fewer rows than the screen has.
+		_, _, _, height = app.editor.view.GetInnerRect()
+	})
+	if height <= 0 || height >= 24 {
+		t.Fatalf("test setup sanity check failed: unexpected editor height %d", height)
+	}
+	if cursorFromRow < row || cursorFromRow >= row+height {
+		t.Errorf("expected the matched row (%d) to fall within the visible viewport [%d, %d), it doesn't", cursorFromRow, row, row+height)
 	}
 }
 
@@ -123,10 +140,10 @@ func TestHighlightLineWrapSafe(t *testing.T) {
   "a_very_long_field_name_that_will_definitely_wrap_on_a_narrow_terminal": true,
   "needle": "found_me"
 }`
-	app.result.Show("GET", "_search", nil, []byte(body))
+	onUI(app, func() { app.result.Show("GET", "_search", nil, []byte(body)) })
 	waitForDraw(t, screen)
 
-	lines := strings.Split(app.result.PlainText(), "\n")
+	lines := strings.Split(uiValue(app, app.result.PlainText), "\n")
 	targetLine := -1
 	for i, l := range lines {
 		if strings.Contains(l, "needle") {
@@ -138,13 +155,13 @@ func TestHighlightLineWrapSafe(t *testing.T) {
 		t.Fatal("test setup sanity check failed: 'needle' line not found in plain text")
 	}
 
-	app.result.HighlightLine(targetLine)
+	onUI(app, func() { app.result.HighlightLine(targetLine) })
 	waitForDraw(t, screen)
 
-	if hl := app.result.view.GetHighlights(); len(hl) != 1 || hl[0] != searchRegionID {
+	if hl := uiValue(app, func() []string { return app.result.view.GetHighlights() }); len(hl) != 1 || hl[0] != searchRegionID {
 		t.Errorf("expected the search region to be highlighted, got %v", hl)
 	}
-	if region := app.result.view.GetRegionText(searchRegionID); !strings.Contains(region, "needle") {
+	if region := uiValue(app, func() string { return app.result.view.GetRegionText(searchRegionID) }); !strings.Contains(region, "needle") {
 		t.Errorf("expected the highlighted region to contain the target line, got %q", region)
 	}
 }

@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"termdevtools/config"
 	"termdevtools/i18n"
 )
 
@@ -27,6 +28,12 @@ type Editor struct {
 	view      *tview.TextArea
 	gutter    *tview.TextView
 	container *editorLayout
+
+	// What refreshGutter last computed where each display row starts for
+	// (see wrapRowStarts): reused as long as neither changes.
+	wrappedText   string
+	wrappedWidth  int
+	wrappedStarts []int
 }
 
 // NewEditor creates an empty editor.
@@ -145,13 +152,55 @@ func (e *Editor) LoadFile(path string) (bool, error) {
 	return true, nil
 }
 
+// SetInitialText gives the editor its starting content, cursor at the top —
+// not something the user can undo, unlike AppendBlock.
+func (e *Editor) SetInitialText(text string) {
+	e.view.SetText(text, false)
+}
+
+// AppendBlock adds block at the end of the editor's content, separated from
+// what precedes it by a blank line, and puts the cursor at the end of the
+// block's line cursorLine (0-indexed), scrolled into view. Used to insert a
+// recipe: at the end rather than at the cursor, so that it can never land in
+// the middle of an existing request, and with the cursor on its first
+// request, ready for Ctrl+E. The user can undo it.
+func (e *Editor) AppendBlock(block string, cursorLine int) {
+	text := e.Text()
+	separator := "\n\n"
+	switch {
+	case text == "", strings.HasSuffix(text, "\n\n"):
+		separator = ""
+	case strings.HasSuffix(text, "\n"):
+		separator = "\n"
+	}
+	e.view.Replace(len(text), len(text), separator+block+"\n")
+	e.endUndoStep()
+
+	_, lineEnd := lineRangeOffsets(block, cursorLine, cursorLine)
+	e.SelectRange(len(text)+len(separator)+lineEnd, len(text)+len(separator)+lineEnd)
+}
+
+// endUndoStep makes the next keystroke start an undo step of its own.
+// TextArea extends the current undo step when a typed character follows
+// another typed character — judged from the last key it handled, which says
+// nothing of a Replace made by the program in between: without this, undoing
+// the first character typed after such a Replace would undo the Replace with
+// it. Handing the TextArea a key it has no use for is enough to mark the
+// boundary.
+func (e *Editor) endUndoStep() {
+	e.view.InputHandler()(tcell.NewEventKey(tcell.KeyF63, 0, tcell.ModNone), func(tview.Primitive) {})
+}
+
 // SaveToFile writes the editor's full content to path, creating the parent
 // directory if needed (Ctrl+S, see SPEC.md §3.2).
 func (e *Editor) SaveToFile(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	return os.WriteFile(path, []byte(e.Text()), 0o600)
+	return config.WriteFileAtomic(path, []byte(e.Text()))
+}
+
+// OnFocus registers f to be called whenever the editor receives the focus,
+// however it got it (shortcut, popup closing, mouse click).
+func (e *Editor) OnFocus(f func()) {
+	e.view.SetFocusFunc(f)
 }
 
 // SelectRange positions the cursor/selection between the (byte) offsets
@@ -243,6 +292,7 @@ func (e *Editor) CompletionPrefix() (prefix string, start, end int, ok bool) {
 // see CompletionPrefix) with replacement, and places the cursor right after.
 func (e *Editor) ApplyCompletion(start, end int, replacement string) {
 	e.view.Replace(start, end, replacement)
+	e.endUndoStep()
 	newPos := start + len(replacement)
 	e.view.Select(newPos, newPos)
 }
@@ -298,6 +348,7 @@ func (e *Editor) ReformatBody(bodyStartLine, bodyEndLine int) bool {
 	}
 
 	e.view.Replace(start, end, formatted)
+	e.endUndoStep()
 	newPos := start + len(formatted)
 	e.view.Select(newPos, newPos)
 	return true

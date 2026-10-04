@@ -1,0 +1,17 @@
+{
+  "name" : "63fb8528316a",
+  "cluster_name" : "docker-cluster",
+  "cluster_uuid" : "oF9SUVFoS6iIaGa35Tww4g",
+  "version" : {
+    "distribution" : "opensearch",
+    "number" : "3.0.0",
+    "build_type" : "tar",
+    "build_hash" : "dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9",
+    "build_date" : "2025-05-03T06:25:26.379676844Z",
+    "build_snapshot" : false,
+    "lucene_version" : "10.1.0",
+    "minimum_wire_compatibility_version" : "2.19.0",
+    "minimum_index_compatibility_version" : "2.0.0"
+  },
+  "tagline" : "The OpenSearch Project: https://opensearch.org/"
+}

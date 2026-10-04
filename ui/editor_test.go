@@ -9,7 +9,7 @@ import (
 )
 
 func TestCompletionPrefixAtEndOfLine(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("GET _cat/s", true) // cursor at end of text
 
 	prefix, start, end, ok := e.CompletionPrefix()
@@ -25,7 +25,7 @@ func TestCompletionPrefixAtEndOfLine(t *testing.T) {
 }
 
 func TestCompletionPrefixEmpty(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("GET ", true)
 
 	prefix, _, _, ok := e.CompletionPrefix()
@@ -45,7 +45,7 @@ func TestCompletionPrefixNotAMethodLine(t *testing.T) {
 		"GETX _cat/s", // not a recognized method
 	}
 	for _, text := range cases {
-		e := NewEditor(i18n.For(""))
+		e := NewEditor(i18n.For(i18n.FR))
 		e.view.SetText(text, true)
 		if _, _, _, ok := e.CompletionPrefix(); ok {
 			t.Errorf("expected ok=false for %q", text)
@@ -54,7 +54,7 @@ func TestCompletionPrefixNotAMethodLine(t *testing.T) {
 }
 
 func TestCompletionPrefixSecondLine(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("# cheatsheet\nGET _cat/sh", true)
 
 	prefix, start, end, ok := e.CompletionPrefix()
@@ -99,7 +99,7 @@ func TestLineColAtByteOffsets(t *testing.T) {
 }
 
 func TestApplyCompletion(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("GET _cat/s", true)
 
 	_, start, end, ok := e.CompletionPrefix()
@@ -117,7 +117,7 @@ func TestApplyCompletion(t *testing.T) {
 // backlog #1, Kibana's "auto indent"): a compact JSON body gets re-indented
 // in place, the method line above it left untouched.
 func TestReformatBodyIndentsCompactJSON(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	const compact = `{"query":{"match_all":{}}}`
 	e.view.SetText("POST _search\n"+compact, true)
 
@@ -137,7 +137,7 @@ func TestReformatBodyIndentsCompactJSON(t *testing.T) {
 // TestReformatBodyNoOpOnInvalidJSON checks that a body that isn't valid
 // JSON (e.g. still being typed) is left untouched rather than mangled.
 func TestReformatBodyNoOpOnInvalidJSON(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	const text = "POST _search\n{not json"
 	e.view.SetText(text, true)
 
@@ -154,7 +154,7 @@ func TestReformatBodyNoOpOnInvalidJSON(t *testing.T) {
 // (not just a single-line compact one) — reformatting an already-indented
 // body is a no-op, and content after it (a second request) stays untouched.
 func TestReformatBodyMultiLineNoOpWhenAlreadyIndented(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	const text = "POST _search\n{\n  \"query\": {}\n}\nGET _cat/health"
 	e.view.SetText(text, true)
 

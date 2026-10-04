@@ -2,6 +2,8 @@ package ui
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -13,6 +15,7 @@ import (
 	"termdevtools/esclient"
 	"termdevtools/i18n"
 	"termdevtools/parser"
+	"termdevtools/refdata"
 )
 
 // CheatsheetFileName is the optional file loaded into the editor by default
@@ -23,23 +26,21 @@ const CheatsheetFileName = "cheatsheet.txt"
 // the result displayed in the right panel. See SPEC.md §3.3 and §9.1.
 const ExportsDirName = "exports"
 
-// EndpointsFileName is the optional file (next to the binary) listing the
-// endpoints offered by Tab auto-completion — lets the team adjust it to
-// their Elasticsearch version without recompiling. See SPEC.md §3.2 and §9.1.
-const EndpointsFileName = "endpoints.txt"
-
-// CatColumnsFileName is the optional file (next to the binary) listing the
-// h=/s= columns offered by Tab auto-completion for _cat/* commands. See
-// SPEC.md §3.2 and §9.1.
-const CatColumnsFileName = "cat_columns.txt"
-
 // Paths gathers the file locations resolved by the caller (main.go) — see
 // SPEC.md §9.1 for the detail of each.
 type Paths struct {
+	// Cheatsheet is an optional file next to the binary: a team's own
+	// default editor content, which takes precedence over Starter.
 	Cheatsheet string
-	Exports    string
-	Endpoints  string
-	CatColumns string
+	// Starter is the editor's default content the first time a cluster is
+	// connected to, when nothing is saved for it yet and there is no
+	// Cheatsheet file. Empty: the editor starts empty.
+	Starter string
+	Exports string
+	// Reference locates the optional files extending the reference data
+	// built into the binary: the team's (next to the binary) and the
+	// user's (configuration directory).
+	Reference refdata.Sources
 }
 
 // Bounds of the width ratio between the left and right panels (out of a
@@ -63,8 +64,27 @@ type App struct {
 	variablesPath string
 	variables     map[string]string
 	endpoints     []string
-	catColumns    map[string][]string
-	msgs          *i18n.Strings
+	// catColumns holds the _cat commands known for the connected cluster
+	// (its keys: what makes a typed path recognizable as a _cat command)
+	// with the columns built into the binary for each — a fallback only.
+	catColumns map[string][]string
+	// catLive holds, per _cat command, the columns completion actually
+	// offers: those the cluster itself reported ("?help", asked the first
+	// time a command's columns are completed), or the built-in fallback if
+	// it couldn't be asked. catPending marks requests still in flight.
+	catLive    map[string][]string
+	catPending map[string]bool
+	// recipes are the ready-made requests that apply to the connected
+	// cluster, in the order the palette (F8) lists them.
+	recipes []refdata.Recipe
+	msgs    *i18n.Strings
+	// target is the connected cluster's distribution and version (detected
+	// at connection, see ConnectResult.Target): what reference data is
+	// selected for.
+	target refdata.Target
+	// reference is where the team's and user's reference files live;
+	// kept to reload them on demand (F7).
+	reference refdata.Sources
 
 	editor *Editor
 	result *ResultView
@@ -85,15 +105,34 @@ type App struct {
 	helpView    *tview.TextView
 	helpVisible bool
 
+	palette        *recipePalette
+	recipesVisible bool
+
 	// screen is used for clipboard copy (F2, OSC 52, see SPEC.md §3.3);
 	// captured on the first render via SetAfterDrawFunc (tview.Application
 	// has no direct accessor to the screen it creates itself).
 	screen tcell.Screen
 
+	// focusedIsEditor tells which of the two panels holds — or held, while
+	// a popup or the search bar has it — the focus. Kept up to date by the
+	// panels themselves (see NewApp), so that a mouse click counts too.
 	focusedIsEditor  bool
 	searchTarget     string // "editor" or "result"
 	editorSearchPos  int
 	resultSearchLine int
+
+	// execution numbers the requests sent (Ctrl+E): only the answer to the
+	// latest one is displayed.
+	execution int
+
+	// queriesLoadFailed is set when this cluster's saved requests exist but
+	// couldn't be read at startup: the editor doesn't hold them, and saving
+	// it on exit would replace them with whatever it holds instead. Cleared
+	// by an explicit save (Ctrl+S), the user's own decision.
+	queriesLoadFailed bool
+	// exitWarned is set once quitting has been refused because the left
+	// panel couldn't be saved: the next Ctrl+C quits regardless.
+	exitWarned bool
 }
 
 // NewApp builds the main screen for an already-established connection.
@@ -110,11 +149,16 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 		msgs:             msgs,
 		editor:           NewEditor(msgs),
 		result:           NewResultView(msgs),
-		status:           NewStatusBar(cr.Cluster.URL, cr.DisplayUser, msgs),
+		status:           NewStatusBar(cr.Target.Label(), cr.Cluster.URL, cr.DisplayUser, msgs),
+		target:           cr.Target,
 		focusedIsEditor:  true,
 		editorSearchPos:  -1,
 		resultSearchLine: -1,
 		leftWeight:       splitTotalWeight / 2,
+	}
+	// First, so that any load error reported below takes precedence over it.
+	if cr.Warning != "" {
+		a.status.SetWarning(cr.Warning)
 	}
 
 	queriesPath, err := config.QueriesPathForURL(cr.Cluster.URL)
@@ -136,25 +180,17 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 		}
 	}
 
-	endpoints, err := LoadEndpointsFile(paths.Endpoints)
-	if err != nil {
-		a.status.SetError(fmt.Sprintf(msgs.ErrLoadFailedFmt, paths.Endpoints, err))
-	}
-	if len(endpoints) == 0 {
-		endpoints = knownEndpoints
-	}
-	a.endpoints = endpoints
+	a.reference = paths.Reference
+	a.loadReferenceData()
 
-	catCols, err := LoadCatColumnsFile(paths.CatColumns)
-	if err != nil {
-		a.status.SetError(fmt.Sprintf(msgs.ErrLoadFailedFmt, paths.CatColumns, err))
-	}
-	if len(catCols) == 0 {
-		catCols = catColumns
-	}
-	a.catColumns = catCols
+	a.loadInitialQueries(paths.Cheatsheet, paths.Starter)
 
-	a.loadInitialQueries(paths.Cheatsheet)
+	// Which panel has the focus is learned from the panels themselves rather
+	// than from the shortcuts that move it: with mouse support on, a click
+	// moves it too, and Ctrl+S, Ctrl+F or Ctrl+E would otherwise act on the
+	// panel the keyboard last chose.
+	a.editor.OnFocus(func() { a.focusedIsEditor = true })
+	a.result.OnFocus(func() { a.focusedIsEditor = false })
 
 	a.searchBar = tview.NewInputField().SetLabel(msgs.SearchLabel)
 	a.searchBar.SetDoneFunc(a.handleSearchDone)
@@ -188,6 +224,13 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 		}
 		return event
 	})
+	// However the list loses the focus — closed, or a mouse click elsewhere —
+	// it goes away: left on screen, a later click on one of its items would
+	// apply offsets computed for a text that has changed since.
+	a.completionList.SetBlurFunc(func() {
+		a.completionTypeahead = ""
+		a.root.ResizeItem(a.completionList, 0, 0)
+	})
 
 	a.mainFlex = tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(a.editor.Widget(), 0, a.leftWeight, true).
@@ -214,29 +257,70 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 	// accounted for; going wider clips/corrupts the display on anything at
 	// or below that width (confirmed via the 80-column simulated screen the
 	// e2e tests use).
-	helpOverlay := tview.NewFlex().SetDirection(tview.FlexRow).
+	helpOverlay := modalPage{tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().
 			AddItem(nil, 0, 1, false).
 			AddItem(a.helpView, 76, 0, true).
 			AddItem(nil, 0, 1, false),
 			0, 9, true).
-		AddItem(nil, 0, 1, false)
+		AddItem(nil, 0, 1, false)}
+
+	a.palette = newRecipePalette(a)
 
 	a.pages = tview.NewPages().
 		AddPage("main", a.root, true, true).
-		AddPage("help", helpOverlay, true, false)
+		AddPage("help", helpOverlay, true, false).
+		AddPage(recipesPageName, a.palette.overlay(), true, false)
 
 	return a
 }
 
+// loadReferenceData (re)builds what completion offers from the reference
+// data — built into the binary, extended by the team's and user's files —
+// keeping only what applies to the connected cluster. Returns the catalog's
+// load problems, already reported in the status bar (the first one, with a
+// count of the others), for callers that want to say more.
+func (a *App) loadReferenceData() []refdata.Problem {
+	catalog := refdata.Load(a.reference)
+	a.endpoints = catalog.Endpoints(a.target)
+	a.catColumns = catalog.CatColumns(a.target)
+	// A _cat endpoint offered by completion is a known command even when
+	// the built-in table has no column for it (one the user added, or a
+	// version between two of those the table was built from): its columns
+	// then come from the cluster alone.
+	for _, endpoint := range a.endpoints {
+		if cmd, isCat := strings.CutPrefix(endpoint, "_cat/"); isCat {
+			cmd, _, _ = strings.Cut(cmd, "?")
+			if _, known := a.catColumns[cmd]; !known && cmd != "" {
+				a.catColumns[cmd] = nil
+			}
+		}
+	}
+	// What the cluster reported is asked again after a reload.
+	a.catLive = make(map[string][]string)
+	a.catPending = make(map[string]bool)
+	a.recipes = catalog.Recipes(a.target)
+
+	if n := len(catalog.Problems); n > 0 {
+		message := catalog.Problems[0].String()
+		if n > 1 {
+			message = fmt.Sprintf(a.msgs.WarnMoreProblemsFmt, message, n-1)
+		}
+		a.status.SetWarning(message)
+	}
+	return catalog.Problems
+}
+
 // loadInitialQueries loads the personal save specific to this cluster
 // (a.queriesPath, Ctrl+S or automatic save on program exit) if it exists;
-// otherwise, falls back to the team cheatsheet. See SPEC.md §3.2 and §9.1.
-func (a *App) loadInitialQueries(cheatsheetPath string) {
+// otherwise the team's cheatsheet file if there is one; otherwise the
+// built-in starter. See SPEC.md §3.2 and §9.1.
+func (a *App) loadInitialQueries(cheatsheetPath, starter string) {
 	if a.queriesPath != "" {
 		loaded, err := a.editor.LoadFile(a.queriesPath)
 		if err != nil {
+			a.queriesLoadFailed = true
 			a.status.SetError(fmt.Sprintf(a.msgs.ErrLoadFailedFmt, a.queriesPath, err))
 			return
 		}
@@ -245,8 +329,13 @@ func (a *App) loadInitialQueries(cheatsheetPath string) {
 		}
 	}
 
-	if _, err := a.editor.LoadFile(cheatsheetPath); err != nil {
+	loaded, err := a.editor.LoadFile(cheatsheetPath)
+	if err != nil {
 		a.status.SetError(fmt.Sprintf(a.msgs.ErrLoadFailedFmt, cheatsheetPath, err))
+		return
+	}
+	if !loaded && starter != "" {
+		a.editor.SetInitialText(starter)
 	}
 }
 
@@ -266,6 +355,24 @@ func (a *App) Start() {
 }
 
 func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
+	if event.Key() == tcell.KeyCtrlC {
+		// The only exit shortcut: Ctrl+Esc turned out to be intercepted by
+		// Windows itself (it opens the Start menu), so it was dropped.
+		// Ctrl+C stays universally available at the terminal level
+		// and must never be able to lock the user out. Handled before
+		// anything else: left to a popup (help, recipes, search, completion),
+		// it would reach tview's own default Ctrl+C handling, which stops the
+		// application without saving the left panel.
+		if err := a.SaveQueriesOnExit(); err != nil && !a.exitWarned {
+			// Quitting now would lose what the left panel holds: say so
+			// once, the next Ctrl+C quits regardless.
+			a.exitWarned = true
+			a.status.SetError(fmt.Sprintf(a.msgs.ErrExitSaveFailedFmt, err))
+			return nil
+		}
+		a.tapp.Stop()
+		return nil
+	}
 	if a.helpVisible {
 		switch event.Key() {
 		case tcell.KeyEscape:
@@ -280,22 +387,25 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return event // let the help TextView scroll if content overflows
 	}
-	if a.tapp.GetFocus() == a.searchBar {
+	if a.recipesVisible {
+		if event.Key() == tcell.KeyEscape {
+			// The palette's filter field closes it too, but a mouse click
+			// may have taken the focus elsewhere in the popup.
+			a.closeRecipes()
+			return nil
+		}
+		return event // the recipe palette handles its other keys (recipes.go)
+	}
+	// HasFocus rather than comparing with the application's focus: after a
+	// mouse click, that is an inner part of the widget, not the widget.
+	if a.searchBar.HasFocus() {
 		return event // the search bar handles Enter/Escape itself
 	}
-	if a.tapp.GetFocus() == a.completionList {
+	if a.completionList.HasFocus() {
 		return event // the completion list handles Enter/Escape/Tab itself
 	}
 
 	switch {
-	case event.Key() == tcell.KeyCtrlC:
-		// The only exit shortcut: Ctrl+Esc turned out to be intercepted by
-		// Windows itself on the team's machines (an OS shortcut), so it was
-		// dropped. Ctrl+C stays universally available at the terminal level
-		// and must never be able to lock the user out.
-		a.SaveQueriesOnExit()
-		a.tapp.Stop()
-		return nil
 	case isExecuteShortcut(event):
 		if a.focusedIsEditor {
 			a.executeCurrent()
@@ -349,10 +459,13 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return nil
 	case event.Key() == tcell.KeyF7:
-		// Not gated on focusedIsEditor, unlike F4/F9: this reloads a
-		// background data source (SPEC.md §7 backlog #4), it doesn't act on
-		// whatever request happens to be under the cursor.
-		a.reloadVariables()
+		// Not gated on focusedIsEditor, unlike F4/F9: this reloads
+		// background data sources, it doesn't act on whatever request
+		// happens to be under the cursor.
+		a.reloadUserFiles()
+		return nil
+	case event.Key() == tcell.KeyF8:
+		a.openRecipes()
 		return nil
 	}
 	return event
@@ -363,8 +476,8 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 // just like Ctrl+F/Ctrl+S, with no modifier-flag ambiguity whatsoever.
 // Ctrl+Enter (and, on macOS, Option/Alt+Enter — see hasShortcutModifier) is
 // kept as a best-effort alternative for terminals that do report it, but
-// cannot be relied on in general: confirmed on a real macOS terminal (via
-// cmd/keydebug) that Enter is reported identically — same Key, same zero
+// cannot be relied on in general: confirmed on a real macOS terminal (by
+// dumping its raw key events) that Enter is reported identically — same Key, same zero
 // Modifiers — whether or not Ctrl, Option, or Alt is held. Ctrl+M *is*
 // Enter's control byte; some terminals just never attach modifier
 // information to it at all, for any modifier.
@@ -412,7 +525,7 @@ func hasShortcutModifier(event *tcell.EventKey) bool {
 // (or Option/Alt+Shift+←/→, via hasShortcutModifier) is kept as a
 // best-effort alternative, but confirmed unreliable on at least one real
 // macOS terminal: Shift+Alt+←/→ arrives there as a *plain* KeyLeft/KeyRight
-// with zero modifiers (via cmd/keydebug) — identical to an unmodified arrow
+// with zero modifiers (seen in a dump of its raw key events) — identical to an unmodified arrow
 // key press, with no way to tell the two apart at the key-event level, so
 // it can never be relied on there. These cases are tested BEFORE the plain
 // Ctrl/Option+←/→ case (focus switch) so Ctrl+Shift+←/→ isn't shadowed by it.
@@ -431,8 +544,8 @@ func isGrowShortcut(event *tcell.EventKey) bool {
 }
 
 // isAltWordBack/isAltWordForward detect the classic Meta-b / Meta-f
-// word-navigation encoding (ESC b / ESC f) — confirmed, via cmd/keydebug on
-// a real macOS terminal, to be what that terminal actually sends for
+// word-navigation encoding (ESC b / ESC f) — confirmed, by dumping the raw
+// key events of a real macOS terminal, to be what that terminal actually sends for
 // Option/Alt+Left and Option/Alt+Right, instead of a modified arrow-key
 // sequence: Key ends up KeyRune (not KeyLeft/KeyRight at all), with Rune
 // 'b'/'f' and only ModAlt set. Without this, hasShortcutModifier's
@@ -526,6 +639,25 @@ func (a *App) closeHelp() {
 	}
 }
 
+// openRecipes shows the recipe palette (F8, SPEC.md §3.2) over the current
+// layout.
+func (a *App) openRecipes() {
+	a.recipesVisible = true
+	a.palette.open()
+	a.pages.ShowPage(recipesPageName)
+	a.tapp.SetFocus(a.palette.filter)
+}
+
+func (a *App) closeRecipes() {
+	a.recipesVisible = false
+	a.pages.HidePage(recipesPageName)
+	if a.focusedIsEditor {
+		a.focusEditor()
+	} else {
+		a.focusResultPanel()
+	}
+}
+
 func (a *App) closeSearch() {
 	a.root.ResizeItem(a.searchBar, 0, 0)
 	if a.searchTarget == "editor" {
@@ -586,20 +718,35 @@ func (a *App) executeCurrent() {
 
 	a.status.SetRunning()
 	method := req.Method
+	a.execution++
+	execution := a.execution
 
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), a.timeout)
 		defer cancel()
 		result, err := a.client.Execute(ctx, method, path, body)
+		// Indenting and colorizing a large response takes time: done here,
+		// not in the interface's goroutine, which it would freeze.
+		var rendered renderedResult
+		if err == nil {
+			rendered = renderResult(method, path, result.Headers, result.Body)
+		}
 
 		a.tapp.QueueUpdateDraw(func() {
+			if execution != a.execution {
+				// Another request was sent since: its answer is the one
+				// expected, whichever arrives first.
+				return
+			}
+			// A new result: its search starts from the top again.
+			a.resultSearchLine = -1
 			if err != nil {
 				a.status.SetError(err.Error())
 				a.result.ShowError(method, path, err.Error())
 				return
 			}
 			a.status.SetResult(result.StatusCode, result.Duration)
-			a.result.Show(method, path, result.Headers, result.Body)
+			a.result.display(rendered)
 		})
 	}()
 }
@@ -625,6 +772,15 @@ func (a *App) reformatBody() {
 	}
 	if a.editor.ReformatBody(req.StartLine+1, req.EndLine) {
 		a.status.SetIdle()
+		return
+	}
+	// Nothing changed: the body is already indented — or the lines it spans
+	// aren't JSON as they stand. The parser skips "#" lines between the
+	// request line and the body, or inside it, which is why the body was
+	// found valid above; re-indenting can't put them back in place.
+	lines := strings.Split(a.editor.Text(), "\n")
+	if req.EndLine < len(lines) && !json.Valid([]byte(strings.Join(lines[req.StartLine+1:req.EndLine+1], "\n"))) {
+		a.status.SetError(a.msgs.ErrFormatCommentsInBody)
 	}
 }
 
@@ -681,22 +837,28 @@ func (a *App) resolveRequest(req *parser.Request) (path string, body []byte, err
 	return path, []byte(bodyText), nil
 }
 
-// reloadVariables implements F7: re-reads the current cluster's variables
-// file from disk (SPEC.md §7 backlog #4) — there's no in-app editor for it
-// (hand-edited, like endpoints.txt/cat_columns.txt, §9.1), and the file
-// isn't watched, so this is how a change made in an external editor while
-// the app is already running takes effect without a full reconnect.
-func (a *App) reloadVariables() {
-	if a.variablesPath == "" {
-		return
+// reloadUserFiles implements F7: re-reads from disk everything the user (or
+// the team) maintains by hand — the current cluster's variables (SPEC.md
+// §3.2), and the recipes and endpoints that extend the built-in ones
+// (§9.1). None of these files has an in-app editor and none is watched, so
+// this is how a change made in an external editor while the app is running
+// takes effect without reconnecting. _cat columns are asked from the
+// cluster again too.
+func (a *App) reloadUserFiles() {
+	if a.variablesPath != "" {
+		vars, err := LoadVariablesFile(a.variablesPath)
+		if err != nil {
+			a.status.SetError(fmt.Sprintf(a.msgs.ErrLoadFailedFmt, a.variablesPath, err))
+			return
+		}
+		a.variables = vars
 	}
-	vars, err := LoadVariablesFile(a.variablesPath)
-	if err != nil {
-		a.status.SetError(fmt.Sprintf(a.msgs.ErrLoadFailedFmt, a.variablesPath, err))
-		return
+
+	// A problem in a reference file is already in the status bar: leave it
+	// there rather than cover it with the summary.
+	if problems := a.loadReferenceData(); len(problems) == 0 {
+		a.status.SetInfo(fmt.Sprintf(a.msgs.InfoReloadedFmt, len(a.variables), len(a.recipes), len(a.endpoints)))
 	}
-	a.variables = vars
-	a.status.SetInfo(fmt.Sprintf(a.msgs.InfoVariablesReloadedFmt, len(vars)))
 }
 
 // tryCompletion implements Tab in the left panel (SPEC.md §3.2, §4):
@@ -714,9 +876,24 @@ func (a *App) tryCompletion() bool {
 		return false
 	}
 
-	if candidates, subLen, ok := catColumnCompletion(prefix, a.catColumns); ok {
-		a.offerCompletions(end-subLen, end, candidates)
-		return true
+	if edit, ok := parseCatEdit(prefix, a.catColumns); ok {
+		// A sort direction (asc/desc) needs no column list; a column does,
+		// and the cluster is asked for it the first time.
+		table := a.catColumns
+		if !edit.direction {
+			if _, asked := a.catLive[edit.command]; !asked {
+				// Completion resumes by itself once the cluster has answered.
+				a.fetchCatColumns(edit.command)
+				return true
+			}
+			table = a.catLive
+		}
+		if candidates, subLen, ok := catColumnCompletion(prefix, table); ok {
+			a.offerCompletions(end-subLen, end, candidates)
+			return true
+		}
+		// No column known at all for this command: complete it as a
+		// regular endpoint.
 	}
 
 	// The trailing "/" before the parameters (or at the very end of the
@@ -729,6 +906,65 @@ func (a *App) tryCompletion() bool {
 	endpointPrefix := strings.TrimSuffix(prefix, "/")
 	a.offerCompletions(start, end, matchPrefix(endpointPrefix, a.endpoints))
 	return true
+}
+
+// catHelpTimeout bounds the wait for a _cat command's column list: the
+// request is answered by the receiving node alone, without touching the
+// cluster, so anything slower than this means the node is in trouble and
+// the built-in table is the better answer.
+const catHelpTimeout = 3 * time.Second
+
+// fetchCatColumns asks the cluster which columns a _cat command has ("GET
+// _cat/<command>?help") — exact for whatever version it runs, unlike the
+// built-in table — then resumes the completion that needed them, provided
+// the editor hasn't changed in the meantime. If the cluster can't be asked,
+// the built-in table is used instead, for the rest of the session (until a
+// reload, F7). Asynchronous: the interface stays responsive however slow
+// the cluster is.
+func (a *App) fetchCatColumns(command string) {
+	if a.catPending[command] {
+		return
+	}
+	a.catPending[command] = true
+	a.status.SetRunning()
+	running := a.status.Version()
+	text, cursor := a.editor.Text(), a.editor.CursorOffset()
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), catHelpTimeout)
+		defer cancel()
+		result, err := a.client.Execute(ctx, "GET", "_cat/"+command+"?help", nil)
+
+		a.tapp.QueueUpdateDraw(func() {
+			delete(a.catPending, command)
+
+			var columns []string
+			if err == nil && result.StatusCode == 200 {
+				columns = refdata.ParseCatHelp(result.Body)
+			}
+			fromCluster := len(columns) > 0
+			if !fromCluster {
+				columns = a.catColumns[command]
+			}
+			a.catLive[command] = columns
+
+			if !a.editor.Primitive().HasFocus() || a.editor.Text() != text || a.editor.CursorOffset() != cursor {
+				// The user moved on while waiting: nothing to complete
+				// anymore, but the columns are there for next time. The
+				// status line is only cleared if it still says "running"
+				// for this request — not if it now shows, say, the result
+				// of a request executed in the meantime.
+				if a.status.Version() == running {
+					a.status.SetIdle()
+				}
+				return
+			}
+			a.tryCompletion()
+			if !fromCluster {
+				a.status.SetWarning(a.msgs.WarnCatColumnsBuiltIn)
+			}
+		})
+	}()
 }
 
 // offerCompletions applies the result of a completion search, regardless of
@@ -837,8 +1073,15 @@ func (a *App) applyCompletionTypeahead() {
 // before the list opened (completionTypedPrefix) plus any type-ahead
 // keystrokes since (completionTypeahead).
 func (a *App) updateCompletionTitle() {
-	search := a.completionTypedPrefix + a.completionTypeahead
-	a.completionList.SetTitle(a.msgs.CompletionTitle + "[" + search + "]")
+	search := "[" + a.completionTypedPrefix + a.completionTypeahead + "]"
+	// A title is parsed for style tags: "[st]" — letters only, as when
+	// completing a _cat column — would be taken for one and vanish. Escaped
+	// when, and only when, tview would read it that way: it then counts for
+	// nothing in the title's width.
+	if escaped := tview.Escape(search); tview.TaggedStringWidth(search) != tview.TaggedStringWidth(escaped) {
+		search = escaped
+	}
+	a.completionList.SetTitle(a.msgs.CompletionTitle + search)
 }
 
 // handleSave implements Ctrl+S, whose behavior depends on which panel has
@@ -857,18 +1100,53 @@ func (a *App) saveQueries() {
 		a.status.SetError(fmt.Sprintf(a.msgs.ErrSaveFailedFmt, err))
 		return
 	}
+	// The file now holds what the user chose to put in it.
+	a.queriesLoadFailed = false
 	a.status.SetInfo(fmt.Sprintf(a.msgs.InfoSavedFmt, a.queriesPath))
 }
 
-// SaveQueriesOnExit silently saves (best-effort, no user feedback possible
-// at this point) the editor content before the program closes — Ctrl+C or
-// an external signal (SIGTERM/SIGHUP, see main.go). Complements the
+// SaveQueriesOnExit saves the editor content before the program closes —
+// Ctrl+C, or an external signal through SaveQueriesOnSignal. Complements the
 // explicit Ctrl+S save. See SPEC.md §3.2.
-func (a *App) SaveQueriesOnExit() {
+//
+// Returns an error if the content couldn't be saved, including the case
+// where it deliberately wasn't: the saved requests couldn't be read at
+// startup (queriesLoadFailed), and writing the editor over them would
+// destroy them — unless there is nothing in the editor to lose either.
+func (a *App) SaveQueriesOnExit() error {
 	if a.queriesPath == "" {
-		return
+		return nil
 	}
-	_ = a.editor.SaveToFile(a.queriesPath)
+	if a.queriesLoadFailed {
+		if strings.TrimSpace(a.editor.Text()) == "" {
+			return nil
+		}
+		return errors.New(a.msgs.ErrSavedRequestsUnread)
+	}
+	return a.editor.SaveToFile(a.queriesPath)
+}
+
+// signalSaveTimeout bounds how long SaveQueriesOnSignal waits for the
+// interface's goroutine before saving without it.
+const signalSaveTimeout = 2 * time.Second
+
+// SaveQueriesOnSignal is SaveQueriesOnExit for a caller outside the
+// interface's goroutine — the handler of SIGTERM/SIGHUP in main.go. The
+// editor may only be read from that goroutine, so the save is handed to it;
+// if it doesn't get to it in time (stuck rendering something large), the
+// editor is read from here after all: a risk worth taking over losing the
+// session's requests. Best-effort and silent, the program is going away.
+func (a *App) SaveQueriesOnSignal() {
+	done := make(chan struct{})
+	go func() {
+		a.tapp.QueueUpdate(func() { _ = a.SaveQueriesOnExit() })
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(signalSaveTimeout):
+		_ = a.SaveQueriesOnExit()
+	}
 }
 
 func (a *App) exportResult() {
@@ -932,4 +1210,5 @@ func (a *App) applyLanguage() {
 	a.updateCompletionTitle()
 	a.helpView.SetTitle(a.msgs.HelpViewTitle)
 	a.helpView.SetText(a.msgs.HelpContent)
+	a.palette.applyLanguage(a.msgs)
 }

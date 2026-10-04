@@ -15,7 +15,7 @@ func TestCatColumnCompletionEndToEnd(t *testing.T) {
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	if got, want := app.editor.Text(), "GET _cat/indices?h=health"; got != want {
+	if got, want := editorText(app), "GET _cat/indices?h=health"; got != want {
 		t.Fatalf("expected %q after h= completion, got %q", want, got)
 	}
 
@@ -28,7 +28,7 @@ func TestCatColumnCompletionEndToEnd(t *testing.T) {
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	if got, want := app.editor.Text(), "GET _cat/indices?h=health,store.size"; got != want {
+	if got, want := editorText(app), "GET _cat/indices?h=health,store.size"; got != want {
 		t.Fatalf("expected %q after second h= completion, got %q", want, got)
 	}
 }
@@ -41,7 +41,7 @@ func TestCatColumnSortDirectionCompletionEndToEnd(t *testing.T) {
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	if got, want := app.editor.Text(), "GET _cat/shards?s=index:desc"; got != want {
+	if got, want := editorText(app), "GET _cat/shards?s=index:desc"; got != want {
 		t.Fatalf("expected %q after sort-direction completion, got %q", want, got)
 	}
 }
@@ -58,7 +58,7 @@ func TestCatColumnCompletionWithFilterSegmentEndToEnd(t *testing.T) {
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	if got, want := app.editor.Text(), "GET _cat/shards/monindex?h=state"; got != want {
+	if got, want := editorText(app), "GET _cat/shards/monindex?h=state"; got != want {
 		t.Fatalf("expected %q after h= completion despite the filter segment, got %q", want, got)
 	}
 }

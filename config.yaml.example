@@ -1,37 +1,42 @@
-# Exemple de config.yaml — copiez ce fichier en
-# ~/.config/termdevtools/config.yaml (voir SPEC.md §9.1-§9.2). Propre à
-# chaque utilisateur : deux personnes lançant le même binaire partagé n'ont
-# pas le même historique de connexions. Aucun secret n'y est jamais stocké :
-# mots de passe, API key secrets et passphrases de clé privée sont toujours
-# redemandés à la connexion.
+# Sample config.yaml — the real one lives in
+# ~/.config/termdevtools/config.yaml and is created automatically on first
+# launch (see SPEC.md §9.1-§9.2). Specific to each user: two people running
+# the same shared binary don't share a connection history. No secret is ever
+# stored in it: passwords, API key secrets and private key passphrases are
+# always asked again on connection.
 
 default_timeout_seconds: 120
 
-# Langue de l'interface : "fr" (défaut) ou "en". Facultatif.
-language: fr
+# Interface language: "en" (default) or "fr". Optional.
+language: en
 
-# Support de la souris (cliquer pour donner le focus à un champ/une entrée
-# de liste). Désactivé par défaut : toute interaction souris a un
-# équivalent clavier complet (SPEC.md §3-4), et la laisser désactivée
-# garde la sélection/collage natifs du terminal disponibles (activer la
-# souris les capte pour l'appli à la place — voir F2 pour copier malgré
-# tout). Facultatif.
+# Mouse support (click to give the focus to a field or a list entry). Off by
+# default: every mouse interaction has a full keyboard equivalent (SPEC.md
+# §3-4), and leaving it off keeps the terminal's own selection and paste
+# available (turning it on hands them to the application instead — F2
+# copies the result either way). Optional.
 mouse: false
 
-# Dossiers utilisés pour pré-remplir les champs de certificat lors de la
-# saisie d'une nouvelle connexion (§3.0), et par le sélecteur de certificat
-# (Entrée sur le champ) pour y lister les fichiers disponibles. Par défaut :
-# le dossier système standard des certificats TLS sur RHEL/CentOS, mais
-# uniquement sous Linux — vide ("", comme ci-dessous) sous Windows et macOS,
-# où ce chemin n'existe pas. Laissez vide pour désactiver toute pré-sélection.
+# Directories used to pre-fill the certificate fields when entering a new
+# connection (§3.0), and browsed by the certificate picker (Enter on the
+# field) to list the files available. By default: the standard system-wide
+# TLS certificate directory of RHEL/CentOS, on Linux only — empty ("", as
+# below) on Windows and macOS, where that path doesn't exist. Leave them
+# empty for no pre-filled path at all.
 default_ca_dir: ""
 default_client_cert_dir: ""
 
-# L'ordre de cette liste fait office d'historique d'utilisation : le cluster
-# le plus récemment utilisé est automatiquement replacé en tête (§9.2).
-# Ce fichier est normalement généré/mis à jour automatiquement par le
-# programme après chaque connexion réussie — le modifier à la main reste
-# possible mais optionnel.
+# The order of this list is the usage history: the most recently used
+# cluster is automatically moved to the top (§9.2). This file is normally
+# written and updated by the program after every successful connection —
+# editing it by hand is possible, but optional.
+#
+# The distribution (Elasticsearch or OpenSearch) and version of a cluster
+# are detected at every connection: they decide which recipes, endpoints and
+# _cat columns are offered (§3.0). "distribution" and "version", both
+# optional, only serve to replace that detection when it can't succeed — a
+# proxy hiding the cluster, or an OpenSearch in compatibility mode, which
+# reports a fake version. The program never writes them itself.
 clusters:
   - url: https://es-prod.example.com:9200
     auth_type: basic # none | basic | api_key | mtls
@@ -44,3 +49,10 @@ clusters:
     auth_type: none
     tls:
       verify: false
+
+  - url: https://search-behind-proxy.example.com
+    auth_type: none
+    distribution: opensearch # elasticsearch | opensearch
+    version: "2.19"
+    tls:
+      verify: true

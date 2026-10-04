@@ -1,0 +1,43 @@
+# @group Upgrade and maintenance
+
+# @recipe Deprecations to fix before upgrading
+# @es
+# @tags migration breaking
+GET _migration/deprecations
+
+# @recipe System indices to migrate before upgrading
+# @es
+# @tags migration features
+GET _migration/system_features
+
+# @recipe Flush before a restart
+# @tags rolling restart translog
+# Shortens the recovery of the shards when the node comes back.
+POST _flush
+
+# @recipe Master-eligible nodes taking part in elections
+# @tags voting quorum
+GET _cluster/state?filter_path=metadata.cluster_coordination
+
+# @recipe Remote clusters
+# @tags ccs ccr cross-cluster
+GET _remote/info
+
+# @recipe Ingest pipelines
+# Some versions answer 404 with an empty {} when none is defined.
+GET _ingest/pipeline
+
+# @recipe Ingest activity per node
+# @tags pipeline failures
+GET _nodes/stats/ingest?filter_path=nodes.*.name,nodes.*.ingest.total
+
+# @recipe TLS certificates and their expiry
+# @es
+# @tags ssl security certificate
+# Needs security to be enabled on the cluster.
+GET _ssl/certificates
+
+# @recipe Search pipelines
+# @opensearch >=2.9
+# Answers 404 with an empty {} when none is defined.
+GET _search/pipeline

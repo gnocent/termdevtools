@@ -1,0 +1,43 @@
+# Your own recipes for TermDevTools.
+#
+# The recipe palette (F8) offers them along with the built-in ones, on every
+# cluster. As long as this file holds only comments, it adds nothing.
+#
+# A recipe file is written like the editor's content — requests and "#"
+# comments — plus a few directives, each on a comment line of its own:
+#
+#   - "@group <name>": the theme the following recipes are filed under. The
+#     name of an existing one ("Shards and allocation", "Snapshots"...) puts
+#     them with the built-in recipes on that theme.
+#   - "@recipe <title>": starts a recipe; everything up to the next one is
+#     its content, comments included. With the group and title of a built-in
+#     recipe, it replaces that recipe.
+#   - "@tags <words>": more words for the palette's filter to match
+#     (optional).
+#   - "@es" and "@opensearch", optionally followed by version bounds: the
+#     clusters the recipe is offered on (optional: everywhere without them).
+#     For instance "@es", "@es >=8.7", "@es >=7.17 <9.0", "@opensearch >=2.4".
+#     Written before the first recipe, they apply to the whole file.
+#
+# ${name} in a request is replaced, when it runs, by the variable of that
+# name from the cluster's variables file.
+#
+# Other *.txt files in this directory are read the same way, in name order;
+# one without any recipe directive is a single recipe, named after the file.
+# A "recipes" directory next to the program holds, in the same format, the
+# recipes shared by everyone using that installation.
+#
+# After a change, press F7 in TermDevTools to reload. To read the built-in
+# recipes, as examples: termdevtools --export-defaults <directory>
+# (a directory of your choice, other than the ones TermDevTools reads).
+#
+# An example — remove the leading "# " of the lines below to try it:
+#
+# # @group My team
+# # @recipe Orders still pending
+# # @tags business stuck
+# # What it shows and when to use it: displayed in the palette's preview.
+# GET orders-*/_search
+# {
+#   "query": { "term": { "status": "pending" } }
+# }

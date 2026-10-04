@@ -2,7 +2,18 @@
 
 # TermDevTools
 
-Simulateur en mode terminal de la vue **DevTools** de Kibana, pour interroger un cluster Elasticsearch directement depuis un terminal — Linux (dont RHEL 8/9/10), Windows ou macOS — sans navigateur ni Kibana fonctionnel.
+Simulateur en mode terminal de la vue **DevTools** de Kibana, pour interroger un cluster Elasticsearch ou OpenSearch directement depuis un terminal — Linux (dont RHEL 8/9/10), Windows ou macOS — sans navigateur ni Kibana fonctionnel. Un seul binaire, rien d'autre à installer.
+
+> [!IMPORTANT]
+> **Nouveautés de la 0.6 (bêta)**
+>
+> - **Catalogue de recettes (`F8`)** — une centaine de requêtes prêtes à l'emploi pour les investigations courantes : santé du cluster, shards non assignés, disque, nœuds, tâches, snapshots, cycle de vie des index, montées de version.
+> - **Elasticsearch et OpenSearch, selon la version** — la distribution et la version sont détectées à la connexion (Elasticsearch 7.17 à 9.x, OpenSearch 2.x et 3.x) ; seuls les recettes et endpoints qui existent sur ce cluster sont proposés.
+> - **Un seul fichier à installer** — recettes, endpoints et colonnes `_cat` sont intégrés au binaire ; les releases sont accompagnées de leurs sommes SHA-256.
+> - **Vos propres recettes et endpoints** — de simples fichiers texte, ajoutés à ceux du binaire et rechargés avec `F7`.
+> - **Plus sûr** — redirections HTTP jamais suivies, identifiants refusés dans l'URL, sauvegardes atomiques, `Ctrl+C` qui sauvegarde toujours avant de quitter, clés client chiffrées PKCS#8 acceptées.
+>
+> C'est une **version bêta** : vérifiée sur onze clusters réels, pas encore par d'autres utilisateurs que son auteur. Détail, points à connaître avant de mettre à jour depuis la 0.5 et limites connues : **[journal des versions](CHANGELOG_fr.md)**.
 
 - [Démo](#démo)
 - [Pourquoi](#pourquoi)
@@ -10,14 +21,19 @@ Simulateur en mode terminal de la vue **DevTools** de Kibana, pour interroger un
 - [Installation](#installation)
 - [Démarrage rapide](#démarrage-rapide)
 - [Configuration](#configuration)
+- [Recettes et données de référence](#recettes-et-données-de-référence)
 - [Variables réutilisables](#variables-réutilisables)
 - [Raccourcis clavier](#raccourcis-clavier)
 - [Sécurité](#sécurité)
 - [Licence](#licence)
 
+Autres documents : [guide d'installation et de paramétrage](INSTALL_fr.md) · [journal des versions](CHANGELOG_fr.md) · [spécification](SPEC_fr.md).
+
 ## Démo
 
 <p align="center"><img src="demotermdevtools.gif" alt="Démo animée : connexion à un cluster, exécution de requêtes, consultation du mapping d'un index et de _cat/shards, et recherche dans un résultat"></p>
+
+*Animation enregistrée avec la version 0.5 : le catalogue de recettes (`F8`) n'y figure pas.*
 
 ## Pourquoi
 
@@ -26,95 +42,151 @@ Il arrive qu'un cluster Elasticsearch n'ait pas de Kibana disponible, ou que son
 ## Fonctionnalités
 
 - **Interface en deux panneaux** : éditeur de requêtes (avec numéros de ligne et auto-fermeture des `{`/`[`/`"`) à gauche (`MÉTHODE endpoint` + corps JSON optionnel), résultat JSON formaté — rappel de la requête et en-têtes de réponse inclus — à droite.
-- **Exécution au curseur** (`Ctrl+Entrée`) : plusieurs requêtes peuvent cohabiter dans l'éditeur, séparées par des lignes vides ; celle sous le curseur est exécutée.
-- **Auto-complétion** (`Tab`) des endpoints (`_cat/*`, `_cluster/*`, `_nodes/*`, gestion d'index, ILM/SLM, snapshots, licence...) et, pour les commandes `_cat/*`, des noms de colonnes des paramètres `h=`/`s=`. Listes personnalisables sans recompiler via `endpoints.txt` et `cat_columns.txt`.
+- **Exécution au curseur** (`Ctrl+E`) : plusieurs requêtes peuvent cohabiter dans l'éditeur, séparées par des lignes vides ; celle sous le curseur est exécutée.
+- **Catalogue de recettes** (`F8`) : une centaine de requêtes prêtes à l'emploi pour les investigations courantes — santé du cluster, shards non assignés, disque, nœuds, tâches, snapshots, cycle de vie des index, montées de version — filtrées à la frappe, prévisualisées, insérées dans l'éditeur avec `Entrée`. Ajoutez les vôtres ; voir [Recettes et données de référence](#recettes-et-données-de-référence).
+- **S'adapte au cluster** : la distribution et la version sont détectées à la connexion — Elasticsearch 7.17 à 9.x, OpenSearch 2.x et 3.x — et seuls les recettes et endpoints qui existent sur ce cluster sont proposés.
+- **Auto-complétion** (`Tab`) des endpoints (`_cat/*`, `_cluster/*`, `_nodes/*`, gestion d'index, ILM/SLM ou ISM, snapshots, ingest, licence...) et, pour les commandes `_cat/*`, des noms de colonnes des paramètres `h=`/`s=` — demandés au cluster lui-même, donc exacts quelle que soit sa version.
 - **Reformater le JSON** du corps sous le curseur sur place (`F4`) et **copier la requête en commande `curl`** équivalente (`F9`, secrets masqués).
-- **Variables réutilisables `${nom}`** (`F7` pour recharger après une modification à la main) — voir [Variables réutilisables](#variables-réutilisables).
+- **Variables réutilisables `${nom}`** — voir [Variables réutilisables](#variables-réutilisables).
+- **Rien d'autre que le binaire** : recettes, endpoints et colonnes `_cat` y sont intégrés. Vos ajouts sont de simples fichiers texte, rechargés avec `F7`.
 - **Recherche** (`Ctrl+F`) dans l'éditeur comme dans le résultat.
 - **Sauvegarde automatique** des requêtes en cours par cluster et par utilisateur (à la fermeture et via `Ctrl+S`), rechargées à la reconnexion.
 - **Export** du résultat affiché vers un fichier horodaté (`Ctrl+S`, panneau droit) et **copie presse-papier** via OSC 52 (`F2`, fonctionne à travers SSH).
-- **Connexion** : Basic Auth, API Key ou certificat client (mTLS), avec ou sans vérification TLS ; historique des clusters déjà utilisés (sans jamais y stocker de secret — voir [Sécurité](#sécurité)) ; un sélecteur de certificat (`Entrée` sur les champs CA/certificat client) parcourt le dossier configuré plutôt que de taper un nom de fichier de mémoire.
+- **Connexion** : Basic Auth, API Key ou certificat client (mTLS, clé chiffrée ou non), avec ou sans vérification TLS ; historique des clusters déjà utilisés (sans jamais y stocker de secret — voir [Sécurité](#sécurité)) ; un sélecteur de certificat (`Entrée` sur les champs CA/certificat client) parcourt le dossier configuré plutôt que de taper un nom de fichier de mémoire.
 - **Aide intégrée** (`F1`) : rappel des raccourcis et de l'emplacement des fichiers.
 
 Détail complet des choix et du comportement : [SPEC_fr.md](SPEC_fr.md).
 
 ## Installation
 
-### Installation rapide (recommandé)
+Le **[guide d'installation et de paramétrage](INSTALL_fr.md)** détaille chaque étape, plateforme par plateforme, jusqu'à la première requête. En résumé :
 
-Nécessite [Go](https://go.dev/) 1.25 ou supérieur. Compile nativement pour votre plateforme (pas de cross-compilation) et installe le binaire avec ses fichiers annexes au même endroit :
+### Binaires précompilés (recommandé)
+
+Un fichier par plateforme, et rien d'autre, sur la page [Releases](https://github.com/gnocent/termdevtools/releases) :
+
+| Plateforme | Fichier |
+|---|---|
+| Linux (x86-64) | `termdevtools-linux-amd64` |
+| Windows (x86-64) | `termdevtools-windows-amd64.exe` |
+| macOS (Apple Silicon) | `termdevtools-darwin-arm64` |
+
+Sous Linux, par exemple :
+
+```bash
+sha256sum -c SHA256SUMS --ignore-missing     # vérifie le fichier téléchargé
+chmod +x termdevtools-linux-amd64
+mv termdevtools-linux-amd64 ~/.local/bin/termdevtools
+termdevtools --version
+```
+
+Le binaire est statique : il n'a besoin d'aucune bibliothèque système et se copie tel quel sur une autre machine, y compris sans accès à Internet. Les binaires ne sont pas signés ; macOS et Windows peuvent le signaler au premier lancement (voir le [guide](INSTALL_fr.md#2-installer-le-binaire)).
+
+### Depuis les sources
+
+Nécessite [Go](https://go.dev/) 1.25 ou supérieur.
 
 ```bash
 # Linux / macOS
-git clone <url-du-dépôt>
-cd TermDevTools
+git clone https://github.com/gnocent/termdevtools.git
+cd termdevtools
 ./install.sh
 ```
 
 ```powershell
 # Windows (PowerShell)
-git clone <url-du-dépôt>
-cd TermDevTools
+git clone https://github.com/gnocent/termdevtools.git
+cd termdevtools
 .\install.ps1
 ```
 
 Chaque script :
 
-- compile `termdevtools` pour votre OS/architecture courants ;
-- copie `cat_columns.txt` et `endpoints.txt` à côté, toujours mis à jour depuis le dépôt ;
-- initialise `cheatsheet.txt` depuis `cheatsheet.txt.example` **la première fois seulement** — relançable sans risque, n'écrase jamais une cheatsheet déjà personnalisée ;
-- indique quoi ajouter à votre `PATH` si l'emplacement d'installation n'y est pas encore.
+- compile `termdevtools` pour votre OS/architecture courants — le binaire est tout ce qu'il y a à installer ;
+- indique quoi ajouter à votre `PATH` si l'emplacement d'installation n'y est pas encore ;
+- signale, sans y toucher, les fichiers annexes qu'une version antérieure (jusqu'à la 0.5) a pu laisser à côté du binaire (voir [Mise à jour depuis la 0.5](#mise-à-jour-depuis-la-05)).
 
-Emplacement par défaut : `~/.local/share/termdevtools` sous Linux/macOS (lié via un symlink dans `~/.local/bin`, ajouté au `PATH`), `%LOCALAPPDATA%\termdevtools` sous Windows. Personnalisable via la variable d'environnement `TERMDEVTOOLS_INSTALL_DIR` (et `TERMDEVTOOLS_BIN_DIR` sous Linux/macOS pour l'emplacement du symlink) — utile par exemple pour une installation partagée en équipe dans `/opt/termdevtools`.
+Emplacement par défaut : `~/.local/share/termdevtools` sous Linux/macOS (lié via un symlink dans `~/.local/bin`), `%LOCALAPPDATA%\termdevtools` sous Windows. Personnalisable via la variable d'environnement `TERMDEVTOOLS_INSTALL_DIR` (et `TERMDEVTOOLS_BIN_DIR` sous Linux/macOS pour l'emplacement du symlink) — par exemple pour une installation partagée dans `/opt/termdevtools`.
 
-### Binaires précompilés
+Pour compiler sans installer : `go build -o termdevtools .`
 
-Des binaires statiques sont fournis pour Linux (amd64), Windows (amd64) et macOS (Apple Silicon / arm64) — voir la section [Releases](../../releases) du dépôt, où chaque binaire est fourni avec ses fichiers annexes (voir [Arborescence d'installation](#arborescence-dinstallation) ci-dessous). Aucune dépendance à installer : il suffit de télécharger et de le rendre exécutable (`chmod +x` sous Linux/macOS).
-
-### Compilation manuelle / cross-compilation
-
-Pour compiler sans installer, ou cross-compiler vers une plateforme différente de la vôtre :
-
-```bash
-git clone <url-du-dépôt>
-cd TermDevTools
-go build -o termdevtools .
-```
-
-Le binaire est statique (`CGO_ENABLED=0`) : il n'a besoin d'aucune bibliothèque système au-delà de la libc de base, et peut être copié tel quel sur n'importe quelle machine RHEL 8/9/10 (ou toute autre distribution Linux amd64), sans installation.
-
-Le script [`build-release.sh`](build-release.sh) compile les trois plateformes cibles (`linux/amd64`, `windows/amd64`, `darwin/arm64`) en une fois et regroupe chaque binaire avec ses fichiers annexes dans `dist/<plateforme>/` — utile pour produire des binaires à distribuer à l'équipe plutôt que pour une installation locale.
+Le script [`build-release.sh`](build-release.sh) produit dans `dist/` les trois binaires publiés et leur fichier `SHA256SUMS`, en y inscrivant la version (`./build-release.sh v0.6`, ou sans argument ce que `git describe` dit du dépôt) — celle que `termdevtools --version` affiche.
 
 ### Arborescence d'installation
 
-Tout ce qui suit est **facultatif**, à l'exception du binaire lui-même — TermDevTools fonctionne avec des valeurs par défaut intégrées pour tout le reste.
+Seul le binaire est nécessaire. Tous les fichiers ci-dessous sont **facultatifs**, ou créés par le programme lui-même.
 
 | Emplacement | Fichier | Rôle |
 |---|---|---|
-| à côté du binaire | `cheatsheet.txt` | Contenu par défaut de l'éditeur au premier lancement sur un cluster donné (copier/renommer `cheatsheet.txt.example`, ou laisser `install.sh`/`install.ps1` le faire). Absent → éditeur vide. |
-| à côté du binaire | `endpoints.txt` | Liste des endpoints proposés en auto-complétion. Absent → utilise une liste intégrée. |
-| à côté du binaire | `cat_columns.txt` | Table commande `_cat/*` → colonnes, pour l'auto-complétion des paramètres `h=`/`s=`. Absent → utilise une table intégrée. |
-| `~/.config/termdevtools/config.yaml` | — | **Créé automatiquement** à la première connexion réussie — rien à préparer à la main. Voir [Configuration](#configuration) ci-dessous. |
+| `~/.config/termdevtools/` | `config.yaml` | **Créé automatiquement** — rien à préparer à la main. Voir [Configuration](#configuration) ci-dessous. |
+| `~/.config/termdevtools/` | `queries_<cluster>.txt` | Vos requêtes pour chaque cluster, sauvegardées par `Ctrl+S` et à la fermeture. |
+| `~/.config/termdevtools/` | `variables_<cluster>.txt` | Vos variables `${nom}` pour chaque cluster — voir [Variables réutilisables](#variables-réutilisables). |
+| `~/.config/termdevtools/` | `recipes/*.txt`, `endpoints.txt` | Vos propres recettes et endpoints, ajoutés à ceux du binaire — voir [Recettes et données de référence](#recettes-et-données-de-référence). |
+| à côté du binaire | `recipes/*.txt`, `endpoints.txt` | Idem, partagés par tous les utilisateurs de cette installation. |
+| à côté du binaire | `cheatsheet.txt` | Contenu de départ de l'éditeur propre à cette installation, à la place de celui du binaire. |
+| à côté du binaire | `exports/` | Résultats exportés avec `Ctrl+S` depuis le panneau droit. |
+
+Sous Windows, `~` désigne `%USERPROFILE%`.
+
+### Mise à jour depuis la 0.5
+
+Les versions jusqu'à la 0.5 étaient livrées avec trois fichiers à côté du binaire. Une fois le binaire remplacé :
+
+- `cat_columns.txt` n'est plus lu (les colonnes sont demandées au cluster) : supprimez-le.
+- `endpoints.txt` est toujours lu, mais comme des *ajouts* à la liste intégrée et non plus un remplacement. Sauf si vous y aviez ajouté vos propres endpoints, supprimez-le — la liste intégrée est plus complète et tient compte de la version du cluster.
+- `cheatsheet.txt` fournit toujours le contenu de départ de l'éditeur pour un cluster auquel on se connecte pour la première fois. Supprimez-le pour obtenir celui du binaire ; ses requêtes se trouvent désormais dans le catalogue de recettes (`F8`).
+
+L'interface démarre désormais en anglais tant qu'aucune langue n'a été choisie : `F3` repasse au français et retient ce choix. Les autres changements de comportement (redirections, identifiants dans l'URL, `F7`) sont listés dans le [journal des versions](CHANGELOG_fr.md).
 
 ## Démarrage rapide
 
-1. **Lancer l'outil** : `termdevtools` (`termdevtools.exe` sous Windows). L'écran de connexion liste les clusters déjà utilisés, plus une option **« + Nouvelle connexion »**.
+1. **Lancer l'outil** : `termdevtools` (`termdevtools.exe` sous Windows). L'écran de connexion liste les clusters déjà utilisés, plus une option **« + New connection »**. L'interface démarre en anglais : une fois connecté, `F3` la passe en français et retient ce choix.
 2. **Se connecter** : saisir l'URL du cluster, choisir un type d'authentification (aucune, Basic Auth, API Key, ou certificat client), puis le secret s'il y en a un. Tout est mémorisé pour la prochaine fois, sauf le secret (voir [Configuration](#configuration) ci-dessous).
 3. **Écrire une requête** dans le panneau de gauche, façon Kibana Console — méthode, endpoint, puis un corps JSON optionnel sur les lignes suivantes :
    ```
    GET _cluster/health
    ```
-   Plusieurs requêtes peuvent cohabiter dans l'éditeur, séparées par des lignes vides ; celle sous le curseur est celle qui s'exécute.
+   Plusieurs requêtes peuvent cohabiter dans l'éditeur, séparées par des lignes vides ; celle sous le curseur est celle qui s'exécute. À la première connexion à un cluster, l'éditeur contient déjà quelques requêtes valables partout.
 4. **L'exécuter** : `Ctrl+E`. Le résultat JSON formaté apparaît dans le panneau de droite (voir la [démo](#démo) ci-dessus).
-5. Ensuite : `Tab` ou `F10` complète un endpoint en cours de frappe, `F4` reformate le corps JSON sous le curseur, `F9` copie la requête en commande `curl` équivalente, `Ctrl+S` sauvegarde le travail en cours. Référence complète : [Raccourcis clavier](#raccourcis-clavier).
+5. **Ou choisir une recette** : `F8` ouvre le catalogue. Tapez quelques mots (`unassigned`, `disk`, `snapshot`... — les recettes sont en anglais), déplacez-vous avec les flèches, `Entrée` insère la recette à la fin de l'éditeur, curseur sur sa requête — `Ctrl+E` l'exécute.
+6. Ensuite : `Tab` ou `F10` complète un endpoint en cours de frappe, `F4` reformate le corps JSON sous le curseur, `F9` copie la requête en commande `curl` équivalente, `Ctrl+S` sauvegarde le travail en cours. Référence complète : [Raccourcis clavier](#raccourcis-clavier).
+
+La version pas à pas, champ par champ, avec la création d'une clé d'API et les formats de certificat acceptés : [guide, §3](INSTALL_fr.md#3-première-connexion).
 
 ## Configuration
 
-Aucune configuration n'est nécessaire pour démarrer : un écran de connexion permet de saisir directement l'URL et les identifiants d'un cluster, et `~/.config/termdevtools/config.yaml` est créé automatiquement à la première connexion réussie. Un exemple est fourni à titre indicatif dans `config.yaml.example` — **il ne contient jamais de secret** : mots de passe, clés d'API et passphrases sont redemandés à chaque connexion, jamais écrits sur disque (voir [Sécurité](#sécurité)).
+Aucune configuration n'est nécessaire pour démarrer : un écran de connexion permet de saisir directement l'URL et les identifiants d'un cluster, et `~/.config/termdevtools/config.yaml` est créé automatiquement, chaque paramètre documenté sur place. Un exemple est fourni à titre indicatif dans `config.yaml.example` — **il ne contient jamais de secret** : mots de passe, clés d'API et passphrases sont redemandés à chaque connexion, jamais écrits sur disque (voir [Sécurité](#sécurité)). Chaque paramètre est décrit dans le [guide, §5](INSTALL_fr.md#5-réglages--configyaml).
 
-La langue de l'interface (français par défaut, ou anglais) se règle via `language: fr` / `language: en` dans ce même `config.yaml` — ou se change à la volée dans l'appli avec `F3`, qui enregistre le choix pour la prochaine fois.
+La distribution et la version du cluster sont détectées à chaque connexion et affichées dans la barre de statut (`ES 9.5.4`, `OS 2.19.6`). Quand elles ne peuvent pas l'être — un proxy qui masque la réponse du cluster, ou un OpenSearch en mode compatibilité, qui annonce une fausse version — tout ce qui pourrait s'appliquer est proposé plutôt que masqué ; `distribution:` et `version:` sur l'entrée du cluster dans `config.yaml` permettent alors de les indiquer vous-même.
+
+La langue de l'interface (anglais par défaut, ou français) se règle via `language: en` / `language: fr` dans ce même `config.yaml` — ou se change à la volée dans l'appli avec `F3`, qui enregistre le choix pour la prochaine fois.
 
 Le support de la souris (cliquer pour donner le focus à un champ ou sélectionner une entrée de liste) est **désactivé par défaut** — mettre `mouse: true` dans `config.yaml` pour l'activer. Toute interaction souris a un équivalent clavier complet (voir [Raccourcis clavier](#raccourcis-clavier)) ; le laisser désactivé garde la sélection/collage natifs du terminal disponibles, puisque l'activer capte les événements souris pour l'appli à la place (`F2` copie toujours le résultat, avec ou sans souris).
+
+## Recettes et données de référence
+
+Tout ce que TermDevTools suggère — les recettes du catalogue (`F8`), les endpoints et les colonnes `_cat` de l'auto-complétion — est intégré au binaire, chaque entrée étant marquée des clusters auxquels elle s'applique. Une fois connecté, vous ne voyez que ce qui fonctionne sur ce cluster : un Elasticsearch 8 reçoit les recettes ILM, un OpenSearch 2 les recettes ISM. Les recettes sont rédigées en anglais.
+
+**Ajouter les vôtres.** Vos recettes vont dans `~/.config/termdevtools/recipes/`, en simples fichiers texte ; un modèle commenté, `my-recipes.txt`, y est créé au premier lancement. Un fichier de recettes s'écrit comme le contenu de l'éditeur, avec quelques directives en commentaire :
+
+```
+# @group Snapshots
+# @recipe Snapshots nocturnes
+# @tags backup
+# Affiché dans l'aperçu du catalogue.
+GET _snapshot/nightly/_all
+```
+
+- `@group` range les recettes sous un thème — un thème existant les place avec les recettes intégrées de ce thème.
+- `@recipe` démarre une recette. Avec le groupe et le titre d'une recette intégrée, elle la remplace.
+- `@tags` ajoute des mots que le filtre reconnaîtra.
+- `@es >=8.7` ou `@opensearch >=2.4 <3.0` réserve une recette à certains clusters (partout, sans eux).
+
+Vos recettes s'*ajoutent* à celles du binaire, elles ne remplacent jamais le catalogue entier, et sont signalées comme les vôtres dans la liste. `~/.config/termdevtools/endpoints.txt` (un endpoint par ligne, mêmes marques facultatives) étend l'auto-complétion de la même façon. Un dossier `recipes/` et un `endpoints.txt` à côté du binaire font de même pour tous ceux qui partagent cette installation. Après modification de l'un d'eux, `F7` recharge sans redémarrer ; une erreur dans un fichier est signalée dans la barre de statut, avec le fichier et la ligne.
+
+**Lire ce qui est intégré.** `termdevtools --export-defaults <dossier>` écrit les recettes et endpoints intégrés sous forme de fichiers — pour les lire, ou comme point de départ pour les vôtres. Il n'écrase jamais un fichier existant, et refuse les deux dossiers ci-dessus : exportées là, les recettes intégrées seraient relues comme les vôtres et masqueraient celles des versions suivantes.
+
+**Suivre les nouvelles versions.** Les données intégrées couvrent les versions connues à la compilation du binaire ; un cluster plus récent reçoit ce qui valait pour la dernière version connue. Les colonnes `_cat` n'en dépendent pas du tout : elles sont demandées au cluster.
 
 ## Variables réutilisables
 
@@ -132,10 +204,11 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 | Rechercher dans les requêtes / dans le résultat | `Ctrl+F` (selon le panneau focus) |
 | Redimensionner le split gauche/droite | `F5` / `F6` [^redim] |
 | Sauvegarder (gauche) / exporter (droite) | `Ctrl+S` (selon le panneau focus) |
+| Ouvrir le catalogue de recettes | `F8` — taper pour filtrer, flèches pour se déplacer, `Entrée` pour insérer, `Echap` pour fermer |
 | Compléter un endpoint / une colonne | `Tab`, `F10` ou `Ctrl+Espace` (panneau gauche) [^tab] |
 | Reformater (indenter) le JSON sous le curseur | `F4` (panneau gauche) |
 | Copier la requête sous le curseur en commande `curl` | `F9` (panneau gauche) — secrets masqués, voir [Sécurité](#sécurité) |
-| Recharger les variables `${nom}` depuis le disque | `F7` — voir [Variables réutilisables](#variables-réutilisables) |
+| Recharger vos fichiers édités à la main (variables, recettes, endpoints) | `F7` — voir [Recettes et données de référence](#recettes-et-données-de-référence) |
 | Copier le résultat dans le presse-papier | `F2` |
 | Changer la langue de l'interface (fr/en) | `F3` |
 | Aide | `F1` (`Echap` pour fermer) |
@@ -147,10 +220,28 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 
 ## Sécurité
 
-- **TLS vérifié par défaut** : la vérification du certificat serveur est activée sauf désactivation explicite lors de la connexion.
-- **Aucun secret persisté** : mot de passe, secret d'API Key et passphrase de clé privée ne sont jamais écrits dans `config.yaml` — seuls l'URL, le type d'authentification et les identifiants non sensibles (username, API key ID, chemins de certificats) le sont, avec des permissions restreintes (`0600` pour les fichiers, `0700` pour les dossiers).
-- **Copie presse-papier (`F2`)** via OSC 52 : le terminal local reçoit la donnée à copier sans jamais transiter par un presse-papier serveur — mais aucune garantie de succès n'est renvoyée par ce mécanisme (dépend du terminal utilisé).
-- Le projet a été soumis à une relecture de sécurité (revue du code, absence d'exécution de commandes externes, `govulncheck` sans vulnérabilité connue exploitable) avant publication — voir aussi le [disclaimer](#avertissement--limitation-de-responsabilité) ci-dessous.
+**Ce que le programme fait, et ne fait pas**
+
+- **Il ne parle qu'au cluster que vous avez choisi.** Aucune télémétrie, aucune recherche de mise à jour, aucune commande externe exécutée.
+- **Aucun secret n'est écrit sur le disque** : mot de passe, secret d'API Key et passphrase de clé privée sont redemandés à chaque connexion. Seuls l'URL, le type d'authentification et les identifiants non sensibles (nom d'utilisateur, identifiant de clé d'API, chemins de certificats) sont enregistrés dans `config.yaml`.
+- **Une URL contenant des identifiants est refusée** (`https://utilisateur:motdepasse@hôte`) : enregistrée et affichée, elle aurait exposé le mot de passe.
+- **TLS vérifié par défaut**, TLS 1.2 au minimum ; la vérification du certificat serveur ne se désactive qu'explicitement, connexion par connexion.
+- **Les redirections HTTP ne sont jamais suivies** : vos identifiants ne partent pas vers une autre adresse que celle saisie, et une requête n'est pas rejouée ailleurs. Une redirection est affichée telle quelle.
+- **Rien de ce qui est affiché n'est interprété par le terminal** : les caractères de contrôle d'une réponse du cluster, d'un fichier ou d'un message d'erreur n'atteignent jamais l'écran.
+- **Fichiers à vous seul** : permissions `0600` pour les fichiers et `0700` pour les dossiers (sous Linux et macOS), écritures atomiques — une coupure pendant une sauvegarde ne détruit pas le contenu précédent.
+- **`F9` (copie en `curl`)** n'inclut jamais les secrets : ils sont remplacés par un rappel à compléter.
+- **`F2` (presse-papier)** passe par OSC 52 : la donnée va au terminal local, sans presse-papier côté serveur — mais ce mécanisme ne confirme pas le succès de la copie.
+
+**Ce à quoi le programme fait confiance**
+
+- **Le dossier du binaire et votre dossier de configuration.** Les recettes, endpoints et contenu de départ qui s'y trouvent sont proposés à l'utilisateur : dans une installation partagée, le dossier du binaire ne doit être modifiable que par des personnes de confiance. Un fichier de recettes ou d'endpoints contenant des caractères de contrôle est refusé.
+- **Vous.** Une requête est envoyée telle qu'elle est écrite, sans confirmation — `DELETE` compris.
+
+**Ce qui a été vérifié, et ce qui ne l'a pas été**
+
+- Relecture de sécurité du code et tests automatisés pour chacun des points ci-dessus ; `govulncheck` ne signale aucune vulnérabilité connue dans les dépendances.
+- Chaque requête de chaque recette a été exécutée sur onze clusters réels (Elasticsearch 7.17 à 9.5, OpenSearch 2.0 à 3.9).
+- **Aucun audit externe indépendant n'a été réalisé**, et les binaires ne sont pas signés : vérifiez leur somme SHA-256. Voir aussi l'[avertissement](#avertissement--limitation-de-responsabilité) ci-dessous.
 
 ## Licence
 
@@ -165,6 +256,6 @@ TermDevTools est un outil publié **tel quel** ("as is"), sans garantie d'aucune
 En particulier :
 
 - Ce projet est développé et maintenu **sur le temps libre de son auteur**, sans engagement de disponibilité, de maintenance, de correctif de sécurité ou d'évolution future.
-- L'auteur et les contributeurs **déclinent toute responsabilité** pour les conséquences directes ou indirectes de l'utilisation de cet outil — y compris, sans s'y limiter, une perte de données, une interruption de service, ou toute action exécutée sur un cluster Elasticsearch via cet outil (TermDevTools exécute les requêtes telles que vous les écrivez, sans confirmation supplémentaire au-delà de ce qui est décrit dans [SPEC_fr.md](SPEC_fr.md)).
+- L'auteur et les contributeurs **déclinent toute responsabilité** pour les conséquences directes ou indirectes de l'utilisation de cet outil — y compris, sans s'y limiter, une perte de données, une interruption de service, ou toute action exécutée sur un cluster Elasticsearch ou OpenSearch via cet outil (TermDevTools exécute les requêtes telles que vous les écrivez, sans confirmation supplémentaire au-delà de ce qui est décrit dans [SPEC_fr.md](SPEC_fr.md)).
 - L'utilisation de cet outil contre un cluster de production reste **sous l'entière responsabilité de la personne qui l'utilise** : vérifiez toujours vos requêtes, en particulier les opérations destructrices (`DELETE`, mises à jour de mapping, etc.), comme vous le feriez avec n'importe quel client Elasticsearch (Kibana, `curl`, ou autre).
 - Les évolutions futures du projet (ou leur absence) n'engagent que leurs auteurs respectifs au moment où elles sont apportées.

@@ -13,7 +13,7 @@ import (
 // typing a further character and checking it lands between the pair, not
 // after it.
 func TestAutoCloseInsertsBracketPair(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("", true)
 
 	injectRunes(e, "{")
@@ -29,7 +29,7 @@ func TestAutoCloseInsertsBracketPair(t *testing.T) {
 // TestAutoCloseInsertsSquareBracketPair mirrors
 // TestAutoCloseInsertsBracketPair for "[".
 func TestAutoCloseInsertsSquareBracketPair(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("", true)
 
 	injectRunes(e, "[")
@@ -41,7 +41,7 @@ func TestAutoCloseInsertsSquareBracketPair(t *testing.T) {
 // TestAutoCloseInsertsQuotePairWhenOpeningAString checks that a quote typed
 // outside any open string opens a new one (auto-closed), same as brackets.
 func TestAutoCloseInsertsQuotePairWhenOpeningAString(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("", true)
 
 	injectRunes(e, `"`)
@@ -56,7 +56,7 @@ func TestAutoCloseInsertsQuotePairWhenOpeningAString(t *testing.T) {
 // that string instead of opening a new nested pair — otherwise typing a
 // normal closing quote by hand would leave a stray extra one behind.
 func TestAutoCloseDoesNotReopenInsideAnAlreadyOpenString(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText(`"abc`, true) // cursor at the end, inside an open string
 
 	injectRunes(e, `"`)
@@ -69,7 +69,7 @@ func TestAutoCloseDoesNotReopenInsideAnAlreadyOpenString(t *testing.T) {
 // immediately before one that's already there (typically auto-inserted a
 // moment ago) steps over it instead of inserting a redundant second one.
 func TestAutoCloseSkipsOverExistingCloser(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("", true)
 
 	injectRunes(e, "{") // -> "{}", cursor between
@@ -88,7 +88,7 @@ func TestAutoCloseSkipsOverExistingCloser(t *testing.T) {
 // TestAutoCloseSkipsOverExistingQuoteCloser mirrors
 // TestAutoCloseSkipsOverExistingCloser for a quote pair.
 func TestAutoCloseSkipsOverExistingQuoteCloser(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("", true)
 
 	injectRunes(e, `"`)  // -> `""`, cursor between
@@ -106,7 +106,7 @@ func TestAutoCloseSkipsOverExistingQuoteCloser(t *testing.T) {
 // auto-inserted closer, and the snippet's own explicit closers each skip
 // over one instead of piling up extra ones.
 func TestAutoCloseFullJSONObjectRoundTrips(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("", true)
 
 	const body = `{"query":{"match_all":{}}}`
@@ -121,7 +121,7 @@ func TestAutoCloseFullJSONObjectRoundTrips(t *testing.T) {
 // empty pair removes both sides in one go, not just the opener (which would
 // otherwise leave a dangling, empty-looking closer behind).
 func TestAutoCloseBackspaceCollapsesEmptyPair(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("", true)
 
 	injectRunes(e, "{") // -> "{}", cursor between
@@ -135,7 +135,7 @@ func TestAutoCloseBackspaceCollapsesEmptyPair(t *testing.T) {
 // non-empty pair is not collapsed — only a genuinely empty one is; a normal
 // single-character Backspace applies otherwise.
 func TestAutoCloseBackspaceDoesNotCollapseNonEmptyPair(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("{a}", true) // cursor at the end, after "}"
 
 	e.view.InputHandler()(backspaceEvent(), nil)
@@ -148,7 +148,7 @@ func TestAutoCloseBackspaceDoesNotCollapseNonEmptyPair(t *testing.T) {
 // quote (\") doesn't flip the "inside a string" tracking used to decide
 // whether a typed '"' opens a new string or just closes the current one.
 func TestAutoCloseIgnoresEscapedQuotesForStringTracking(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	// One real open quote, then an escaped quote (doesn't close the
 	// string), so the cursor is still inside the string at the end.
 	e.view.SetText(`"abc\"def`, true)
@@ -169,7 +169,7 @@ func TestAutoCloseIgnoresEscapedQuotesForStringTracking(t *testing.T) {
 // the selection's edge without first accounting for the selected text would
 // produce a wrong result instead.
 func TestAutoCloseDoesNothingWithAnActiveSelection(t *testing.T) {
-	e := NewEditor(i18n.For(""))
+	e := NewEditor(i18n.For(i18n.FR))
 	e.view.SetText("abc", false)
 	e.view.Select(0, 3) // select the whole "abc"
 

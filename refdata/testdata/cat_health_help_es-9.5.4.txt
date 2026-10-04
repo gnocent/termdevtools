@@ -1,0 +1,15 @@
+epoch                 | t,time                                               | seconds since 1970-01-01 00:00:00  
+timestamp             | ts,hms,hhmmss                                        | time in HH:MM:SS                   
+cluster               | cl                                                   | cluster name                       
+status                | st                                                   | health status                      
+node.total            | nt,nodeTotal                                         | total number of nodes              
+node.data             | nd,nodeData                                          | number of nodes that can store data
+shards                | t,sh,shards.total,shardsTotal                        | total number of shards             
+pri                   | p,shards.primary,shardsPrimary                       | number of primary shards           
+relo                  | r,shards.relocating,shardsRelocating                 | number of relocating nodes         
+init                  | i,shards.initializing,shardsInitializing             | number of initializing nodes       
+unassign              | u,shards.unassigned,shardsUnassigned                 | number of unassigned shards        
+unassign.pri          | up,shards.unassigned.primary,shardsUnassignedPrimary | number of unassigned primary shards
+pending_tasks         | pt,pendingTasks                                      | number of pending tasks            
+max_task_wait_time    | mtwt,maxTaskWaitTime                                 | wait time of longest task pending  
+active_shards_percent | asp,activeShardsPercent                              | active number of shards in percent 

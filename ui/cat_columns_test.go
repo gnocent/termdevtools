@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -200,44 +198,5 @@ func TestCatColumnCompletionMultipleParams(t *testing.T) {
 	want := []string{"status"}
 	if len(candidates) != len(want) || candidates[0] != want[0] {
 		t.Errorf("expected %v, got %v", want, candidates)
-	}
-}
-
-func TestLoadCatColumnsFileMissing(t *testing.T) {
-	cols, err := LoadCatColumnsFile(filepath.Join(t.TempDir(), "does-not-exist.txt"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if cols != nil {
-		t.Errorf("expected nil for a missing file, got %v", cols)
-	}
-}
-
-func TestLoadCatColumnsFileParsing(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "cat_columns.txt")
-	content := "# commentaire général\n\n# _cat/indices\nhealth\nh\nstatus\n\n# _cat/shards\nindex\ni\n"
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		t.Fatalf("setup: %v", err)
-	}
-
-	cols, err := LoadCatColumnsFile(path)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	wantIndices := []string{"health", "h", "status"}
-	if len(cols["indices"]) != len(wantIndices) {
-		t.Fatalf("expected indices=%v, got %v", wantIndices, cols["indices"])
-	}
-	for i, c := range wantIndices {
-		if cols["indices"][i] != c {
-			t.Errorf("expected indices=%v, got %v", wantIndices, cols["indices"])
-			break
-		}
-	}
-
-	wantShards := []string{"index", "i"}
-	if len(cols["shards"]) != len(wantShards) {
-		t.Fatalf("expected shards=%v, got %v", wantShards, cols["shards"])
 	}
 }

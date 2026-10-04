@@ -15,10 +15,15 @@ import (
 // replaced.
 func TestResolveRequestSubstitutesKnownVariables(t *testing.T) {
 	app, _ := newTestApp(t)
-	app.variables = map[string]string{"idx": "my-index"}
+	onUI(app, func() { app.variables = map[string]string{"idx": "my-index"} })
 
 	req := &parser.Request{Method: "GET", Path: "${idx}/_search", Body: []byte(`{"query":{"term":{"a":"${idx}"}}}`)}
-	path, body, err := app.resolveRequest(req)
+	var (
+		path string
+		body []byte
+		err  error
+	)
+	onUI(app, func() { path, body, err = app.resolveRequest(req) })
 	if err != nil {
 		t.Fatalf("resolveRequest: %v", err)
 	}
@@ -37,7 +42,8 @@ func TestResolveRequestReportsUnknownVariables(t *testing.T) {
 	app, _ := newTestApp(t)
 
 	req := &parser.Request{Method: "GET", Path: "${missing_var}/_search"}
-	_, _, err := app.resolveRequest(req)
+	var err error
+	onUI(app, func() { _, _, err = app.resolveRequest(req) })
 	if err == nil {
 		t.Fatal("expected an error for an unknown variable")
 	}
@@ -65,6 +71,19 @@ func TestCtrlEAbortsOnUnknownVariable(t *testing.T) {
 	if !strings.Contains(text, "missing_var") {
 		t.Errorf("expected the status bar to name the missing variable, got:\n%s", text)
 	}
+	// The two checks above hold whatever happens — the variable's name is on
+	// screen in the editor, and a refused connection is over long before they
+	// run. What tells an aborted request from one that was sent: the status
+	// bar itself names the variable, and the result panel, which a request
+	// sent to this unreachable cluster fills with its failure, stays empty.
+	if status := statusText(app); !strings.Contains(status, "missing_var") {
+		t.Errorf("expected the status bar to name the missing variable, got %q", status)
+	}
+	var result string
+	app.tapp.QueueUpdate(func() { result = app.result.PlainText() })
+	if result != "" {
+		t.Errorf("expected no request to be sent, the result panel shows:\n%s", result)
+	}
 }
 
 // TestF9CurlCommandUsesSubstitutedVariables checks that "copy as cURL" (F9)
@@ -72,7 +91,7 @@ func TestCtrlEAbortsOnUnknownVariable(t *testing.T) {
 // same as Ctrl+E.
 func TestF9CurlCommandUsesSubstitutedVariables(t *testing.T) {
 	app, screen := newTestApp(t)
-	app.variables = map[string]string{"idx": "my-index"}
+	onUI(app, func() { app.variables = map[string]string{"idx": "my-index"} })
 
 	injectText(screen, "GET ${idx}/_search")
 	waitForDraw(t, screen)
@@ -118,8 +137,8 @@ func TestF7ReloadsVariablesFromDisk(t *testing.T) {
 	screen.InjectKey(tcell.KeyF7, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	if app.variables["idx"] != "my-index" {
-		t.Errorf("expected the reloaded variables to include idx=my-index, got %v", app.variables)
+	if variables := uiValue(app, func() map[string]string { return app.variables }); variables["idx"] != "my-index" {
+		t.Errorf("expected the reloaded variables to include idx=my-index, got %v", variables)
 	}
 }
 
@@ -130,7 +149,7 @@ func TestF7ReloadsVariablesFromDisk(t *testing.T) {
 // leave variable references completely alone.
 func TestReformatBodyDoesNotSubstituteVariables(t *testing.T) {
 	app, screen := newTestApp(t)
-	app.variables = map[string]string{"idx": "my-index"}
+	onUI(app, func() { app.variables = map[string]string{"idx": "my-index"} })
 
 	injectText(screen, `POST _search`)
 	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
@@ -140,7 +159,7 @@ func TestReformatBodyDoesNotSubstituteVariables(t *testing.T) {
 	screen.InjectKey(tcell.KeyF4, 0, tcell.ModNone)
 	waitForDraw(t, screen)
 
-	if got := app.editor.Text(); !strings.Contains(got, "${idx}") {
+	if got := editorText(app); !strings.Contains(got, "${idx}") {
 		t.Errorf("expected the ${idx} placeholder to survive reformatting untouched, got:\n%s", got)
 	}
 }

@@ -1,0 +1,6 @@
+# Data compiled into the binary (go:embed) and test fixtures must have the
+# same bytes on every platform: without this, a Windows checkout with
+# core.autocrlf=true would embed CRLF line endings.
+refdata/data/**     text eol=lf
+refdata/testdata/** text eol=lf
+*.sh                text eol=lf

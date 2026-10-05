@@ -206,6 +206,7 @@ All of them live in the configuration directory (§5), and none is required.
 | `variables_<cluster>.txt` | Your `${name}` variables for that cluster, one per line: `index=my-index`. | the program, on the first connection |
 | `recipes/*.txt` | Your recipes, added to the catalog. | the program creates a commented template, `my-recipes.txt` |
 | `endpoints.txt` | Your endpoints, added to completion: one per line. | you |
+| `exports/` | The exported results, one timestamped file per export. | `Ctrl+S` on the result |
 
 **Variables.** A request may hold `${index}`: the value is taken from the variables file when the request runs. The recipes of the catalog use `index`, `node`, `repository`, `snapshot`, `field` and `task_id`. An undefined variable stops the request with a message naming it.
 
@@ -244,10 +245,7 @@ What is put **next to the binary** applies to everyone:
 | `endpoints.txt` | Common endpoints, added to completion. |
 | `cheatsheet.txt` | Starting content of the editor, in place of the built-in one. |
 
-Two precautions:
-
-- **The binary's directory must be writable by trusted people only**: what is in it is offered to every user.
-- **Exports** (`Ctrl+S` on the result) are written to `exports/` next to the binary, in a directory reserved to whoever exports first. In a shared or read-only installation, exporting fails for the others; `F2` (copy to the clipboard) remains available.
+**The binary's directory must be writable by trusted people only**: what is in it is offered to every user. It can stay read-only for the users: the program writes nothing there, and exports (`Ctrl+S` on the result) go to each user's own configuration directory (§6).
 
 ## 8. Upgrading
 
@@ -261,11 +259,13 @@ Replace the binary with the new one. Your files are left alone.
 
 The interface now starts in English as long as no language was chosen: if it was in French, press `F3` once after connecting, the choice is remembered.
 
+**From 0.6 or an earlier version**, exports were written to an `exports/` directory next to the binary. They now go to the configuration directory (§6). The old directory is neither moved nor deleted: take your files from it if you need them.
+
 See also "Before upgrading" in the [changelog](CHANGELOG.md).
 
 ## 9. Uninstalling
 
-Delete the binary, the configuration directory (§5) and, if there is one, the `exports/` directory next to the binary. TermDevTools writes nothing anywhere else, except a `crash-<date>.log` file next to the binary if it crashed.
+Delete the binary and the configuration directory (§5): TermDevTools writes nothing anywhere else. A version up to 0.6 may have left, next to the binary, an `exports/` directory and `crash-<date>.log` files.
 
 ## 10. Troubleshooting
 
@@ -282,4 +282,4 @@ Delete the binary, the configuration directory (§5) and, if there is one, the `
 | `F2` copies nothing | The copy goes through the terminal (OSC 52): PuTTY doesn't support it, `tmux` and `screen` need to be configured for it. |
 | A request with a huge answer fails with "response larger than 64 MB" | Narrow it down: `filter_path`, `size`, or `h=` for `_cat` commands. |
 | A corporate proxy is needed to reach the cluster | Not supported yet: `HTTPS_PROXY` is not read. |
-| The program crashed | A `crash-<date>.log` file is written next to the binary (or printed, if the directory can't be written to): attach it to a [bug report](https://github.com/gnocent/termdevtools/issues), after checking that it holds nothing confidential. |
+| The program crashed | A `crash-<date>.log` file is written to the configuration directory (§5), or printed if it can't be: attach it to a [bug report](https://github.com/gnocent/termdevtools/issues), after checking that it holds nothing confidential. |

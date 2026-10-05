@@ -2,6 +2,12 @@
 
 # Changelog
 
+## Unreleased
+
+- **Exports go to your configuration directory**: `Ctrl+S` on the result writes to `~/.config/termdevtools/exports/`, no longer next to the binary. Exporting therefore also works in a shared or read-only installation, and each user has their own. The status bar still shows the path of the file written.
+- **The crash report** (`crash-<date>.log`) is written to the same place.
+- **Before upgrading**: an `exports/` directory left next to the binary is neither moved nor deleted; take your files from it if you need them.
+
 ## 0.6 (beta) — October 2026
 
 **In one sentence**: TermDevTools now needs nothing but its binary, recognizes Elasticsearch and OpenSearch and their version, and offers a catalog of ready-made requests suited to the cluster.

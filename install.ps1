@@ -28,11 +28,14 @@ Write-Host "Installed to: $installDir"
 
 # Versions up to 0.5 installed companion files next to the binary. Nothing is
 # deleted here: endpoints.txt and cheatsheet.txt are still read, as the
-# team's own additions (SPEC.md §9.1), and may have been customized.
+# team's own additions (SPEC.md §9.1), and may have been customized. Up to
+# 0.6, Ctrl+S on a result exported to an "exports" directory there too;
+# exports now go to the user's configuration directory.
 $legacy = [ordered]@{
 	"cat_columns.txt" = "no longer read, can be deleted"
 	"endpoints.txt"   = "now built in; keep it only if you added endpoints of your own to it"
 	"cheatsheet.txt"  = "still the editor's starting content; delete it to get the built-in one"
+	"exports"         = "no longer written to; exports now go to your configuration directory"
 }
 foreach ($name in $legacy.Keys) {
 	if (Test-Path "$installDir\$name") {

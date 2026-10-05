@@ -266,10 +266,10 @@ intégrés. Ces fichiers, tous facultatifs, s'y ajoutent.[white]
     variables_*.txt  variables ${nom} par cluster
     recipes/*.txt    vos recettes
     endpoints.txt    vos endpoints pour la complétion
+    exports/         résultats exportés (Ctrl+S)
   [aqua]<dossier du binaire>/[white]  (équipe, partagé)
     recipes/*.txt, endpoints.txt   ceux de l'équipe
     cheatsheet.txt   contenu initial de l'éditeur
-    exports/         résultats exportés (Ctrl+S)
 
 [gray]Echap pour fermer cette aide.[white]`,
 
@@ -421,10 +421,10 @@ built in. These files, all optional, add to them.[white]
     variables_*.txt  ${name} variables, per cluster
     recipes/*.txt    your recipes
     endpoints.txt    your endpoints for completion
+    exports/         exported results (Ctrl+S)
   [aqua]<binary's directory>/[white]  (team, shared)
     recipes/*.txt, endpoints.txt   the team's
     cheatsheet.txt   editor's initial content
-    exports/         exported results (Ctrl+S)
 
 [gray]Esc to close this help.[white]`,
 

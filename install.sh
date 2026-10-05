@@ -41,6 +41,12 @@ for legacy in cat_columns.txt endpoints.txt cheatsheet.txt; do
 	fi
 done
 
+# Up to 0.6, Ctrl+S on a result exported next to the binary. Exports now go
+# to the user's configuration directory; what was exported here is left alone.
+if [ -d "$install_dir/exports" ]; then
+	echo "Left over from an earlier version: $install_dir/exports (no longer written to; exports now go to your configuration directory)"
+fi
+
 case ":$PATH:" in
 *":$bin_dir:"*) echo ; echo "Run: termdevtools" ;;
 *)

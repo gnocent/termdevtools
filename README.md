@@ -122,11 +122,11 @@ Only the binary is needed. Every file below is **optional** or created by the pr
 | `~/.config/termdevtools/` | `queries_<cluster>.txt` | Your requests for each cluster, saved by `Ctrl+S` and on exit. |
 | `~/.config/termdevtools/` | `variables_<cluster>.txt` | Your `${name}` variables for each cluster — see [Reusable variables](#reusable-variables). |
 | `~/.config/termdevtools/` | `recipes/*.txt`, `endpoints.txt` | Your own recipes and endpoints, added to the built-in ones — see [Recipes and reference data](#recipes-and-reference-data). |
+| `~/.config/termdevtools/` | `exports/` | Results exported with `Ctrl+S` from the right panel. Up to 0.6, this directory was next to the binary. |
 | next to the binary | `recipes/*.txt`, `endpoints.txt` | Same, shared by everyone using that installation. |
 | next to the binary | `cheatsheet.txt` | That installation's own starting content for the editor, in place of the built-in one. |
-| next to the binary | `exports/` | Results exported with `Ctrl+S` from the right panel. |
 
-On Windows, `~` stands for `%USERPROFILE%`.
+On Windows, `~` stands for `%USERPROFILE%`. The program writes nothing next to the binary: its directory can be read-only.
 
 ### Upgrading from 0.5
 

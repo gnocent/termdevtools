@@ -22,8 +22,9 @@ import (
 // on startup, located next to the binary. See SPEC.md §9.1.
 const CheatsheetFileName = "cheatsheet.txt"
 
-// ExportsDirName is the subfolder (next to the binary) where Ctrl+S exports
-// the result displayed in the right panel. See SPEC.md §3.3 and §9.1.
+// ExportsDirName is the subfolder (of the user's configuration directory)
+// where Ctrl+S exports the result displayed in the right panel. See SPEC.md
+// §3.3 and §9.1.
 const ExportsDirName = "exports"
 
 // Paths gathers the file locations resolved by the caller (main.go) — see
@@ -36,6 +37,9 @@ type Paths struct {
 	// connected to, when nothing is saved for it yet and there is no
 	// Cheatsheet file. Empty: the editor starts empty.
 	Starter string
+	// Exports is the directory, created on the first export, that Ctrl+S
+	// writes the displayed result to: the user's own, so that exporting
+	// doesn't depend on the binary's directory being writable.
 	Exports string
 	// Reference locates the optional files extending the reference data
 	// built into the binary: the team's (next to the binary) and the

@@ -55,9 +55,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, msgs.ErrExecDirFmt+"\n", err)
 		os.Exit(1)
 	}
-	// Empty if the configuration directory can't be resolved: the user's
-	// reference files are then simply not looked for (config.Load above
-	// would already have failed for the same reason anyway).
+	// Where the user's reference files are read from, and where exports and
+	// crash reports are written. The error is not checked again: config.Load
+	// above resolves the same directory and has already failed without it.
 	userDir, _ := config.ConfigDir()
 	reference := refdata.Sources{TeamDir: exeDir, UserDir: userDir}
 
@@ -81,15 +81,10 @@ func main() {
 	// Best-effort, like the other self-documenting files (config.yaml,
 	// variables): without it the user's recipes simply have no template.
 	_ = refdata.CreateUserTemplate(userDir)
-	paths := ui.Paths{
-		Cheatsheet: filepath.Join(exeDir, ui.CheatsheetFileName),
-		Starter:    refdata.Starter(),
-		Exports:    filepath.Join(exeDir, ui.ExportsDirName),
-		Reference:  reference,
-	}
+	paths := buildPaths(exeDir, userDir, reference)
 
 	tapp := tview.NewApplication()
-	defer recoverCrash(tapp, exeDir, msgs)
+	defer recoverCrash(tapp, userDir, msgs)
 	pages := tview.NewPages()
 
 	// Ctrl+C must be able to quit right from the connection screen, before
@@ -140,15 +135,29 @@ func main() {
 	}
 }
 
+// buildPaths resolves the files the interface reads and writes (SPEC.md
+// §9.1). exeDir, the binary's directory, only supplies what an installation
+// shares and is read; what the program writes — exports — goes to userDir,
+// the user's own configuration directory: in a shared or read-only
+// installation the binary's directory can't be written to.
+func buildPaths(exeDir, userDir string, reference refdata.Sources) ui.Paths {
+	return ui.Paths{
+		Cheatsheet: filepath.Join(exeDir, ui.CheatsheetFileName),
+		Starter:    refdata.Starter(),
+		Exports:    filepath.Join(userDir, ui.ExportsDirName),
+		Reference:  reference,
+	}
+}
+
 // recoverCrash catches a panic in the main goroutine — where
 // tview.Application.Run processes events — and writes it, with a full stack
-// trace, to a timestamped file next to the binary: the only way to get a
-// real diagnosis for a crash nobody watching can reproduce or transcribe by
-// hand. Best-effort only: a panic inside tcell's own separate
-// input-reading goroutine, rather than in the application code Run() itself
-// processes, would not be caught here — Go's recover only catches panics in
-// the same goroutine as the deferred call.
-func recoverCrash(tapp *tview.Application, exeDir string, msgs *i18n.Strings) {
+// trace, to a timestamped file in dir, the user's configuration directory:
+// the only way to get a real diagnosis for a crash nobody watching can
+// reproduce or transcribe by hand. Best-effort only: a panic inside tcell's
+// own separate input-reading goroutine, rather than in the application code
+// Run() itself processes, would not be caught here — Go's recover only
+// catches panics in the same goroutine as the deferred call.
+func recoverCrash(tapp *tview.Application, dir string, msgs *i18n.Strings) {
 	r := recover()
 	if r == nil {
 		return
@@ -163,14 +172,27 @@ func recoverCrash(tapp *tview.Application, exeDir string, msgs *i18n.Strings) {
 	}()
 
 	report := fmt.Sprintf("%v\n\n%s", r, debug.Stack())
-	path := filepath.Join(exeDir, fmt.Sprintf("crash-%s.log", time.Now().Format("20060102-150405")))
 
 	fmt.Fprintf(os.Stderr, msgs.ErrCrashedFmt+"\n", r)
-	if err := os.WriteFile(path, []byte(report), 0o600); err != nil {
+	if path, err := writeCrashReport(dir, report, time.Now()); err != nil {
 		fmt.Fprintf(os.Stderr, msgs.ErrCrashReportWriteFailedFmt+"\n", err)
 		fmt.Fprint(os.Stderr, report)
 	} else {
 		fmt.Fprintf(os.Stderr, msgs.InfoCrashReportFmt+"\n", path)
 	}
 	os.Exit(1)
+}
+
+// writeCrashReport writes report to a timestamped file in dir — created if
+// needed: nothing guarantees it still exists by the time a crash happens —
+// and returns the path of that file.
+func writeCrashReport(dir, report string, now time.Time) (string, error) {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, fmt.Sprintf("crash-%s.log", now.Format("20060102-150405")))
+	if err := os.WriteFile(path, []byte(report), 0o600); err != nil {
+		return "", err
+	}
+	return path, nil
 }

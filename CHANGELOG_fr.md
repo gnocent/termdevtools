@@ -2,6 +2,12 @@
 
 # Journal des versions
 
+## Non publié
+
+- **Les exports vont dans votre dossier de configuration** : `Ctrl+S` sur le résultat écrit dans `~/.config/termdevtools/exports/`, et plus à côté du binaire. L'export fonctionne donc aussi dans une installation partagée ou en lecture seule, et chaque utilisateur a les siens. La barre de statut affiche toujours le chemin du fichier écrit.
+- **Le rapport de plantage** (`crash-<date>.log`) est écrit au même endroit.
+- **Avant de mettre à jour** : un dossier `exports/` resté à côté du binaire n'est ni déplacé ni supprimé ; récupérez-y vos fichiers si vous en avez besoin.
+
 ## 0.6 (bêta) — octobre 2026
 
 **En une phrase** : TermDevTools n'a plus besoin que de son binaire, reconnaît Elasticsearch et OpenSearch ainsi que leur version, et propose un catalogue de requêtes prêtes à l'emploi adapté au cluster.

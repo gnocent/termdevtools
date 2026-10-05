@@ -122,11 +122,11 @@ Seul le binaire est nécessaire. Tous les fichiers ci-dessous sont **facultatifs
 | `~/.config/termdevtools/` | `queries_<cluster>.txt` | Vos requêtes pour chaque cluster, sauvegardées par `Ctrl+S` et à la fermeture. |
 | `~/.config/termdevtools/` | `variables_<cluster>.txt` | Vos variables `${nom}` pour chaque cluster — voir [Variables réutilisables](#variables-réutilisables). |
 | `~/.config/termdevtools/` | `recipes/*.txt`, `endpoints.txt` | Vos propres recettes et endpoints, ajoutés à ceux du binaire — voir [Recettes et données de référence](#recettes-et-données-de-référence). |
+| `~/.config/termdevtools/` | `exports/` | Résultats exportés avec `Ctrl+S` depuis le panneau droit. Jusqu'à la 0.6, ce dossier se trouvait à côté du binaire. |
 | à côté du binaire | `recipes/*.txt`, `endpoints.txt` | Idem, partagés par tous les utilisateurs de cette installation. |
 | à côté du binaire | `cheatsheet.txt` | Contenu de départ de l'éditeur propre à cette installation, à la place de celui du binaire. |
-| à côté du binaire | `exports/` | Résultats exportés avec `Ctrl+S` depuis le panneau droit. |
 
-Sous Windows, `~` désigne `%USERPROFILE%`.
+Sous Windows, `~` désigne `%USERPROFILE%`. Le programme n'écrit rien à côté du binaire : son dossier peut être en lecture seule.
 
 ### Mise à jour depuis la 0.5
 

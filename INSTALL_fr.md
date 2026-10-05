@@ -206,6 +206,7 @@ Tous se trouvent dans le dossier de configuration (§5), et aucun n'est obligato
 | `variables_<cluster>.txt` | Vos variables `${nom}` pour ce cluster, une par ligne : `index=mon-index`. | le programme, à la première connexion |
 | `recipes/*.txt` | Vos recettes, ajoutées au catalogue. | le programme crée un modèle commenté, `my-recipes.txt` |
 | `endpoints.txt` | Vos endpoints, ajoutés à la complétion : un par ligne. | vous |
+| `exports/` | Les résultats exportés, un fichier horodaté par export. | `Ctrl+S` sur le résultat |
 
 **Variables.** Une requête peut contenir `${index}` : la valeur est prise dans le fichier de variables au moment de l'exécution. Les recettes du catalogue utilisent `index`, `node`, `repository`, `snapshot`, `field` et `task_id`. Une variable non définie arrête la requête avec un message qui la nomme.
 
@@ -244,10 +245,7 @@ Ce qui est déposé **à côté du binaire** vaut pour tous :
 | `endpoints.txt` | Endpoints communs, ajoutés à la complétion. |
 | `cheatsheet.txt` | Contenu de départ de l'éditeur, à la place de celui du binaire. |
 
-Deux précautions :
-
-- **Le dossier du binaire doit n'être modifiable que par des personnes de confiance** : ce qui s'y trouve est proposé à tous les utilisateurs.
-- **Les exports** (`Ctrl+S` sur le résultat) sont écrits dans `exports/` à côté du binaire, dans un dossier réservé à celui qui exporte le premier. Dans une installation partagée ou en lecture seule, l'export échoue pour les autres ; `F2` (copie dans le presse-papier) reste disponible.
+**Le dossier du binaire doit n'être modifiable que par des personnes de confiance** : ce qui s'y trouve est proposé à tous les utilisateurs. Il peut rester en lecture seule pour les utilisateurs : le programme n'y écrit rien, et les exports (`Ctrl+S` sur le résultat) vont dans le dossier de configuration de chacun (§6).
 
 ## 8. Mettre à jour
 
@@ -261,11 +259,13 @@ Remplacez le binaire par le nouveau. Vos fichiers ne sont pas touchés.
 
 L'interface démarre désormais en anglais tant qu'aucune langue n'a été choisie : si elle était en français, appuyez une fois sur `F3` après la connexion, le choix est retenu.
 
+**Depuis la 0.6 ou une version antérieure**, les exports étaient écrits dans un dossier `exports/` à côté du binaire. Ils le sont désormais dans le dossier de configuration (§6). L'ancien dossier n'est ni déplacé ni supprimé : récupérez-y vos fichiers si vous en avez besoin.
+
 Voir aussi « À savoir avant de mettre à jour » dans le [journal des versions](CHANGELOG_fr.md).
 
 ## 9. Désinstaller
 
-Supprimez le binaire, le dossier de configuration (§5) et, s'il existe, le dossier `exports/` à côté du binaire. TermDevTools n'écrit rien ailleurs, sauf un fichier `crash-<date>.log` à côté du binaire s'il a planté.
+Supprimez le binaire et le dossier de configuration (§5) : TermDevTools n'écrit rien ailleurs. Une version jusqu'à la 0.6 a pu laisser, à côté du binaire, un dossier `exports/` et des fichiers `crash-<date>.log`.
 
 ## 10. En cas de problème
 
@@ -284,4 +284,4 @@ Les messages sont cités en anglais, tels qu'un premier lancement les affiche, p
 | `F2` ne copie rien | La copie passe par le terminal (OSC 52) : PuTTY ne la prend pas en charge, `tmux` et `screen` demandent une configuration. |
 | Une requête sur une énorme réponse échoue avec « response larger than 64 MB » | Restreignez-la : `filter_path`, `size`, ou `h=` pour les commandes `_cat`. |
 | Un proxy d'entreprise est nécessaire pour atteindre le cluster | Non pris en charge pour l'instant : `HTTPS_PROXY` n'est pas lu. |
-| Le programme a planté | Un fichier `crash-<date>.log` est écrit à côté du binaire (ou affiché, si le dossier n'est pas modifiable) : joignez-le à un [rapport d'anomalie](https://github.com/gnocent/termdevtools/issues), après avoir vérifié qu'il ne contient rien de confidentiel. |
+| Le programme a planté | Un fichier `crash-<date>.log` est écrit dans le dossier de configuration (§5), ou affiché s'il ne peut pas l'être : joignez-le à un [rapport d'anomalie](https://github.com/gnocent/termdevtools/issues), après avoir vérifié qu'il ne contient rien de confidentiel. |

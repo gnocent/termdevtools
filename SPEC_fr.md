@@ -4,7 +4,7 @@
 
 > Simulateur en mode terminal de la vue "DevTools" de Kibana, pour soumettre des requêtes à un cluster Elasticsearch ou OpenSearch sans passer par un navigateur.
 
-Statut : ce document décrit la conception telle qu'elle est livrée — version 0.6 (bêta). Le journal des versions est dans [CHANGELOG_fr.md](CHANGELOG_fr.md), l'installation pas à pas dans [INSTALL_fr.md](INSTALL_fr.md).
+Statut : ce document décrit la conception telle qu'elle est livrée — version 0.7 (bêta). Le journal des versions est dans [CHANGELOG_fr.md](CHANGELOG_fr.md), l'installation pas à pas dans [INSTALL_fr.md](INSTALL_fr.md).
 
 ---
 
@@ -190,9 +190,9 @@ Ce qui n'est pas fait, par choix ou pas encore :
 
 **Feuille de route après la v0.5** — consignée le 2026-10-01 après comparaison avec geek-fun/dockit, cars10/elasticvue et elastic/cli. L'ordre est la séquence prévue ; chaque item reste à affiner avant d'être réalisé.
 
-1. ~~**Données de référence et recettes intégrées, adaptées à la version**~~ — livré : recettes, endpoints et colonnes `_cat` dans le binaire, sélectionnés selon la distribution (Elasticsearch ou OpenSearch) et la version détectées à la connexion, étendus par les fichiers de l'utilisateur et rechargés avec `F7` (§3.2, §5, §9.1, §9.5). Plus rien d'autre à installer que le binaire. Fait entrer OpenSearch auto-hébergé dans le périmètre.
-2. ~~**Proxy HTTP(S)**~~ — livré : `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` respectés, clé `proxy:` par cluster, proxys `http://` et `socks5://` (§5).
-3. ~~**Authentification étendue**~~ — livré : API key sous sa forme `encoded` et jetons Bearer (§3.0, §5). Le Cloud ID est reporté aux « non planifiés » ci-dessous ; SigV4 reste hors périmètre.
+1. ~~**Données de référence et recettes intégrées, adaptées à la version**~~ — livré en 0.6 : recettes, endpoints et colonnes `_cat` dans le binaire, sélectionnés selon la distribution (Elasticsearch ou OpenSearch) et la version détectées à la connexion, étendus par les fichiers de l'utilisateur et rechargés avec `F7` (§3.2, §5, §9.1, §9.5). Plus rien d'autre à installer que le binaire. Fait entrer OpenSearch auto-hébergé dans le périmètre.
+2. ~~**Proxy HTTP(S)**~~ — livré en 0.7 : `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` respectés, clé `proxy:` par cluster, proxys `http://` et `socks5://` (§5).
+3. ~~**Authentification étendue**~~ — livré en 0.7 : API key sous sa forme `encoded` et jetons Bearer (§3.0, §5). Le Cloud ID est reporté aux « non planifiés » ci-dessous ; SigV4 reste hors périmètre.
 4. **Garde-fous de production** — mode lecture seule par cluster, confirmation configurable pour les chemins destructifs, bandeau « PROD » visible.
 5. **Secrets sans ressaisie, premier palier** — lire le secret depuis une variable d'environnement ou un fichier. Le trousseau de l'OS en opt-in est une décision distincte et ultérieure (elle modifie la promesse « aucun secret persisté » du §5).
 6. **Mode watch** — rejouer la requête sous le curseur toutes les N secondes et surligner ce qui a changé.

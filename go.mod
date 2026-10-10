@@ -2,7 +2,7 @@ module termdevtools
 
 go 1.25.12
 
-toolchain go1.27.0
+toolchain go1.27.2
 
 require (
 	github.com/gdamore/tcell/v2 v2.13.10

@@ -19,7 +19,7 @@ This guide goes from the download to the first request, then details every setti
 
 - **A single file**: the `termdevtools` binary. No dependency, no file to put next to it, no Internet access at run time.
 - **A terminal of at least 80 columns by 24 rows.** Recommended: Windows Terminal, macOS Terminal or iTerm2, any Linux terminal, including over SSH. PuTTY is discouraged (it passes several shortcuts on badly).
-- **Network access to the cluster** from the machine TermDevTools runs on, and an account allowed at least to read the cluster's root (`GET /`): that is the request that validates the connection.
+- **Network access to the cluster** from the machine TermDevTools runs on — direct, or through an HTTP or SOCKS5 proxy (§5) — and an account allowed at least to read the cluster's root (`GET /`): that is the request that validates the connection.
 
 Supported clusters: Elasticsearch 7.17 to 9.x, self-managed OpenSearch 2.x and 3.x.
 
@@ -90,7 +90,7 @@ No binary is provided for Intel Macs: build from source (§2.4).
 
 ### 2.4 From source
 
-[Go](https://go.dev/) 1.25 or later is required.
+[Go](https://go.dev/) 1.25 or later is required. `go.mod` asks for the Go 1.27.2 toolchain, which fixes flaws of the standard library: an older version of Go downloads it by itself. On a machine without Internet access, install Go 1.27.2 or later.
 
 ```bash
 git clone https://github.com/gnocent/termdevtools.git
@@ -293,17 +293,22 @@ What is put **next to the binary** applies to everyone:
 
 Replace the binary with the new one. Your files are left alone.
 
-**From 0.5**, three files were installed next to the binary:
+### From 0.6
 
-- `cat_columns.txt` is no longer read: delete it.
-- `endpoints.txt` is read as an addition to the built-in list: delete it, unless you had added endpoints of your own to it.
-- `cheatsheet.txt` still provides the editor's starting content: delete it to get the built-in one.
+- **Proxy.** 0.6 ignored the `HTTPS_PROXY` and `HTTP_PROXY` variables; they are now honored. If either is set on your machine, a cluster reached directly so far will go through that proxy, and the connection may fail if the proxy can't reach it. The message then starts with `Through proxy …`. To reach it without a proxy: add it to `NO_PROXY`, or set `proxy: none` on its entry in `config.yaml` (§5).
+- **Exports.** They were written to an `exports/` directory next to the binary; they now go to the configuration directory (§6). The old directory is neither moved nor deleted: take your files from it if you need them.
 
-The interface now starts in English as long as no language was chosen: if it was in French, press `F3` once after connecting, the choice is remembered.
+### From 0.5
 
-**From 0.6 or an earlier version**, exports were written to an `exports/` directory next to the binary. They now go to the configuration directory (§6). The old directory is neither moved nor deleted: take your files from it if you need them.
+All of the above, and besides:
 
-See also "Before upgrading" in the [changelog](CHANGELOG.md).
+- Three files were installed next to the binary:
+  - `cat_columns.txt` is no longer read: delete it.
+  - `endpoints.txt` is read as an addition to the built-in list: delete it, unless you had added endpoints of your own to it.
+  - `cheatsheet.txt` still provides the editor's starting content: delete it to get the built-in one.
+- The interface starts in English as long as no language was chosen: if it was in French, press `F3` once after connecting, the choice is remembered.
+
+See also "Before upgrading" in the [changelog](CHANGELOG.md), for each version.
 
 ## 9. Uninstalling
 

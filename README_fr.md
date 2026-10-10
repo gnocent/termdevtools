@@ -5,15 +5,16 @@
 Simulateur en mode terminal de la vue **DevTools** de Kibana, pour interroger un cluster Elasticsearch ou OpenSearch directement depuis un terminal — Linux (dont RHEL 8/9/10), Windows ou macOS — sans navigateur ni Kibana fonctionnel. Un seul binaire, rien d'autre à installer.
 
 > [!IMPORTANT]
-> **Nouveautés de la 0.6 (bêta)**
+> **Nouveautés de la 0.7 (bêta)**
 >
-> - **Catalogue de recettes (`F8`)** — une centaine de requêtes prêtes à l'emploi pour les investigations courantes : santé du cluster, shards non assignés, disque, nœuds, tâches, snapshots, cycle de vie des index, montées de version.
-> - **Elasticsearch et OpenSearch, selon la version** — la distribution et la version sont détectées à la connexion (Elasticsearch 7.17 à 9.x, OpenSearch 2.x et 3.x) ; seuls les recettes et endpoints qui existent sur ce cluster sont proposés.
-> - **Un seul fichier à installer** — recettes, endpoints et colonnes `_cat` sont intégrés au binaire ; les releases sont accompagnées de leurs sommes SHA-256.
-> - **Vos propres recettes et endpoints** — de simples fichiers texte, ajoutés à ceux du binaire et rechargés avec `F7`.
-> - **Plus sûr** — redirections HTTP jamais suivies, identifiants refusés dans l'URL, sauvegardes atomiques, `Ctrl+C` qui sauvegarde toujours avant de quitter, clés client chiffrées PKCS#8 acceptées.
+> - **À travers un proxy** — les variables `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` sont respectées, et `proxy:` dans `config.yaml` fixe ou interdit un proxy pour un cluster donné : HTTP, ou SOCKS5 (ce qu'ouvre `ssh -D`). Le proxy utilisé est toujours affiché.
+> - **Clés d'API telles que Kibana les donne** — la forme `encoded` se colle directement, sans identifiant à saisir.
+> - **Jetons Bearer** — un nouveau type d'authentification, pour un jeton de compte de service, un jeton d'accès ou un JWT.
+> - **Plus rien d'écrit à côté du binaire** — les exports (`Ctrl+S` sur un résultat) vont dans votre dossier de configuration : une installation partagée ou en lecture seule fonctionne entièrement.
 >
-> C'est une **version bêta** : vérifiée sur onze clusters réels, pas encore par d'autres utilisateurs que son auteur. Détail, points à connaître avant de mettre à jour depuis la 0.5 et limites connues : **[journal des versions](CHANGELOG_fr.md)**.
+> **Avant de mettre à jour depuis la 0.6** : si `HTTPS_PROXY` est défini sur votre poste, vos clusters passeront désormais par ce proxy — voir [Mise à jour](#mise-à-jour-depuis-une-version-antérieure).
+>
+> C'est une **version bêta**, pas encore utilisée par d'autres que son auteur. La 0.6 avait apporté le catalogue de recettes (`F8`) et la prise en charge d'Elasticsearch et d'OpenSearch selon leur version. Détail et limites connues : **[journal des versions](CHANGELOG_fr.md)**.
 
 - [Démo](#démo)
 - [Pourquoi](#pourquoi)
@@ -33,7 +34,7 @@ Autres documents : [guide d'installation et de paramétrage](INSTALL_fr.md) · [
 
 <p align="center"><img src="demotermdevtools.gif" alt="Démo animée : connexion à un cluster, exécution de requêtes, consultation du mapping d'un index et de _cat/shards, et recherche dans un résultat"></p>
 
-*Animation enregistrée avec la version 0.5 : le catalogue de recettes (`F8`) n'y figure pas.*
+*Animation enregistrée avec la version 0.5 : le catalogue de recettes (`F8`) et les nouveautés des versions suivantes n'y figurent pas.*
 
 ## Pourquoi
 
@@ -104,13 +105,13 @@ Chaque script :
 
 - compile `termdevtools` pour votre OS/architecture courants — le binaire est tout ce qu'il y a à installer ;
 - indique quoi ajouter à votre `PATH` si l'emplacement d'installation n'y est pas encore ;
-- signale, sans y toucher, les fichiers annexes qu'une version antérieure (jusqu'à la 0.5) a pu laisser à côté du binaire (voir [Mise à jour depuis la 0.5](#mise-à-jour-depuis-la-05)).
+- signale, sans y toucher, ce qu'une version antérieure a pu laisser à côté du binaire (voir [Mise à jour depuis une version antérieure](#mise-à-jour-depuis-une-version-antérieure)).
 
 Emplacement par défaut : `~/.local/share/termdevtools` sous Linux/macOS (lié via un symlink dans `~/.local/bin`), `%LOCALAPPDATA%\termdevtools` sous Windows. Personnalisable via la variable d'environnement `TERMDEVTOOLS_INSTALL_DIR` (et `TERMDEVTOOLS_BIN_DIR` sous Linux/macOS pour l'emplacement du symlink) — par exemple pour une installation partagée dans `/opt/termdevtools`.
 
 Pour compiler sans installer : `go build -o termdevtools .`
 
-Le script [`build-release.sh`](build-release.sh) produit dans `dist/` les trois binaires publiés et leur fichier `SHA256SUMS`, en y inscrivant la version (`./build-release.sh v0.6`, ou sans argument ce que `git describe` dit du dépôt) — celle que `termdevtools --version` affiche.
+Le script [`build-release.sh`](build-release.sh) produit dans `dist/` les trois binaires publiés et leur fichier `SHA256SUMS`, en y inscrivant la version (`./build-release.sh v0.7`, ou sans argument ce que `git describe` dit du dépôt) — celle que `termdevtools --version` affiche.
 
 ### Arborescence d'installation
 
@@ -128,7 +129,16 @@ Seul le binaire est nécessaire. Tous les fichiers ci-dessous sont **facultatifs
 
 Sous Windows, `~` désigne `%USERPROFILE%`. Le programme n'écrit rien à côté du binaire : son dossier peut être en lecture seule.
 
-### Mise à jour depuis la 0.5
+### Mise à jour depuis une version antérieure
+
+Remplacez le binaire : vos fichiers ne sont pas touchés.
+
+**Depuis la 0.6**
+
+- **Proxy** : la 0.6 ignorait `HTTPS_PROXY` et `HTTP_PROXY`. Si l'une d'elles est définie sur votre poste, un cluster joint en direct jusqu'ici passera par ce proxy. S'il ne le doit pas, ajoutez-le à `NO_PROXY`, ou mettez `proxy: none` sur son entrée dans `config.yaml`. Le message de connexion nomme toujours le proxy emprunté.
+- **Exports** : ils étaient écrits dans un dossier `exports/` à côté du binaire, et le sont désormais dans `~/.config/termdevtools/exports/`. L'ancien dossier n'est ni déplacé ni supprimé.
+
+**Depuis la 0.5**
 
 Les versions jusqu'à la 0.5 étaient livrées avec trois fichiers à côté du binaire. Une fois le binaire remplacé :
 
@@ -155,7 +165,7 @@ La version pas à pas, champ par champ, avec la création d'une clé d'API et le
 
 ## Configuration
 
-Aucune configuration n'est nécessaire pour démarrer : un écran de connexion permet de saisir directement l'URL et les identifiants d'un cluster, et `~/.config/termdevtools/config.yaml` est créé automatiquement, chaque paramètre documenté sur place. Un exemple est fourni à titre indicatif dans `config.yaml.example` — **il ne contient jamais de secret** : mots de passe, clés d'API et passphrases sont redemandés à chaque connexion, jamais écrits sur disque (voir [Sécurité](#sécurité)). Chaque paramètre est décrit dans le [guide, §5](INSTALL_fr.md#5-réglages--configyaml).
+Aucune configuration n'est nécessaire pour démarrer : un écran de connexion permet de saisir directement l'URL et les identifiants d'un cluster, et `~/.config/termdevtools/config.yaml` est créé automatiquement, chaque paramètre documenté sur place. Un exemple est fourni à titre indicatif dans `config.yaml.example` — **il ne contient jamais de secret** : mots de passe, secrets de clé d'API, jetons et passphrases sont redemandés à chaque connexion, jamais écrits sur disque (voir [Sécurité](#sécurité)). Chaque paramètre est décrit dans le [guide, §5](INSTALL_fr.md#5-réglages--configyaml).
 
 La distribution et la version du cluster sont détectées à chaque connexion et affichées dans la barre de statut (`ES 9.5.4`, `OS 2.19.6`). Quand elles ne peuvent pas l'être — un proxy qui masque la réponse du cluster, ou un OpenSearch en mode compatibilité, qui annonce une fausse version — tout ce qui pourrait s'appliquer est proposé plutôt que masqué ; `distribution:` et `version:` sur l'entrée du cluster dans `config.yaml` permettent alors de les indiquer vous-même.
 
@@ -242,7 +252,7 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 
 **Ce qui a été vérifié, et ce qui ne l'a pas été**
 
-- Relecture de sécurité du code et tests automatisés pour chacun des points ci-dessus ; `govulncheck` ne signale aucune vulnérabilité connue dans les dépendances.
+- Relecture de sécurité du code et tests automatisés pour chacun des points ci-dessus ; `govulncheck` ne signale aucune vulnérabilité connue, ni dans les dépendances ni dans la bibliothèque standard de la version de Go qui compile les binaires (1.27.2).
 - Chaque requête de chaque recette a été exécutée sur onze clusters réels (Elasticsearch 7.17 à 9.5, OpenSearch 2.0 à 3.9).
 - L'authentification par mot de passe, par clé d'API et par jeton Bearer est vérifiée sur un Elasticsearch réel dont la sécurité est activée. Le passage par un proxy l'est avec un proxy HTTP et un serveur SOCKS5 de test, pas avec un proxy d'entreprise réel.
 - **Aucun audit externe indépendant n'a été réalisé**, et les binaires ne sont pas signés : vérifiez leur somme SHA-256. Voir aussi l'[avertissement](#avertissement--limitation-de-responsabilité) ci-dessous.

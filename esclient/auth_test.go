@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -99,6 +100,31 @@ func TestBearerAuthorization(t *testing.T) {
 		if got, want := authorizationSentWith(t, Params{AuthType: AuthBearer, BearerToken: typed}), "Bearer "+token; got != want {
 			t.Errorf("%s: expected %q, got %q", name, want, got)
 		}
+	}
+}
+
+// TestBearerTokenCannotAddHeaders checks that a token with a line break in
+// its middle — the one secret that goes into a header as it is typed — is
+// not sent at all, rather than letting what follows the break become a
+// header of its own, and that the refusal doesn't repeat the token.
+func TestBearerTokenCannotAddHeaders(t *testing.T) {
+	var reached atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { reached.Store(true) }))
+	defer srv.Close()
+
+	client, err := New(Params{URL: srv.URL, AuthType: AuthBearer, BearerToken: "s3cr3t-t0ken\r\nX-Injected: yes"})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	_, err = client.Execute(context.Background(), "GET", "/", nil)
+	if err == nil {
+		t.Fatal("expected the request to be refused")
+	}
+	if reached.Load() {
+		t.Error("expected nothing to be sent to the cluster")
+	}
+	if strings.Contains(err.Error(), "s3cr3t-t0ken") {
+		t.Errorf("expected the token to be left out of the error, got: %v", err)
 	}
 }
 

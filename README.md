@@ -5,15 +5,16 @@
 A terminal-mode simulator of Kibana's **DevTools** view, for querying an Elasticsearch or OpenSearch cluster directly from a terminal — Linux (including RHEL 8/9/10), Windows, or macOS — without a browser or a working Kibana. A single binary, with nothing else to install.
 
 > [!IMPORTANT]
-> **What's new in 0.6 (beta)**
+> **What's new in 0.7 (beta)**
 >
-> - **Recipe catalog (`F8`)** — about a hundred ready-made requests for the usual investigations: cluster health, unassigned shards, disk, nodes, tasks, snapshots, index lifecycle, upgrades.
-> - **Elasticsearch and OpenSearch, by version** — the distribution and version are detected at connection (Elasticsearch 7.17 to 9.x, OpenSearch 2.x and 3.x); only the recipes and endpoints that exist on that cluster are offered.
-> - **A single file to install** — recipes, endpoints and `_cat` columns are built into the binary; releases come with their SHA-256 checksums.
-> - **Your own recipes and endpoints** — plain text files, added to the built-in ones and reloaded with `F7`.
-> - **Safer** — HTTP redirections never followed, credentials refused in the URL, atomic saves, `Ctrl+C` always saving before quitting, PKCS#8 encrypted client keys accepted.
+> - **Through a proxy** — the `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` variables are honored, and `proxy:` in `config.yaml` sets or rules out a proxy for a given cluster: HTTP, or SOCKS5 (what `ssh -D` opens). The proxy in use is always displayed.
+> - **API keys the way Kibana gives them** — the `encoded` form is pasted as it is, with no identifier to enter.
+> - **Bearer tokens** — a new authentication type, for a service account token, an access token or a JWT.
+> - **Nothing written next to the binary anymore** — exports (`Ctrl+S` on a result) go to your configuration directory: a shared or read-only installation works in full.
 >
-> This is a **beta version**: checked against eleven real clusters, not yet by users other than its author. Details, what to know before upgrading from 0.5, and known limits: **[changelog](CHANGELOG.md)**.
+> **Before upgrading from 0.6**: if `HTTPS_PROXY` is set on your machine, your clusters will now go through that proxy — see [Upgrading](#upgrading-from-an-earlier-version).
+>
+> This is a **beta version**, not yet used by anyone but its author. 0.6 had brought the recipe catalog (`F8`) and support for Elasticsearch and OpenSearch according to their version. Details and known limits: **[changelog](CHANGELOG.md)**.
 
 - [Demo](#demo)
 - [Why](#why)
@@ -33,7 +34,7 @@ Other documents: [installation and configuration guide](INSTALL.md) · [changelo
 
 <p align="center"><img src="demotermdevtools.gif" alt="Animated demo: connecting to a cluster, running requests, browsing an index mapping and _cat/shards, and searching within a result"></p>
 
-*Animation recorded with version 0.5: the recipe catalog (`F8`) isn't in it.*
+*Animation recorded with version 0.5: the recipe catalog (`F8`) and what later versions added aren't in it.*
 
 ## Why
 
@@ -104,13 +105,13 @@ Each script:
 
 - builds `termdevtools` for your current OS/architecture — the binary is all there is to install;
 - prints what to add to your `PATH` if the install location isn't on it yet;
-- points out, without touching them, the companion files an earlier version (up to 0.5) may have left next to the binary (see [Upgrading from 0.5](#upgrading-from-05)).
+- points out, without touching it, what an earlier version may have left next to the binary (see [Upgrading from an earlier version](#upgrading-from-an-earlier-version)).
 
 Default install location: `~/.local/share/termdevtools` on Linux/macOS (symlinked from `~/.local/bin`), `%LOCALAPPDATA%\termdevtools` on Windows. Override it with the `TERMDEVTOOLS_INSTALL_DIR` environment variable (and `TERMDEVTOOLS_BIN_DIR` on Linux/macOS for the symlink location) — for instance for a shared installation in `/opt/termdevtools`.
 
 To build without installing: `go build -o termdevtools .`
 
-The [`build-release.sh`](build-release.sh) script produces the three published binaries and their `SHA256SUMS` file in `dist/`, stamping them with the version (`./build-release.sh v0.6`, or without an argument what `git describe` says of the checkout) — the one `termdevtools --version` prints.
+The [`build-release.sh`](build-release.sh) script produces the three published binaries and their `SHA256SUMS` file in `dist/`, stamping them with the version (`./build-release.sh v0.7`, or without an argument what `git describe` says of the checkout) — the one `termdevtools --version` prints.
 
 ### Installation layout
 
@@ -128,7 +129,16 @@ Only the binary is needed. Every file below is **optional** or created by the pr
 
 On Windows, `~` stands for `%USERPROFILE%`. The program writes nothing next to the binary: its directory can be read-only.
 
-### Upgrading from 0.5
+### Upgrading from an earlier version
+
+Replace the binary: your files are left alone.
+
+**From 0.6**
+
+- **Proxy**: 0.6 ignored `HTTPS_PROXY` and `HTTP_PROXY`. If either is set on your machine, a cluster reached directly so far will go through that proxy. If it must not, add it to `NO_PROXY`, or set `proxy: none` on its entry in `config.yaml`. The connection message always names the proxy gone through.
+- **Exports**: they were written to an `exports/` directory next to the binary, and now go to `~/.config/termdevtools/exports/`. The old directory is neither moved nor deleted.
+
+**From 0.5**
 
 Versions up to 0.5 came with three files next to the binary. After replacing the binary:
 
@@ -155,7 +165,7 @@ The step-by-step version, field by field, with how to create an API key and whic
 
 ## Configuration
 
-No configuration is needed to get started: a connection screen lets you enter a cluster's URL and credentials directly, and `~/.config/termdevtools/config.yaml` is created automatically, every setting documented in place. A sample is provided for reference in `config.yaml.example` — **it never contains a secret**: passwords, API key secrets, and passphrases are always re-requested on connection, never written to disk (see [Security](#security)). Every setting is described in the [guide, §5](INSTALL.md#5-settings-configyaml).
+No configuration is needed to get started: a connection screen lets you enter a cluster's URL and credentials directly, and `~/.config/termdevtools/config.yaml` is created automatically, every setting documented in place. A sample is provided for reference in `config.yaml.example` — **it never contains a secret**: passwords, API key secrets, tokens, and passphrases are always re-requested on connection, never written to disk (see [Security](#security)). Every setting is described in the [guide, §5](INSTALL.md#5-settings-configyaml).
 
 The cluster's distribution and version are detected at every connection and shown in the status bar (`ES 9.5.4`, `OS 2.19.6`). When they can't be — a proxy hiding the cluster's answer, or an OpenSearch in compatibility mode, which reports a fake version — everything that might apply is offered rather than hidden; `distribution:` and `version:` on a cluster's entry in `config.yaml` then let you state them yourself.
 
@@ -242,7 +252,7 @@ Values live in `~/.config/termdevtools/variables_<cluster>.txt` — one per clus
 
 **What was checked, and what wasn't**
 
-- Security review of the code and automated tests for each of the points above; `govulncheck` reports no known vulnerability in the dependencies.
+- Security review of the code and automated tests for each of the points above; `govulncheck` reports no known vulnerability, neither in the dependencies nor in the standard library of the Go version the binaries are built with (1.27.2).
 - Every request of every recipe was run against eleven real clusters (Elasticsearch 7.17 to 9.5, OpenSearch 2.0 to 3.9).
 - Authentication by password, by API key and by Bearer token is checked against a real Elasticsearch with security on. Going through a proxy is checked with a test HTTP proxy and a test SOCKS5 server, not with a real corporate proxy.
 - **No independent external audit was carried out**, and the binaries are not signed: check their SHA-256 checksum. See also the [disclaimer](#disclaimer--limitation-of-liability) below.

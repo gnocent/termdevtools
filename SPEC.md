@@ -4,7 +4,7 @@
 
 > Terminal-mode simulator of Kibana's "DevTools" view, for submitting requests to an Elasticsearch or OpenSearch cluster without going through a browser.
 
-Status: this document describes the design as shipped — version 0.6 (beta). The version history is in [CHANGELOG.md](CHANGELOG.md), the step-by-step installation in [INSTALL.md](INSTALL.md).
+Status: this document describes the design as shipped — version 0.7 (beta). The version history is in [CHANGELOG.md](CHANGELOG.md), the step-by-step installation in [INSTALL.md](INSTALL.md).
 
 ---
 
@@ -190,9 +190,9 @@ What isn't done, by choice or not yet:
 
 **Roadmap after v0.5** — recorded on 2026-10-01 after comparing with geek-fun/dockit, cars10/elasticvue and elastic/cli. The order is the intended sequence; every item is still to be refined before it is built.
 
-1. ~~**Built-in, version-aware reference data and recipes**~~ — shipped: recipes, endpoints and `_cat` columns inside the binary, selected from the distribution (Elasticsearch or OpenSearch) and version detected at connection, extended by the user's own files and reloaded with `F7` (§3.2, §5, §9.1, §9.5). Nothing but the binary to install. Brings self-managed OpenSearch into scope.
-2. ~~**HTTP(S) proxy**~~ — delivered: `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` honored, a per-cluster `proxy:` key, `http://` and `socks5://` proxies (§5).
-3. ~~**Extended authentication**~~ — delivered: API key in its `encoded` form and Bearer tokens (§3.0, §5). The Cloud ID is moved to the "not scheduled" items below; SigV4 stays out.
+1. ~~**Built-in, version-aware reference data and recipes**~~ — delivered in 0.6: recipes, endpoints and `_cat` columns inside the binary, selected from the distribution (Elasticsearch or OpenSearch) and version detected at connection, extended by the user's own files and reloaded with `F7` (§3.2, §5, §9.1, §9.5). Nothing but the binary to install. Brings self-managed OpenSearch into scope.
+2. ~~**HTTP(S) proxy**~~ — delivered in 0.7: `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` honored, a per-cluster `proxy:` key, `http://` and `socks5://` proxies (§5).
+3. ~~**Extended authentication**~~ — delivered in 0.7: API key in its `encoded` form and Bearer tokens (§3.0, §5). The Cloud ID is moved to the "not scheduled" items below; SigV4 stays out.
 4. **Production guardrails** — per-cluster read-only mode, configurable confirmation for destructive paths, a visible "PROD" banner.
 5. **Secrets without retyping, first tier** — read the secret from an environment variable or a file. An opt-in OS keychain is a separate, later decision (it changes the "no secret ever persisted" promise of §5).
 6. **Watch mode** — re-run the request under the cursor every N seconds and highlight what changed.

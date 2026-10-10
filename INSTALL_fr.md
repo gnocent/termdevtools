@@ -19,7 +19,7 @@ Ce guide va du téléchargement à la première requête, puis détaille chaque 
 
 - **Un seul fichier** : le binaire `termdevtools`. Aucune dépendance, aucun fichier à poser à côté, aucun accès à Internet à l'exécution.
 - **Un terminal d'au moins 80 colonnes sur 24 lignes.** Recommandés : Windows Terminal, le Terminal de macOS ou iTerm2, n'importe quel terminal Linux, y compris à travers SSH. PuTTY est déconseillé (plusieurs raccourcis y sont mal transmis).
-- **Un accès réseau au cluster** depuis la machine où tourne TermDevTools, et un compte autorisé au minimum à lire la racine du cluster (`GET /`) : c'est la requête qui valide la connexion.
+- **Un accès réseau au cluster** depuis la machine où tourne TermDevTools — direct, ou à travers un proxy HTTP ou SOCKS5 (§5) — et un compte autorisé au minimum à lire la racine du cluster (`GET /`) : c'est la requête qui valide la connexion.
 
 Clusters pris en charge : Elasticsearch de la 7.17 à la 9.x, OpenSearch 2.x et 3.x auto-hébergé.
 
@@ -90,7 +90,7 @@ Les Mac à processeur Intel ne sont pas fournis en binaire : compilez depuis les
 
 ### 2.4 Depuis les sources
 
-Il faut [Go](https://go.dev/) 1.25 ou plus récent.
+Il faut [Go](https://go.dev/) 1.25 ou plus récent. `go.mod` demande la chaîne de compilation Go 1.27.2, qui corrige des failles de la bibliothèque standard : une version plus ancienne de Go la télécharge d'elle-même. Sur une machine sans accès à Internet, installez donc Go 1.27.2 ou plus récent.
 
 ```bash
 git clone https://github.com/gnocent/termdevtools.git
@@ -293,17 +293,22 @@ Ce qui est déposé **à côté du binaire** vaut pour tous :
 
 Remplacez le binaire par le nouveau. Vos fichiers ne sont pas touchés.
 
-**Depuis la 0.5**, trois fichiers étaient installés à côté du binaire :
+### Depuis la 0.6
 
-- `cat_columns.txt` n'est plus lu : supprimez-le.
-- `endpoints.txt` est lu comme un complément de la liste intégrée : supprimez-le, sauf si vous y aviez ajouté vos propres endpoints.
-- `cheatsheet.txt` fournit toujours le contenu de départ de l'éditeur : supprimez-le pour obtenir celui du binaire.
+- **Proxy.** La 0.6 ignorait les variables `HTTPS_PROXY` et `HTTP_PROXY` ; elles sont désormais respectées. Si l'une d'elles est définie sur votre poste, un cluster joint en direct jusqu'ici passera par ce proxy, et la connexion peut échouer si le proxy ne sait pas l'atteindre. Le message commence alors par `Through proxy …` (*Via le proxy …*). Pour le joindre sans proxy : ajoutez-le à `NO_PROXY`, ou mettez `proxy: none` sur son entrée dans `config.yaml` (§5).
+- **Exports.** Ils étaient écrits dans un dossier `exports/` à côté du binaire ; ils le sont désormais dans le dossier de configuration (§6). L'ancien dossier n'est ni déplacé ni supprimé : récupérez-y vos fichiers si vous en avez besoin.
 
-L'interface démarre désormais en anglais tant qu'aucune langue n'a été choisie : si elle était en français, appuyez une fois sur `F3` après la connexion, le choix est retenu.
+### Depuis la 0.5
 
-**Depuis la 0.6 ou une version antérieure**, les exports étaient écrits dans un dossier `exports/` à côté du binaire. Ils le sont désormais dans le dossier de configuration (§6). L'ancien dossier n'est ni déplacé ni supprimé : récupérez-y vos fichiers si vous en avez besoin.
+Tout ce qui précède, et de plus :
 
-Voir aussi « À savoir avant de mettre à jour » dans le [journal des versions](CHANGELOG_fr.md).
+- Trois fichiers étaient installés à côté du binaire :
+  - `cat_columns.txt` n'est plus lu : supprimez-le.
+  - `endpoints.txt` est lu comme un complément de la liste intégrée : supprimez-le, sauf si vous y aviez ajouté vos propres endpoints.
+  - `cheatsheet.txt` fournit toujours le contenu de départ de l'éditeur : supprimez-le pour obtenir celui du binaire.
+- L'interface démarre en anglais tant qu'aucune langue n'a été choisie : si elle était en français, appuyez une fois sur `F3` après la connexion, le choix est retenu.
+
+Voir aussi « À savoir avant de mettre à jour » dans le [journal des versions](CHANGELOG_fr.md), pour chaque version.
 
 ## 9. Désinstaller
 

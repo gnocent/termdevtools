@@ -133,6 +133,32 @@ func TestCurlCommandTLSFlags(t *testing.T) {
 	}
 }
 
+// TestCurlCommandProxy checks that the command goes the same way as the
+// request: through the proxy the cluster's setting imposes, around any proxy
+// when it rules them out — and that it says nothing when the environment
+// decides, which curl reads by itself.
+func TestCurlCommandProxy(t *testing.T) {
+	const clusterURL = "https://example.com:9443"
+	if info, err := ProxyFor(clusterURL, ""); err != nil || info.URL == "" {
+		t.Fatalf("test setup: expected the environment to designate a proxy for %s, got %+v (%v)", clusterURL, info, err)
+	}
+
+	cases := map[string]struct{ setting, want string }{
+		"imposed":                 {"http://proxy.example.com:3128", "curl -X GET --proxy 'http://proxy.example.com:3128' '" + clusterURL + "/'"},
+		"socks5":                  {"socks5://127.0.0.1:1080", "curl -X GET --proxy 'socks5://127.0.0.1:1080' '" + clusterURL + "/'"},
+		"ruled out":               {" None ", "curl -X GET --noproxy '*' '" + clusterURL + "/'"},
+		"left to the environment": {"", "curl -X GET '" + clusterURL + "/'"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			client := newTestClient(clusterURL, Params{Verify: true, Proxy: c.setting})
+			if got := client.CurlCommand("GET", "/", nil); got != c.want {
+				t.Errorf("expected %q, got %q", c.want, got)
+			}
+		})
+	}
+}
+
 // TestShellQuoteEscapesSingleQuotes checks the POSIX-safe single-quote
 // escaping a body/header/URL containing an apostrophe needs to remain
 // paste-safe.

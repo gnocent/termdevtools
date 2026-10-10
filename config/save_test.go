@@ -122,6 +122,57 @@ func TestSaveKeepsTheFileDocumented(t *testing.T) {
 	}
 }
 
+// TestSaveKeepsClusterSettingsWrittenByHand checks the per-cluster settings
+// that have no form field — the proxy, the distribution and version
+// overrides: written by hand in config.yaml, they are read, and still there
+// once the history has been rewritten by a connection to another cluster.
+func TestSaveKeepsClusterSettingsWrittenByHand(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	if _, err := Load(); err != nil { // first launch: writes the self-documented file
+		t.Fatalf("Load: %v", err)
+	}
+	path, err := Path()
+	if err != nil {
+		t.Fatalf("Path: %v", err)
+	}
+	byHand := strings.Replace(readConfigFile(t), "clusters: []", `clusters:
+  - url: https://es-dmz.example.com:9200
+    auth_type: none
+    proxy: socks5://127.0.0.1:1080
+    distribution: opensearch
+    version: "2.19"
+    tls:
+      verify: true
+`, 1)
+	if err := os.WriteFile(path, []byte(byHand), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	want := Cluster{
+		URL: "https://es-dmz.example.com:9200", AuthType: AuthNone, TLS: TLS{Verify: true},
+		Proxy: "socks5://127.0.0.1:1080", Distribution: "opensearch", Version: "2.19",
+	}
+	if len(cfg.Clusters) != 1 || cfg.Clusters[0] != want {
+		t.Fatalf("expected %+v to be read, got %+v", want, cfg.Clusters)
+	}
+
+	cfg.Promote(Cluster{URL: "https://other.example.com:9200", AuthType: AuthNone, TLS: TLS{Verify: true}})
+	if err := cfg.Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	reloaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load after Save: %v", err)
+	}
+	if len(reloaded.Clusters) != 2 || reloaded.Clusters[1] != want {
+		t.Errorf("expected %+v to survive the save, got %+v", want, reloaded.Clusters)
+	}
+}
+
 // TestSaveKeepsExplicitEmptyCertDir checks that a default directory
 // deliberately set to "" (no pre-filled path) survives a save: written back
 // from the structure alone, the empty value was left out of the file, and the

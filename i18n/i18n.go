@@ -48,7 +48,14 @@ type Strings struct {
 	ErrClusterHTTPFmt          string // "%d" — the HTTP status the cluster answered with
 	WarnConnectedSaveFailedFmt string // "%s" — why config.yaml couldn't be saved, though connected
 	WarnTargetOverrideFmt      string // "%s" — why config.yaml's distribution/version override was ignored
-	DisplayUserNoAuth          string
+	// A proxy is never used without being shown. The first "%s" is its
+	// address; the second, where given, where it comes from: an environment
+	// variable (HTTPS_PROXY) or "config.yaml".
+	StatusConnectingViaProxyFmt string // "%s", "%s"
+	InfoProxyFmt                string // "%s", "%s" — once connected
+	HintProxyEnvFmt             string // "%s", "%s" — put in front of a connection failure
+	HintProxyConfigFmt          string // "%s" — same, for a proxy set in config.yaml
+	DisplayUserNoAuth           string
 
 	// Certificate picker popup (connect.go): Enter on the CA/client-cert/
 	// client-key fields browses the configured default_ca_dir/
@@ -167,12 +174,17 @@ var fr = Strings{
 	ErrClusterHTTPFmt:          "Le cluster a répondu HTTP %d",
 	WarnConnectedSaveFailedFmt: "Connecté, mais échec de sauvegarde de config.yaml : %s",
 	WarnTargetOverrideFmt:      "config.yaml : distribution/version forcée ignorée (%s)",
-	DisplayUserNoAuth:          "(aucune auth)",
-	BrowseHint:                 " (Entrée : parcourir)",
-	CertPickerTitleFmt:         " Choisir un fichier — %s (Entrée: ouvrir, Retour: dossier parent, Echap: annuler) ",
-	ErrNoCertDirConfiguredFmt:  "aucun dossier configuré (%s dans config.yaml)",
-	ErrNoCertFilesInDirFmt:     "aucun fichier dans %s",
-	ErrCertDirNotFoundFmt:      "le dossier %s n'existe pas",
+
+	StatusConnectingViaProxyFmt: "Connexion en cours via le proxy %s (%s)...",
+	InfoProxyFmt:                "via le proxy %s (%s)",
+	HintProxyEnvFmt:             "Via le proxy %s (%s) — pour s'en passer : ajoutez le cluster à NO_PROXY, ou « proxy: none » à son entrée de config.yaml.",
+	HintProxyConfigFmt:          "Via le proxy %s (« proxy: » de ce cluster dans config.yaml).",
+	DisplayUserNoAuth:           "(aucune auth)",
+	BrowseHint:                  " (Entrée : parcourir)",
+	CertPickerTitleFmt:          " Choisir un fichier — %s (Entrée: ouvrir, Retour: dossier parent, Echap: annuler) ",
+	ErrNoCertDirConfiguredFmt:   "aucun dossier configuré (%s dans config.yaml)",
+	ErrNoCertFilesInDirFmt:      "aucun fichier dans %s",
+	ErrCertDirNotFoundFmt:       "le dossier %s n'existe pas",
 
 	EditorTitle:     " Requêtes ",
 	ResultTitle:     " Résultat ",
@@ -322,12 +334,17 @@ var en = Strings{
 	ErrClusterHTTPFmt:          "The cluster responded HTTP %d",
 	WarnConnectedSaveFailedFmt: "Connected, but failed to save config.yaml: %s",
 	WarnTargetOverrideFmt:      "config.yaml: forced distribution/version ignored (%s)",
-	DisplayUserNoAuth:          "(no auth)",
-	BrowseHint:                 " (Enter: browse)",
-	CertPickerTitleFmt:         " Choose a file — %s (Enter: open, Backspace: parent dir, Esc: cancel) ",
-	ErrNoCertDirConfiguredFmt:  "no directory configured (%s in config.yaml)",
-	ErrNoCertFilesInDirFmt:     "no files in %s",
-	ErrCertDirNotFoundFmt:      "the %s directory doesn't exist",
+
+	StatusConnectingViaProxyFmt: "Connecting through proxy %s (%s)...",
+	InfoProxyFmt:                "through proxy %s (%s)",
+	HintProxyEnvFmt:             "Through proxy %s (%s) — to do without it: add the cluster to NO_PROXY, or \"proxy: none\" to its entry in config.yaml.",
+	HintProxyConfigFmt:          "Through proxy %s (this cluster's \"proxy:\" in config.yaml).",
+	DisplayUserNoAuth:           "(no auth)",
+	BrowseHint:                  " (Enter: browse)",
+	CertPickerTitleFmt:          " Choose a file — %s (Enter: open, Backspace: parent dir, Esc: cancel) ",
+	ErrNoCertDirConfiguredFmt:   "no directory configured (%s in config.yaml)",
+	ErrNoCertFilesInDirFmt:      "no files in %s",
+	ErrCertDirNotFoundFmt:       "the %s directory doesn't exist",
 
 	EditorTitle:     " Requests ",
 	ResultTitle:     " Result ",

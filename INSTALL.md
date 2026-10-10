@@ -194,6 +194,38 @@ clusters:
       verify: true
 ```
 
+**Proxy.** With nothing set, a cluster is reached through the proxy the environment variables designate, as `curl` does:
+
+| Variable | Purpose |
+|---|---|
+| `HTTPS_PROXY` | Proxy for clusters in `https://`. |
+| `HTTP_PROXY` | Proxy for clusters in `http://`. |
+| `NO_PROXY` | Names, domains or addresses to reach without a proxy, separated by commas: `es-internal.example.com,.intra.example.com,10.0.0.0/8`. |
+
+`localhost` and `127.0.0.1` never go through the environment's proxy. On Windows, only these variables are read, not the system's proxy settings.
+
+For one cluster in particular, the optional `proxy:` line takes precedence over the environment:
+
+```yaml
+clusters:
+  - url: https://es-dmz.example.com:9200
+    auth_type: basic
+    username: admin
+    proxy: http://proxy.example.com:3128   # or socks5://127.0.0.1:1080, or none
+    tls:
+      verify: true
+```
+
+| Value of `proxy:` | Effect |
+|---|---|
+| `http://host:port` | That HTTP proxy. A cluster in https goes through it in a tunnel: the proxy only sees the address asked for. |
+| `socks5://host:port` | That SOCKS5 proxy — for instance `socks5://127.0.0.1:1080` after `ssh -D 1080 bastion`. |
+| `none` | A direct connection, whatever the environment says. |
+
+Three limits: a proxy reached over TLS (`https://proxy…`) is refused; a proxy asking for a password is declared in the environment variable (`HTTPS_PROXY=http://user:password@proxy:3128`), never in `config.yaml`; NTLM or Kerberos authentication and PAC files are not supported.
+
+The proxy in use is displayed while connecting, then in the status bar. For a cluster that isn't in the history yet, write its entry by hand as above, or use the environment variables.
+
 Edit the file with TermDevTools closed: the program rewrites it on every successful connection (it keeps your comments and the keys it doesn't know).
 
 ## 6. Your files: requests, variables, recipes, endpoints
@@ -281,5 +313,8 @@ Delete the binary and the configuration directory (§5): TermDevTools writes not
 | `Ctrl+←/→` doesn't switch panel on macOS | The system intercepts it: use `Option+←/→`. |
 | `F2` copies nothing | The copy goes through the terminal (OSC 52): PuTTY doesn't support it, `tmux` and `screen` need to be configured for it. |
 | A request with a huge answer fails with "response larger than 64 MB" | Narrow it down: `filter_path`, `size`, or `h=` for `_cat` commands. |
-| A corporate proxy is needed to reach the cluster | Not supported yet: `HTTPS_PROXY` is not read. |
+| A proxy is needed to reach the cluster | Set `HTTPS_PROXY`, or `proxy:` on the cluster's entry in `config.yaml` (§5). |
+| The message starts with `Through proxy …` | The attempt went through that proxy. If the cluster is reached without a proxy — which was the case up to 0.6, which ignored `HTTPS_PROXY` — add it to `NO_PROXY`, or set `proxy: none` on its entry in `config.yaml` (§5). |
+| `HTTP 407`, or `Proxy Authentication Required` | The proxy asks for a password: `HTTPS_PROXY=http://user:password@proxy:3128`. Only Basic authentication is supported. |
+| `a proxy reached over TLS (https://) is not supported` | The proxy is declared as `https://`: use its `http://` address, or a SOCKS5 proxy (§5). |
 | The program crashed | A `crash-<date>.log` file is written to the configuration directory (§5), or printed if it can't be: attach it to a [bug report](https://github.com/gnocent/termdevtools/issues), after checking that it holds nothing confidential. |

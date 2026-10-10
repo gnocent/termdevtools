@@ -30,7 +30,8 @@ type ConnectResult struct {
 	// data (endpoints, _cat columns, recipes) gets selected for.
 	Target refdata.Target
 	// Warning, when set, is shown in the status bar once the main screen is
-	// up: something worth knowing that didn't prevent the connection.
+	// up: something worth knowing that didn't prevent the connection — an
+	// override that had to be ignored, a proxy every request goes through.
 	Warning string
 }
 
@@ -100,7 +101,7 @@ func BuildConnectPage(tapp *tview.Application, cfg *config.Config, onConnected f
 		on:      onConnected,
 		pages:   tview.NewPages(),
 		list:    tview.NewList().ShowSecondaryText(true),
-		message: tview.NewTextView().SetDynamicColors(true),
+		message: tview.NewTextView().SetDynamicColors(true).SetWordWrap(true),
 	}
 	cs.list.SetBorder(true).SetTitle(cs.msgs.ConnectListTitle)
 	cs.refreshList()
@@ -108,10 +109,15 @@ func BuildConnectPage(tapp *tview.Application, cfg *config.Config, onConnected f
 	return cs.pages
 }
 
+// connectMessageLines is the height of the message under the list and the
+// form. More than one line: a connection failure through a proxy says which
+// proxy and how to do without it, after an error that is long by itself.
+const connectMessageLines = 3
+
 func (cs *connectScreen) listLayout() tview.Primitive {
 	return tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(cs.list, 0, 1, true).
-		AddItem(cs.message, 1, 0, false)
+		AddItem(cs.message, connectMessageLines, 0, false)
 }
 
 func (cs *connectScreen) refreshList() {
@@ -134,7 +140,7 @@ func (cs *connectScreen) openForm(existing *config.Cluster) {
 func (cs *connectScreen) formLayout(form tview.Primitive) tview.Primitive {
 	return tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(form, 0, 1, true).
-		AddItem(cs.message, 1, 0, false)
+		AddItem(cs.message, connectMessageLines, 0, false)
 }
 
 func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
@@ -253,6 +259,7 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 			// Not form fields: carried over from config.yaml as-is, or
 			// Promote would erase them on every reconnection.
 			Distribution: cluster.Distribution, Version: cluster.Version,
+			Proxy: cluster.Proxy,
 		}
 		cs.attemptConnect(cl, connectSecrets{password: password, apiKeySecret: apiKeySecret, keyPassphrase: keyPassphrase})
 	})
@@ -476,7 +483,18 @@ func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecret
 		cs.setMessage(msgs.ErrURLCredentials, "red")
 		return
 	}
-	cs.setMessage(msgs.StatusConnecting, "yellow")
+	// The proxy this goes through, if any, is named before anything is sent
+	// through it — and one that can't be used stops the attempt here.
+	proxy, err := esclient.ProxyFor(cl.URL, cl.Proxy)
+	if err != nil {
+		cs.setMessage(fmt.Sprintf(msgs.ErrConnectFailedFmt, err), "red")
+		return
+	}
+	connecting := msgs.StatusConnecting
+	if proxy.URL != "" {
+		connecting = fmt.Sprintf(msgs.StatusConnectingViaProxyFmt, proxy.URL, proxyOrigin(proxy))
+	}
+	cs.setMessage(connecting, "yellow")
 	cs.attempt++
 	attempt := cs.attempt
 
@@ -487,13 +505,17 @@ func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecret
 		APIKeyID: cl.APIKeyID, APIKeySecret: secrets.apiKeySecret,
 		Verify: cl.TLS.Verify, CAFile: cl.TLS.CAFile,
 		ClientCert: cl.TLS.ClientCert, ClientKey: cl.TLS.ClientKey, KeyPassphrase: secrets.keyPassphrase,
+		Proxy:   cl.Proxy,
 		Timeout: timeout,
 	}
 
 	go func() {
 		client, err := esclient.New(params)
 		var result *esclient.Result
+		// Only what was actually sent can have failed because of the proxy.
+		var sentThrough esclient.ProxyInfo
 		if err == nil {
+			sentThrough = proxy
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			result, err = client.Execute(ctx, "GET", "/", nil)
@@ -504,7 +526,7 @@ func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecret
 				return // superseded, or given up on: see connectScreen.attempt
 			}
 			if err != nil {
-				cs.setMessage(fmt.Sprintf(msgs.ErrConnectFailedFmt, err), "red")
+				cs.setMessage(withProxyHint(fmt.Sprintf(msgs.ErrConnectFailedFmt, err), sentThrough, msgs), "red")
 				return
 			}
 			// A redirection included: it isn't followed (see esclient.New),
@@ -514,7 +536,8 @@ func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecret
 				if location := result.Headers.Get("Location"); location != "" {
 					message += " → " + location
 				}
-				cs.setMessage(message, "red")
+				// Through a proxy, the answer may well be the proxy's own.
+				cs.setMessage(withProxyHint(message, sentThrough, msgs), "red")
 				return
 			}
 			cs.connected = true
@@ -525,6 +548,14 @@ func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecret
 			}
 
 			target, warning := resolveTarget(result.Body, cl, msgs)
+			if proxy.URL != "" {
+				// Still worth knowing once connected: every request goes there.
+				notice := fmt.Sprintf(msgs.InfoProxyFmt, proxy.URL, proxyOrigin(proxy))
+				if warning != "" {
+					notice = warning + " · " + notice
+				}
+				warning = notice
+			}
 			cs.on(ConnectResult{
 				Client: client, Cluster: cl, DisplayUser: displayUserFor(cl, msgs),
 				Target: target, Warning: warning,
@@ -545,6 +576,42 @@ func resolveTarget(rootBody []byte, cl config.Cluster, msgs *i18n.Strings) (targ
 		return detected, fmt.Sprintf(msgs.WarnTargetOverrideFmt, err)
 	}
 	return target, ""
+}
+
+// proxyOrigin says where a proxy in use comes from: the environment
+// variable that designates it, or the cluster's own setting.
+func proxyOrigin(proxy esclient.ProxyInfo) string {
+	if proxy.EnvVar != "" {
+		return proxy.EnvVar
+	}
+	return "config.yaml"
+}
+
+// withProxyHint puts proxyHint in front of the message of a failed attempt.
+// In front, not after: the error itself is often longer than the few lines
+// there are to show it in, and what it is cut short of must not be the one
+// part that says what to do.
+func withProxyHint(message string, proxy esclient.ProxyInfo, msgs *i18n.Strings) string {
+	if hint := proxyHint(proxy, msgs); hint != "" {
+		return hint + " " + message
+	}
+	return message
+}
+
+// proxyHint is what a failed attempt that went through proxy must say
+// besides its error (nothing if it went through none): which proxy, and for
+// one the environment designates, how to do without it. A cluster reached
+// directly until then — the environment was ignored before 0.7 — otherwise
+// fails with nothing in the error itself to tell why.
+func proxyHint(proxy esclient.ProxyInfo, msgs *i18n.Strings) string {
+	switch {
+	case proxy.URL == "":
+		return ""
+	case proxy.EnvVar != "":
+		return fmt.Sprintf(msgs.HintProxyEnvFmt, proxy.URL, proxy.EnvVar)
+	default:
+		return fmt.Sprintf(msgs.HintProxyConfigFmt, proxy.URL)
+	}
 }
 
 func displayUserFor(cl config.Cluster, msgs *i18n.Strings) string {

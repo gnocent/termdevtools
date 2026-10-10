@@ -46,6 +46,17 @@ func (c *Client) CurlCommand(method, path string, body []byte) string {
 		b.WriteString(" -k")
 	}
 
+	// A proxy the cluster's own setting imposes or rules out is spelled out.
+	// One the environment designates is not: curl reads the same variables,
+	// and their value may hold the proxy's credentials.
+	switch proxy := strings.TrimSpace(c.params.Proxy); {
+	case proxy == "":
+	case strings.EqualFold(proxy, ProxyNone):
+		b.WriteString(" --noproxy " + shellQuote("*"))
+	default:
+		b.WriteString(" --proxy " + shellQuote(proxy))
+	}
+
 	if len(body) > 0 {
 		b.WriteString(" -H " + shellQuote("Content-Type: application/json"))
 		b.WriteString(" -d " + shellQuote(string(body)))

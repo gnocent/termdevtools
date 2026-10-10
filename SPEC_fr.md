@@ -44,6 +44,7 @@ Au lancement, un écran de connexion liste les URLs des clusters connus (pas de 
 - **Une tentative à la fois** : une tentative abandonnée (`Echap` ou le bouton Annuler) ou supplantée par une plus récente est ignorée quand sa réponse finit par arriver — un cluster lent à répondre ne peut pas remplacer la session ouverte entre-temps sur un autre, et appuyer deux fois sur Se connecter n'ouvre qu'une session.
 - **Ce qui est refusé avant toute connexion** : une URL contenant des identifiants (`https://utilisateur:motdepasse@hôte`). L'URL est la seule chose d'un cluster qui soit enregistrée et affichée telle quelle — dans `config.yaml`, dans la barre de statut, dans les commandes `curl` copiées : le mot de passe s'y retrouverait. Le message renvoie à l'authentification Basic Auth.
 - **Ce qui n'est pas une connexion** : une réponse `3xx`. Les redirections ne sont jamais suivies (§5) ; l'écran affiche le code et l'adresse vers laquelle la réponse renvoie, à corriger dans l'URL.
+- **Proxy** : quand la connexion passe par un proxy (§5), l'écran le nomme avant d'envoyer quoi que ce soit — « Connexion en cours via le proxy … », suivi de sa provenance (`HTTPS_PROXY`, `HTTP_PROXY` ou `config.yaml`). Si la tentative échoue, le proxy est rappelé **devant** le détail de l'erreur — souvent plus long que la place disponible —, avec la façon de s'en passer quand il vient de l'environnement. La zone de message fait trois lignes pour cela. Un code HTTP reçu à travers un proxy est annoncé de la même façon : la réponse peut être celle du proxy (`407`, `403`). Un proxy inutilisable (§5) arrête la tentative avant tout envoi.
 - Une fois la connexion effectuée, on ne travaille que sur un seul cluster jusqu'à déconnexion (= fermeture du programme, cf. §4), au sein d'un layout général inspiré des Dev Tools de Kibana.
 
 ### 3.1 Layout général
@@ -154,7 +155,13 @@ Une barre d'aide, sous la barre d'état, rappelle les raccourcis ; `F1` en donne
 - **Authentification supportée** : aucune, Basic Auth (login/password), API Key (identifiant et secret, envoyés sous la forme `Authorization: ApiKey base64(id:secret)`), certificat client (mTLS)
 - **TLS** : vérification de certificat (CA situé par défaut dans `default_ca_dir`, chemin surchargeable par connexion), option pour l'ignorer. TLS 1.2 au minimum (défaut de la bibliothèque standard de Go). Un fichier CA renseigné remplace les autorités du système pour cette connexion.
 - **Redirections non suivies** : une réponse `301`, `302`, `307`… est rendue telle quelle. Suivie, une redirection `301`/`302` transforme sans rien dire un `POST`, un `PUT` ou un `DELETE` en `GET` de la nouvelle adresse, et une `307`/`308` rejoue la requête, corps compris, là où la réponse l'envoie : ni l'un ni l'autre n'est ce que l'utilisateur a écrit. `curl`, dont `F9` donne la commande équivalente, ne les suit pas davantage.
-- **Pas de proxy** : les variables `HTTPS_PROXY`/`NO_PROXY` ne sont pas prises en compte (§7).
+- **Proxy** : un cluster est joint à travers le proxy que désigne l'environnement — `HTTPS_PROXY` pour un cluster en https, `HTTP_PROXY` pour un cluster en http — sauf si `NO_PROXY` l'exclut. Ce sont les règles de la bibliothèque standard de Go (`http.ProxyFromEnvironment`) : les mêmes variables en minuscules sont lues aussi, et `localhost` comme les adresses de bouclage ne passent jamais par un proxy.
+  - **Par cluster** : la clé `proxy:` de son entrée dans `config.yaml` (§9.2) tranche pour ce cluster, quel que soit l'environnement — une URL de proxy, ou `none` pour une connexion directe. Jamais écrite par le programme, conservée à chaque reconnexion, comme `distribution` et `version`. À la différence de l'environnement, elle s'applique aussi à une adresse de bouclage.
+  - **Proxys acceptés** : `http://` et `socks5://`. Avec un proxy `http://`, un cluster en https est joint par un tunnel `CONNECT` : le chiffrement et la vérification du certificat se font de bout en bout, le proxy ne voit que le nom et le port demandés. Un cluster en http, lui, confie au proxy la requête entière, identifiants compris. `socks5://` est ce qu'ouvre `ssh -D` ; le nom du cluster est alors résolu par le proxy.
+  - **Proxy joint en TLS (`https://`) refusé**, qu'il vienne de l'environnement ou de `config.yaml` : le transport HTTP de Go n'a qu'une configuration TLS, celle du cluster, et l'appliquerait aussi au proxy — une vérification désactivée pour le cluster le serait pour le proxy, le fichier CA du cluster deviendrait la seule autorité reconnue pour le proxy, et le certificat client du cluster lui serait présenté.
+  - **Identifiants du proxy** : dans la variable d'environnement seulement (`http://utilisateur:motdepasse@proxy:3128`, authentification Basic). Ils sont envoyés au proxy et à lui seul, et ne sont ni affichés ni copiés ; un message d'erreur de la bibliothèque standard qui citerait la variable est remplacé. Dans `proxy:` de `config.yaml` ils sont refusés, comme dans l'URL d'un cluster : rien de secret n'y est stocké. NTLM, Kerberos, les fichiers PAC et les réglages proxy du système (Windows, macOS) ne sont pas pris en charge.
+  - **Toujours visible** : sur l'écran de connexion (§3.0), puis dans la barre de statut une fois connecté. La commande de `F9` (§4) porte `--proxy` ou `--noproxy '*'` quand c'est `config.yaml` qui décide, et rien quand c'est l'environnement, que `curl` lit lui-même — à ceci près, d'après sa documentation, qu'il ne lit `http_proxy` qu'en minuscules.
+  - **Changement par rapport à la 0.6**, qui ignorait l'environnement : un cluster joint en direct passe désormais par le proxy désigné, s'il y en a un et que `NO_PROXY` ne l'exclut pas.
 - **Certificats** : deux dossiers par défaut configurables globalement (`default_ca_dir`, `default_client_cert_dir`) pour pré-remplir les chemins lors de la saisie d'une nouvelle connexion et alimenter le sélecteur de certificat (§3.0) — valent `/etc/pki/tls/certs` (dossier système standard des certificats TLS sur RHEL/CentOS) uniquement sous Linux, vides (rien de pré-rempli) sous Windows et macOS où ce chemin n'existe pas ; surchargeable ou effaçable (`""`) selon §9.2. Aucun des deux ne verrouille le champ : si le dossier configuré n'existe pas sur le disque, le sélecteur bascule sur le dossier personnel de l'utilisateur au lieu d'échouer, et le champ reste de toute façon saisissable à la main pour un certificat rangé ailleurs. C'est seulement quand ce repli échoue aussi que le sélecteur affiche un message clair nommant le paramètre en cause, pas une erreur système brute.
 - **Clé client protégée par une passphrase** : les deux formats sont lus — le format PKCS#8 chiffré (`BEGIN ENCRYPTED PRIVATE KEY`, celui qu'OpenSSL écrit par défaut depuis la 1.1.0) et le format PEM chiffré historique (`BEGIN RSA PRIVATE KEY` avec un en-tête `DEK-Info`). Pour PKCS#8, que la bibliothèque standard ne prend pas en charge, le schéma PBES2 est implémenté dans `esclient/pkcs8.go` : clé dérivée par PBKDF2 (HMAC-SHA1 à SHA-512), chiffrement AES-128/192/256 ou triple DES en mode CBC — toutes les combinaisons que produit `openssl pkcs8 -topk8 -v2`, vérifiées sur des clés écrites par OpenSSL lui-même. Les clés dérivées par scrypt, et les anciens schémas PBES1 et PKCS#12, sont refusés avec une erreur qui nomme ce qui n'est pas pris en charge ; une passphrase erronée est signalée comme telle.
 - **Stockage des secrets** : aucun — mot de passe, API key secret et passphrase de clé privée sont redemandés à chaque connexion ; seuls les éléments non sensibles (URL, type d'auth, username, API key ID, chemins CA/cert) sont persistés dans `config.yaml`, avec l'entrée la plus récemment utilisée en tête de liste. Même règle pour la fonction "copier en cURL" (`F9`, §4) : la commande générée inclut les vrais détails d'auth non sensibles (username, API key ID, chemins de certificat/clé) mais remplace le vrai secret par un placeholder — une copie presse-papier n'a pas de garde-fou équivalent à « jamais écrit sur disque ». Corollaire : une URL contenant des identifiants est refusée (§3.0), puisque l'URL, elle, est enregistrée.
@@ -180,7 +187,7 @@ Ce qui n'est pas fait, par choix ou pas encore :
 **Feuille de route après la v0.5** — consignée le 2026-10-01 après comparaison avec geek-fun/dockit, cars10/elasticvue et elastic/cli. L'ordre est la séquence prévue ; chaque item reste à affiner avant d'être réalisé.
 
 1. ~~**Données de référence et recettes intégrées, adaptées à la version**~~ — livré : recettes, endpoints et colonnes `_cat` dans le binaire, sélectionnés selon la distribution (Elasticsearch ou OpenSearch) et la version détectées à la connexion, étendus par les fichiers de l'utilisateur et rechargés avec `F7` (§3.2, §5, §9.1, §9.5). Plus rien d'autre à installer que le binaire. Fait entrer OpenSearch auto-hébergé dans le périmètre.
-2. **Proxy HTTP(S)** — respecter `HTTPS_PROXY`/`NO_PROXY`, éventuellement un `proxy:` par cluster.
+2. ~~**Proxy HTTP(S)**~~ — livré : `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` respectés, clé `proxy:` par cluster, proxys `http://` et `socks5://` (§5).
 3. **Authentification étendue** — API key sous sa forme `encoded`, jetons Bearer, Cloud ID. SigV4 reste hors périmètre.
 4. **Garde-fous de production** — mode lecture seule par cluster, confirmation configurable pour les chemins destructifs, bandeau « PROD » visible.
 5. **Secrets sans ressaisie, premier palier** — lire le secret depuis une variable d'environnement ou un fichier. Le trousseau de l'OS en opt-in est une décision distincte et ultérieure (elle modifie la promesse « aucun secret persisté » du §5).
@@ -194,7 +201,7 @@ Ce qui n'est pas fait, par choix ou pas encore :
 
 Non planifiés à ce stade, par intérêt décroissant : complétion des paramètres d'URL et du DSL ; historique des exécutions ; rendu tabulaire ES|QL/SQL ; buffers multiples et fichiers arbitraires ; vue tabulaire avec export CSV/Markdown ; comparaison multi-cluster ; import/export en masse ; dossier d'export configurable, si celui de l'utilisateur (§9.1) ne suffit pas ; **signature des requêtes AWS SigV4**, ce qu'exige OpenSearch managé par AWS (Amazon OpenSearch Service, Serverless) quand il est protégé par IAM — écartée de l'item 1 parce qu'elle n'est ni petite ni isolée : chaque requête doit être signée (requête canonique, empreinte du corps, clé dérivée de la date), et les identifiants proviennent d'une chaîne de sources (environnement, profil partagé, SSO, rôle d'instance ou de conteneur, avec des jetons de session qui expirent en cours de session) qui impose soit le SDK AWS, contraire au binaire statique sans dépendance, soit sa réimplémentation. Un domaine managé qui accepte Basic Auth (contrôle d'accès fin avec base d'utilisateurs interne) devrait être joignable comme n'importe quel OpenSearch — non testé.
 
-Écartés délibérément : assistant IA ou serveur MCP ; formulaires pour snapshots/ILM/templates ; tunnels SSH intégrés ; backends hors API Elasticsearch (DynamoDB, MongoDB…).
+Écartés délibérément : assistant IA ou serveur MCP ; formulaires pour snapshots/ILM/templates ; tunnels SSH intégrés (`ssh -D` et un proxy `socks5://` en tiennent lieu, §5) ; backends hors API Elasticsearch (DynamoDB, MongoDB…).
 
 ## 8. Contraintes non-fonctionnelles
 
@@ -255,6 +262,13 @@ clusters:
     version: "2.19"          # facultatif : remplace la version détectée
     tls:
       verify: true
+
+  - url: https://es-dmz.example.com:9200
+    auth_type: basic
+    username: svc_devtools
+    proxy: http://proxy.example.com:3128 # facultatif : URL de proxy (http:// ou socks5://, sans identifiants), ou none — sinon l'environnement décide (§5)
+    tls:
+      verify: true
 ```
 
 ### 9.3 Structure du projet
@@ -269,6 +283,7 @@ termdevtools/
 │   └── i18n.go             // tables de messages fr/en pour l'interface, sélectionnées via config.Language
 ├── esclient/
 │   ├── client.go           // client HTTP (auth none/basic/api_key/mtls, TLS), exécution d'une requête
+│   ├── proxy.go            // par quel proxy passer : l'environnement, ou le réglage du cluster
 │   ├── curl.go             // la requête sous forme de commande curl équivalente, secrets masqués
 │   └── pkcs8.go            // déchiffrement des clés client au format PKCS#8 chiffré
 ├── parser/

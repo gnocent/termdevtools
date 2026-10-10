@@ -52,7 +52,7 @@ Il arrive qu'un cluster Elasticsearch n'ait pas de Kibana disponible, ou que son
 - **Recherche** (`Ctrl+F`) dans l'éditeur comme dans le résultat.
 - **Sauvegarde automatique** des requêtes en cours par cluster et par utilisateur (à la fermeture et via `Ctrl+S`), rechargées à la reconnexion.
 - **Export** du résultat affiché vers un fichier horodaté (`Ctrl+S`, panneau droit) et **copie presse-papier** via OSC 52 (`F2`, fonctionne à travers SSH).
-- **Connexion** : Basic Auth, API Key ou certificat client (mTLS, clé chiffrée ou non), avec ou sans vérification TLS ; historique des clusters déjà utilisés (sans jamais y stocker de secret — voir [Sécurité](#sécurité)) ; un sélecteur de certificat (`Entrée` sur les champs CA/certificat client) parcourt le dossier configuré plutôt que de taper un nom de fichier de mémoire.
+- **Connexion** : Basic Auth, API Key ou certificat client (mTLS, clé chiffrée ou non), avec ou sans vérification TLS, à travers un proxy HTTP ou SOCKS5 s'il en faut un (voir [Configuration](#configuration)) ; historique des clusters déjà utilisés (sans jamais y stocker de secret — voir [Sécurité](#sécurité)) ; un sélecteur de certificat (`Entrée` sur les champs CA/certificat client) parcourt le dossier configuré plutôt que de taper un nom de fichier de mémoire.
 - **Aide intégrée** (`F1`) : rappel des raccourcis et de l'emplacement des fichiers.
 
 Détail complet des choix et du comportement : [SPEC_fr.md](SPEC_fr.md).
@@ -159,6 +159,8 @@ Aucune configuration n'est nécessaire pour démarrer : un écran de connexion p
 
 La distribution et la version du cluster sont détectées à chaque connexion et affichées dans la barre de statut (`ES 9.5.4`, `OS 2.19.6`). Quand elles ne peuvent pas l'être — un proxy qui masque la réponse du cluster, ou un OpenSearch en mode compatibilité, qui annonce une fausse version — tout ce qui pourrait s'appliquer est proposé plutôt que masqué ; `distribution:` et `version:` sur l'entrée du cluster dans `config.yaml` permettent alors de les indiquer vous-même.
 
+**Proxy.** Un cluster est joint à travers le proxy que désignent les variables d'environnement `HTTPS_PROXY` / `HTTP_PROXY`, sauf si `NO_PROXY` l'exclut ; `localhost` n'y passe jamais. Pour un cluster en particulier, `proxy:` sur son entrée dans `config.yaml` l'emporte : `proxy: http://proxy.example.com:3128`, `proxy: socks5://127.0.0.1:1080` (ce qu'ouvre `ssh -D 1080 bastion`), ou `proxy: none` pour une connexion directe. Le proxy utilisé est toujours affiché, à la connexion et en cas d'échec. Détails et limites dans le [guide, §5](INSTALL_fr.md#5-réglages--configyaml).
+
 La langue de l'interface (anglais par défaut, ou français) se règle via `language: en` / `language: fr` dans ce même `config.yaml` — ou se change à la volée dans l'appli avec `F3`, qui enregistre le choix pour la prochaine fois.
 
 Le support de la souris (cliquer pour donner le focus à un champ ou sélectionner une entrée de liste) est **désactivé par défaut** — mettre `mouse: true` dans `config.yaml` pour l'activer. Toute interaction souris a un équivalent clavier complet (voir [Raccourcis clavier](#raccourcis-clavier)) ; le laisser désactivé garde la sélection/collage natifs du terminal disponibles, puisque l'activer capte les événements souris pour l'appli à la place (`F2` copie toujours le résultat, avec ou sans souris).
@@ -222,7 +224,7 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 
 **Ce que le programme fait, et ne fait pas**
 
-- **Il ne parle qu'au cluster que vous avez choisi.** Aucune télémétrie, aucune recherche de mise à jour, aucune commande externe exécutée.
+- **Il ne parle qu'au cluster que vous avez choisi** — à travers un proxy seulement si votre environnement ou `config.yaml` en désigne un, et en l'affichant. Aucune télémétrie, aucune recherche de mise à jour, aucune commande externe exécutée.
 - **Aucun secret n'est écrit sur le disque** : mot de passe, secret d'API Key et passphrase de clé privée sont redemandés à chaque connexion. Seuls l'URL, le type d'authentification et les identifiants non sensibles (nom d'utilisateur, identifiant de clé d'API, chemins de certificats) sont enregistrés dans `config.yaml`.
 - **Une URL contenant des identifiants est refusée** (`https://utilisateur:motdepasse@hôte`) : enregistrée et affichée, elle aurait exposé le mot de passe.
 - **TLS vérifié par défaut**, TLS 1.2 au minimum ; la vérification du certificat serveur ne se désactive qu'explicitement, connexion par connexion.
@@ -235,6 +237,7 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 **Ce à quoi le programme fait confiance**
 
 - **Le dossier du binaire et votre dossier de configuration.** Les recettes, endpoints et contenu de départ qui s'y trouvent sont proposés à l'utilisateur : dans une installation partagée, le dossier du binaire ne doit être modifiable que par des personnes de confiance. Un fichier de recettes ou d'endpoints contenant des caractères de contrôle est refusé.
+- **Le proxy, quand il y en a un.** Pour un cluster en https, il ne voit que l'adresse demandée : le chiffrement et la vérification du certificat se font de bout en bout. Pour un cluster en http, il voit tout, identifiants compris. Ses propres identifiants ne se donnent que par la variable d'environnement ; ils ne sont ni enregistrés, ni affichés, ni envoyés au cluster. Un proxy joint en TLS (`https://`) est refusé.
 - **Vous.** Une requête est envoyée telle qu'elle est écrite, sans confirmation — `DELETE` compris.
 
 **Ce qui a été vérifié, et ce qui ne l'a pas été**

@@ -194,6 +194,38 @@ clusters:
       verify: true
 ```
 
+**Proxy.** Sans rien régler, un cluster est joint à travers le proxy que désignent les variables d'environnement, comme le fait `curl` :
+
+| Variable | Rôle |
+|---|---|
+| `HTTPS_PROXY` | Proxy pour les clusters en `https://`. |
+| `HTTP_PROXY` | Proxy pour les clusters en `http://`. |
+| `NO_PROXY` | Noms, domaines ou adresses à joindre sans proxy, séparés par des virgules : `es-interne.example.com,.intra.example.com,10.0.0.0/8`. |
+
+`localhost` et `127.0.0.1` ne passent jamais par le proxy de l'environnement. Sous Windows, seules ces variables sont lues, pas les réglages proxy du système.
+
+Pour un cluster en particulier, la ligne facultative `proxy:` l'emporte sur l'environnement :
+
+```yaml
+clusters:
+  - url: https://es-dmz.example.com:9200
+    auth_type: basic
+    username: admin
+    proxy: http://proxy.example.com:3128   # ou socks5://127.0.0.1:1080, ou none
+    tls:
+      verify: true
+```
+
+| Valeur de `proxy:` | Effet |
+|---|---|
+| `http://hôte:port` | Ce proxy HTTP. Un cluster en https y passe par un tunnel : le proxy ne voit que l'adresse demandée. |
+| `socks5://hôte:port` | Ce proxy SOCKS5 — par exemple `socks5://127.0.0.1:1080` après `ssh -D 1080 bastion`. |
+| `none` | Connexion directe, quel que soit l'environnement. |
+
+Trois limites : un proxy joint en TLS (`https://proxy…`) est refusé ; un proxy qui demande un mot de passe se déclare dans la variable d'environnement (`HTTPS_PROXY=http://utilisateur:motdepasse@proxy:3128`), jamais dans `config.yaml` ; l'authentification NTLM ou Kerberos et les fichiers PAC ne sont pas pris en charge.
+
+Le proxy utilisé est affiché pendant la connexion, puis dans la barre de statut. Pour un cluster qui n'est pas encore dans l'historique, écrivez son entrée à la main comme ci-dessus, ou passez par les variables d'environnement.
+
 Modifiez le fichier avec TermDevTools fermé : le programme le réécrit à chaque connexion réussie (il conserve vos commentaires et les clés qu'il ne connaît pas).
 
 ## 6. Vos fichiers : requêtes, variables, recettes, endpoints
@@ -283,5 +315,8 @@ Les messages sont cités en anglais, tels qu'un premier lancement les affiche, p
 | `Ctrl+←/→` ne change pas de panneau sous macOS | Le système l'intercepte : utilisez `Option+←/→`. |
 | `F2` ne copie rien | La copie passe par le terminal (OSC 52) : PuTTY ne la prend pas en charge, `tmux` et `screen` demandent une configuration. |
 | Une requête sur une énorme réponse échoue avec « response larger than 64 MB » | Restreignez-la : `filter_path`, `size`, ou `h=` pour les commandes `_cat`. |
-| Un proxy d'entreprise est nécessaire pour atteindre le cluster | Non pris en charge pour l'instant : `HTTPS_PROXY` n'est pas lu. |
+| Un proxy est nécessaire pour atteindre le cluster | Définissez `HTTPS_PROXY`, ou `proxy:` sur l'entrée du cluster dans `config.yaml` (§5). |
+| Le message commence par `Through proxy …` / `Via le proxy …` | La tentative est passée par ce proxy. Si le cluster se joint sans proxy — c'était le cas jusqu'à la 0.6, qui ignorait `HTTPS_PROXY` — ajoutez-le à `NO_PROXY`, ou mettez `proxy: none` sur son entrée dans `config.yaml` (§5). |
+| `HTTP 407`, ou `Proxy Authentication Required` | Le proxy demande un mot de passe : `HTTPS_PROXY=http://utilisateur:motdepasse@proxy:3128`. Seule l'authentification Basic est prise en charge. |
+| `a proxy reached over TLS (https://) is not supported` | Le proxy est déclaré en `https://` : utilisez son adresse en `http://`, ou un proxy SOCKS5 (§5). |
 | Le programme a planté | Un fichier `crash-<date>.log` est écrit dans le dossier de configuration (§5), ou affiché s'il ne peut pas l'être : joignez-le à un [rapport d'anomalie](https://github.com/gnocent/termdevtools/issues), après avoir vérifié qu'il ne contient rien de confidentiel. |

@@ -85,6 +85,13 @@ type Cluster struct {
 	// written by the program itself. See SPEC.md §3.0 and §9.2.
 	Distribution string `yaml:"distribution,omitempty"`
 	Version      string `yaml:"version,omitempty"`
+	// Proxy is how this cluster is reached: a proxy URL (http:// or
+	// socks5://, without credentials — nothing secret is stored here),
+	// "none" for a direct connection whatever the environment says, or
+	// absent to let HTTPS_PROXY, HTTP_PROXY and NO_PROXY decide. Like the two
+	// above, set by hand and never written by the program itself. See
+	// SPEC.md §5 and §9.2.
+	Proxy string `yaml:"proxy,omitempty"`
 }
 
 // Config is the full content of config.yaml.
@@ -414,6 +421,9 @@ default_client_cert_dir: %s
 # Optional, per cluster: "distribution: opensearch" (or elasticsearch) and
 # "version: 2.19" replace the automatic detection when it can't succeed (a
 # proxy hiding the cluster, OpenSearch in compatibility mode).
+# Also optional, per cluster: "proxy: http://host:3128" (or socks5://...)
+# reaches it through that proxy, "proxy: none" directly. Without it, the
+# HTTPS_PROXY, HTTP_PROXY and NO_PROXY environment variables decide.
 clusters: []
 `},
 }

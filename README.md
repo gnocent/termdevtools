@@ -52,7 +52,7 @@ Sometimes an Elasticsearch cluster has no Kibana available, or its Kibana is dow
 - **Search** (`Ctrl+F`) in the editor as well as in the result.
 - **Automatic save** of in-progress requests per cluster and per user (on exit and via `Ctrl+S`), reloaded on reconnection.
 - **Export** of the displayed result to a timestamped file (`Ctrl+S`, right panel) and **clipboard copy** via OSC 52 (`F2`, works over SSH).
-- **Connection**: Basic Auth, API Key, or client certificate (mTLS, key encrypted or not), with or without TLS verification; history of previously used clusters (never storing a secret there — see [Security](#security)); a certificate picker (`Enter` on the CA/client cert fields) browses the configured directory instead of typing a filename from memory.
+- **Connection**: Basic Auth, API Key, or client certificate (mTLS, key encrypted or not), with or without TLS verification, through an HTTP or SOCKS5 proxy if one is needed (see [Configuration](#configuration)); history of previously used clusters (never storing a secret there — see [Security](#security)); a certificate picker (`Enter` on the CA/client cert fields) browses the configured directory instead of typing a filename from memory.
 - **Built-in help** (`F1`): reminder of shortcuts and file locations.
 
 Full detail of design choices and behavior: [SPEC.md](SPEC.md).
@@ -159,6 +159,8 @@ No configuration is needed to get started: a connection screen lets you enter a 
 
 The cluster's distribution and version are detected at every connection and shown in the status bar (`ES 9.5.4`, `OS 2.19.6`). When they can't be — a proxy hiding the cluster's answer, or an OpenSearch in compatibility mode, which reports a fake version — everything that might apply is offered rather than hidden; `distribution:` and `version:` on a cluster's entry in `config.yaml` then let you state them yourself.
 
+**Proxy.** A cluster is reached through the proxy the `HTTPS_PROXY` / `HTTP_PROXY` environment variables designate, unless `NO_PROXY` excludes it; `localhost` never goes through it. For one cluster in particular, `proxy:` on its entry in `config.yaml` takes precedence: `proxy: http://proxy.example.com:3128`, `proxy: socks5://127.0.0.1:1080` (what `ssh -D 1080 bastion` opens), or `proxy: none` for a direct connection. The proxy in use is always displayed, on connecting and on failure. Details and limits in the [guide, §5](INSTALL.md#5-settings-configyaml).
+
 The interface language (English by default, or French) is set via `language: en` / `language: fr` in that same `config.yaml` — or switched live from the app with `F3`, which saves the choice for next time.
 
 Mouse support (click to focus a field or select a list entry) is **off by default** — set `mouse: true` in `config.yaml` to enable it. Every mouse interaction has a full keyboard equivalent (see [Keyboard shortcuts](#keyboard-shortcuts)); leaving it off keeps the terminal's own native text selection/copy/paste available, since enabling it captures mouse events for the app instead (`F2` still copies the result either way).
@@ -222,7 +224,7 @@ Values live in `~/.config/termdevtools/variables_<cluster>.txt` — one per clus
 
 **What the program does, and doesn't**
 
-- **It only talks to the cluster you chose.** No telemetry, no update check, no external command run.
+- **It only talks to the cluster you chose** — through a proxy only if your environment or `config.yaml` designates one, and showing it. No telemetry, no update check, no external command run.
 - **No secret is ever written to disk**: password, API Key secret and private key passphrase are asked again on every connection. Only the URL, the authentication type and the non-sensitive identifiers (username, API key ID, certificate paths) are saved in `config.yaml`.
 - **A URL carrying credentials is refused** (`https://user:password@host`): saved and displayed, it would have exposed the password.
 - **TLS verified by default**, TLS 1.2 at least; server certificate verification is only turned off explicitly, connection by connection.
@@ -235,6 +237,7 @@ Values live in `~/.config/termdevtools/variables_<cluster>.txt` — one per clus
 **What the program trusts**
 
 - **The binary's directory and your configuration directory.** The recipes, endpoints and starting content found there are offered to the user: in a shared installation, the binary's directory must be writable by trusted people only. A recipe or endpoint file holding control characters is refused.
+- **The proxy, when there is one.** For a cluster in https, it only sees the address asked for: encryption and certificate verification are end to end. For a cluster in http, it sees everything, credentials included. Its own credentials are only given through the environment variable; they are neither saved, nor displayed, nor sent to the cluster. A proxy reached over TLS (`https://`) is refused.
 - **You.** A request is sent as it is written, with no confirmation — `DELETE` included.
 
 **What was checked, and what wasn't**

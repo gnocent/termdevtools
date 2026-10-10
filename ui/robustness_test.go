@@ -480,8 +480,15 @@ func TestCancelButtonGivesUpTheAttempt(t *testing.T) {
 // be reported on.
 func connectOnce(t *testing.T, clusterURL string) (tcell.SimulationScreen, chan ConnectResult) {
 	t.Helper()
+	return connectOnceTo(t, config.Cluster{URL: clusterURL, AuthType: config.AuthNone})
+}
+
+// connectOnceTo is connectOnce for a cluster whose entry in config.yaml
+// holds more than its URL.
+func connectOnceTo(t *testing.T, cluster config.Cluster) (tcell.SimulationScreen, chan ConnectResult) {
+	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	cfg := &config.Config{Language: i18n.FR, DefaultTimeoutSeconds: 5, Clusters: []config.Cluster{{URL: clusterURL, AuthType: config.AuthNone}}}
+	cfg := &config.Config{Language: i18n.FR, DefaultTimeoutSeconds: 5, Clusters: []config.Cluster{cluster}}
 
 	screen := tcell.NewSimulationScreen("")
 	if err := screen.Init(); err != nil {

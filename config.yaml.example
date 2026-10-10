@@ -37,6 +37,13 @@ default_client_cert_dir: ""
 # optional, only serve to replace that detection when it can't succeed — a
 # proxy hiding the cluster, or an OpenSearch in compatibility mode, which
 # reports a fake version. The program never writes them itself.
+#
+# A cluster is reached through the proxy the HTTPS_PROXY / HTTP_PROXY
+# environment variables designate, unless NO_PROXY excludes it (§5). "proxy",
+# optional and never written by the program either, settles it for one
+# cluster: a proxy URL (http:// or socks5://, without credentials — an
+# authenticated proxy goes through the environment variable), or "none" for
+# a direct connection.
 clusters:
   - url: https://es-prod.example.com:9200
     auth_type: basic # none | basic | api_key | mtls
@@ -54,5 +61,12 @@ clusters:
     auth_type: none
     distribution: opensearch # elasticsearch | opensearch
     version: "2.19"
+    tls:
+      verify: true
+
+  - url: https://es-dmz.example.com:9200
+    auth_type: basic
+    username: svc_devtools
+    proxy: http://proxy.example.com:3128 # or socks5://127.0.0.1:1080, or none
     tls:
       verify: true

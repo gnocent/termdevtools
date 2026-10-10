@@ -363,12 +363,25 @@ func TestCertPickerNavigatesIntoSubdirectoryAndBack(t *testing.T) {
 // the ConnectResult handed to the main application is returned.
 func connectToTestServer(t *testing.T, cluster config.Cluster, handler http.HandlerFunc) (ConnectResult, *config.Config) {
 	t.Helper()
+	cluster.AuthType = config.AuthNone
+	// An http:// cluster with no authentication: the form holds the
+	// authentication dropdown (focused), then the Connect button.
+	return connectFilling(t, cluster, handler, func(screen tcell.SimulationScreen) {
+		screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
+		waitForDraw(t, screen)
+	})
+}
+
+// connectFilling is connectToTestServer for a cluster whose form has fields
+// to fill in: fill is handed the screen with the form open — the focus on
+// its authentication dropdown — and must leave it on the Connect button.
+func connectFilling(t *testing.T, cluster config.Cluster, handler http.HandlerFunc, fill func(tcell.SimulationScreen)) (ConnectResult, *config.Config) {
+	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 	cluster.URL = srv.URL
-	cluster.AuthType = config.AuthNone
 	cfg := &config.Config{Language: i18n.FR, DefaultTimeoutSeconds: 5, Clusters: []config.Cluster{cluster}}
 
 	screen := tcell.NewSimulationScreen("")
@@ -386,10 +399,7 @@ func connectToTestServer(t *testing.T, cluster config.Cluster, handler http.Hand
 
 	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone) // the cluster, first in the list
 	waitForDraw(t, screen)
-	// An http:// cluster with no authentication: the form holds the
-	// authentication dropdown (focused), then the Connect button.
-	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
-	waitForDraw(t, screen)
+	fill(screen)
 	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
 
 	select {

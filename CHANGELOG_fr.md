@@ -5,6 +5,8 @@
 ## Non publié
 
 - **Proxy HTTP et SOCKS5** : un cluster est joint à travers le proxy que désignent les variables d'environnement `HTTPS_PROXY` / `HTTP_PROXY`, sauf si `NO_PROXY` l'exclut. Pour un cluster en particulier, `proxy:` sur son entrée dans `config.yaml` l'emporte : une URL de proxy (`http://…`, ou `socks5://…` — ce qu'ouvre `ssh -D`), ou `none` pour une connexion directe. Le proxy utilisé est toujours affiché, et `F9` l'inscrit dans la commande curl quand c'est `config.yaml` qui le fixe.
+- **Clé d'API sous sa forme `encoded`** : la clé telle que Kibana l'affiche à sa création se colle directement dans le champ du secret, sans identifiant. Celui-ci est tiré de la clé et enregistré. La saisie de l'identifiant et du secret fonctionne comme avant.
+- **Jeton Bearer** : nouveau type d'authentification, pour un jeton de compte de service, un jeton d'accès ou un JWT. Comme tout secret, il est redemandé à chaque connexion et jamais enregistré.
 - **Les exports vont dans votre dossier de configuration** : `Ctrl+S` sur le résultat écrit dans `~/.config/termdevtools/exports/`, et plus à côté du binaire. L'export fonctionne donc aussi dans une installation partagée ou en lecture seule, et chaque utilisateur a les siens. La barre de statut affiche toujours le chemin du fichier écrit.
 - **Le rapport de plantage** (`crash-<date>.log`) est écrit au même endroit.
 - **Messages de l'écran de connexion sur trois lignes** : une erreur longue n'est plus coupée après la première.
@@ -13,6 +15,8 @@
 
 - **Proxy** : la 0.6 ignorait `HTTPS_PROXY` et `HTTP_PROXY`. Si l'une d'elles est définie sur votre poste, un cluster joint en direct jusqu'ici passera par ce proxy. S'il ne le doit pas, ajoutez-le à `NO_PROXY`, ou mettez `proxy: none` sur son entrée dans `config.yaml`. En cas d'échec, le message commence par le proxy emprunté et rappelle ces deux remèdes.
 - **Exports** : un dossier `exports/` resté à côté du binaire n'est ni déplacé ni supprimé ; récupérez-y vos fichiers si vous en avez besoin.
+
+**Vérifications** : mot de passe, clé d'API (sous ses deux formes) et jeton Bearer sont vérifiés sur un Elasticsearch 9.5 réel dont la sécurité est activée — acceptés avec le bon secret, refusés avec un mauvais. Le proxy l'est avec un proxy HTTP et un serveur SOCKS5 de test, pas avec un proxy d'entreprise réel ; l'authentification JWT d'OpenSearch n'a pas été vérifiée.
 
 **Limites connues du proxy** : un proxy joint en TLS (`https://proxy…`) est refusé ; ses identifiants ne se donnent que par la variable d'environnement, en authentification Basic ; NTLM, Kerberos, les fichiers PAC et les réglages proxy de Windows ne sont pas pris en charge.
 

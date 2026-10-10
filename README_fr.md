@@ -52,7 +52,7 @@ Il arrive qu'un cluster Elasticsearch n'ait pas de Kibana disponible, ou que son
 - **Recherche** (`Ctrl+F`) dans l'éditeur comme dans le résultat.
 - **Sauvegarde automatique** des requêtes en cours par cluster et par utilisateur (à la fermeture et via `Ctrl+S`), rechargées à la reconnexion.
 - **Export** du résultat affiché vers un fichier horodaté (`Ctrl+S`, panneau droit) et **copie presse-papier** via OSC 52 (`F2`, fonctionne à travers SSH).
-- **Connexion** : Basic Auth, API Key ou certificat client (mTLS, clé chiffrée ou non), avec ou sans vérification TLS, à travers un proxy HTTP ou SOCKS5 s'il en faut un (voir [Configuration](#configuration)) ; historique des clusters déjà utilisés (sans jamais y stocker de secret — voir [Sécurité](#sécurité)) ; un sélecteur de certificat (`Entrée` sur les champs CA/certificat client) parcourt le dossier configuré plutôt que de taper un nom de fichier de mémoire.
+- **Connexion** : Basic Auth, API Key (identifiant et secret, ou sa forme `encoded`), jeton Bearer ou certificat client (mTLS, clé chiffrée ou non), avec ou sans vérification TLS, à travers un proxy HTTP ou SOCKS5 s'il en faut un (voir [Configuration](#configuration)) ; historique des clusters déjà utilisés (sans jamais y stocker de secret — voir [Sécurité](#sécurité)) ; un sélecteur de certificat (`Entrée` sur les champs CA/certificat client) parcourt le dossier configuré plutôt que de taper un nom de fichier de mémoire.
 - **Aide intégrée** (`F1`) : rappel des raccourcis et de l'emplacement des fichiers.
 
 Détail complet des choix et du comportement : [SPEC_fr.md](SPEC_fr.md).
@@ -141,7 +141,7 @@ L'interface démarre désormais en anglais tant qu'aucune langue n'a été chois
 ## Démarrage rapide
 
 1. **Lancer l'outil** : `termdevtools` (`termdevtools.exe` sous Windows). L'écran de connexion liste les clusters déjà utilisés, plus une option **« + New connection »**. L'interface démarre en anglais : une fois connecté, `F3` la passe en français et retient ce choix.
-2. **Se connecter** : saisir l'URL du cluster, choisir un type d'authentification (aucune, Basic Auth, API Key, ou certificat client), puis le secret s'il y en a un. Tout est mémorisé pour la prochaine fois, sauf le secret (voir [Configuration](#configuration) ci-dessous).
+2. **Se connecter** : saisir l'URL du cluster, choisir un type d'authentification (aucune, Basic Auth, API Key, jeton Bearer ou certificat client), puis le secret s'il y en a un. Tout est mémorisé pour la prochaine fois, sauf le secret (voir [Configuration](#configuration) ci-dessous).
 3. **Écrire une requête** dans le panneau de gauche, façon Kibana Console — méthode, endpoint, puis un corps JSON optionnel sur les lignes suivantes :
    ```
    GET _cluster/health
@@ -225,7 +225,7 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 **Ce que le programme fait, et ne fait pas**
 
 - **Il ne parle qu'au cluster que vous avez choisi** — à travers un proxy seulement si votre environnement ou `config.yaml` en désigne un, et en l'affichant. Aucune télémétrie, aucune recherche de mise à jour, aucune commande externe exécutée.
-- **Aucun secret n'est écrit sur le disque** : mot de passe, secret d'API Key et passphrase de clé privée sont redemandés à chaque connexion. Seuls l'URL, le type d'authentification et les identifiants non sensibles (nom d'utilisateur, identifiant de clé d'API, chemins de certificats) sont enregistrés dans `config.yaml`.
+- **Aucun secret n'est écrit sur le disque** : mot de passe, secret d'API Key, jeton Bearer et passphrase de clé privée sont redemandés à chaque connexion. Seuls l'URL, le type d'authentification et les identifiants non sensibles (nom d'utilisateur, identifiant de clé d'API, chemins de certificats) sont enregistrés dans `config.yaml`.
 - **Une URL contenant des identifiants est refusée** (`https://utilisateur:motdepasse@hôte`) : enregistrée et affichée, elle aurait exposé le mot de passe.
 - **TLS vérifié par défaut**, TLS 1.2 au minimum ; la vérification du certificat serveur ne se désactive qu'explicitement, connexion par connexion.
 - **Les redirections HTTP ne sont jamais suivies** : vos identifiants ne partent pas vers une autre adresse que celle saisie, et une requête n'est pas rejouée ailleurs. Une redirection est affichée telle quelle.
@@ -244,6 +244,7 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 
 - Relecture de sécurité du code et tests automatisés pour chacun des points ci-dessus ; `govulncheck` ne signale aucune vulnérabilité connue dans les dépendances.
 - Chaque requête de chaque recette a été exécutée sur onze clusters réels (Elasticsearch 7.17 à 9.5, OpenSearch 2.0 à 3.9).
+- L'authentification par mot de passe, par clé d'API et par jeton Bearer est vérifiée sur un Elasticsearch réel dont la sécurité est activée. Le passage par un proxy l'est avec un proxy HTTP et un serveur SOCKS5 de test, pas avec un proxy d'entreprise réel.
 - **Aucun audit externe indépendant n'a été réalisé**, et les binaires ne sont pas signés : vérifiez leur somme SHA-256. Voir aussi l'[avertissement](#avertissement--limitation-de-responsabilité) ci-dessous.
 
 ## Licence

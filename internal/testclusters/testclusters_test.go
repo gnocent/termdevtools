@@ -29,6 +29,24 @@ func TestDefaultsMatchScript(t *testing.T) {
 	}
 }
 
+// TestSecuredMatchesScript does the same for the cluster with security on.
+func TestSecuredMatchesScript(t *testing.T) {
+	script, err := os.ReadFile(filepath.Join("..", "..", "tools", "testclusters.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// secured="secured-es-9.5.4|docker.elastic.co/...:9.5.4|19395"
+	cluster := regexp.MustCompile(`(?m)^secured="([^|"]+)\|[^|"]+\|([0-9]+)"$`).FindStringSubmatch(string(script))
+	password := regexp.MustCompile(`(?m)^secured_password="([^"]+)"$`).FindStringSubmatch(string(script))
+	if cluster == nil || password == nil {
+		t.Fatal("the script no longer declares the secured cluster and its password as expected")
+	}
+	want := SecuredCluster{Name: cluster[1], URL: "http://localhost:" + cluster[2], Username: "elastic", Password: password[1]}
+	if Secured != want {
+		t.Errorf("script says %+v, Go says %+v", want, Secured)
+	}
+}
+
 func TestParse(t *testing.T) {
 	got, err := Parse(" es-8.19.22=http://a:9200/ , os-2.19.6=http://b:9200 ")
 	if err != nil {

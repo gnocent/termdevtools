@@ -1,5 +1,5 @@
 // Package esclient executes HTTP requests against an Elasticsearch cluster,
-// handling authentication (none, Basic Auth, API Key, mTLS), TLS (custom CA,
+// handling authentication (none, Basic Auth, API Key, Bearer token, mTLS), TLS (custom CA,
 // verification can be disabled) and proxies (from the environment or set per
 // cluster). See SPEC.md §5.
 package esclient
@@ -16,6 +16,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -24,6 +25,7 @@ const (
 	AuthNone   = "none"
 	AuthBasic  = "basic"
 	AuthAPIKey = "api_key"
+	AuthBearer = "bearer"
 	AuthMTLS   = "mtls"
 )
 
@@ -38,9 +40,14 @@ type Params struct {
 	Username string
 	Password string
 
-	// API Key (Authorization: ApiKey base64(id:secret))
+	// API Key (Authorization: ApiKey base64(id:secret)). A key held in its
+	// "encoded" form goes through ResolveAPIKey first.
 	APIKeyID     string
 	APIKeySecret string
+
+	// Bearer token (Authorization: Bearer <token>): a service account
+	// token, an access token, a JWT — whatever the cluster accepts as one.
+	BearerToken string
 
 	// TLS
 	Verify     bool
@@ -90,6 +97,7 @@ func New(p Params) (*Client, error) {
 	if p.Timeout <= 0 {
 		p.Timeout = 120 * time.Second
 	}
+	p.BearerToken = normalizeBearerToken(p.BearerToken)
 
 	tlsConfig := &tls.Config{InsecureSkipVerify: !p.Verify}
 
@@ -198,9 +206,58 @@ func (c *Client) applyAuth(req *http.Request) {
 	case AuthAPIKey:
 		token := base64.StdEncoding.EncodeToString([]byte(c.params.APIKeyID + ":" + c.params.APIKeySecret))
 		req.Header.Set("Authorization", "ApiKey "+token)
+	case AuthBearer:
+		req.Header.Set("Authorization", "Bearer "+c.params.BearerToken)
 	case AuthMTLS, AuthNone:
 		// Nothing to add: mTLS authentication happens at the TLS level.
 	}
+}
+
+// ResolveAPIKey makes out what was given as an API key's secret: the secret
+// itself, to go with id — or the whole key in its "encoded" form,
+// base64(id:secret), which is what Kibana and the API creating a key show
+// first, and so what one most often has at hand. An encoded key carries its
+// own identifier, which then replaces id.
+func ResolveAPIKey(id, secret string) (string, string) {
+	if encodedID, encodedSecret, ok := decodeAPIKey(secret); ok {
+		return encodedID, encodedSecret
+	}
+	return id, secret
+}
+
+// apiKeyPart is what an API key's identifier and secret are made of: the
+// URL-safe base64 alphabet Elasticsearch generates both from.
+var apiKeyPart = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+// decodeAPIKey reads an encoded API key. The shape is checked strictly —
+// two parts of the expected alphabet around a colon — because a plain secret
+// is itself made of base64 characters and does decode, to bytes that are
+// nothing of the kind.
+func decodeAPIKey(encoded string) (id, secret string, ok bool) {
+	encoded = strings.TrimSpace(encoded)
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		// Copied without its trailing "=" padding.
+		if decoded, err = base64.RawStdEncoding.DecodeString(encoded); err != nil {
+			return "", "", false
+		}
+	}
+	id, secret, found := strings.Cut(string(decoded), ":")
+	if !found || !apiKeyPart.MatchString(id) || !apiKeyPart.MatchString(secret) {
+		return "", "", false
+	}
+	return id, secret, true
+}
+
+// normalizeBearerToken strips what a pasted token often comes with: the
+// spaces or line break around it, and the "Bearer " it is shown after in an
+// Authorization header.
+func normalizeBearerToken(token string) string {
+	token = strings.TrimSpace(token)
+	if len(token) > 7 && strings.EqualFold(token[:7], "Bearer ") {
+		token = strings.TrimSpace(token[7:])
+	}
+	return token
 }
 
 func loadCAPool(caFile string) (*x509.CertPool, error) {

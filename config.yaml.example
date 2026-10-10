@@ -46,7 +46,7 @@ default_client_cert_dir: ""
 # a direct connection.
 clusters:
   - url: https://es-prod.example.com:9200
-    auth_type: basic # none | basic | api_key | mtls
+    auth_type: basic # none | basic | api_key | bearer | mtls
     username: svc_devtools
     tls:
       verify: true

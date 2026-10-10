@@ -2,11 +2,16 @@
 # Starts/stops the single-node Elasticsearch and OpenSearch containers the
 # reference data is generated from and checked against (security disabled,
 # plain HTTP, throwaway — hence published on this machine's loopback
-# interface only). Needs Docker and about 12 GB of free memory.
+# interface only), and one more with security on, to check authentication
+# against. Needs Docker and, for all of them at once, about 13 GB of free
+# memory.
 #
-#   testclusters.sh up      start every cluster and wait until it answers
-#   testclusters.sh down    remove every cluster
-#   testclusters.sh env     print the list as a TDT_IT_TARGETS value
+#   testclusters.sh up [name...]     start the clusters and wait until they answer
+#   testclusters.sh down [name...]   remove them
+#   testclusters.sh env              print the list as a TDT_IT_TARGETS value
+#
+# Without a name, up and down act on every cluster; with names ("es-9.5.4",
+# "secured-es-9.5.4"), on those only.
 #
 # The list below is mirrored in internal/testclusters (a test keeps the two
 # in step): for each distribution, the first and last minor of every major
@@ -30,19 +35,59 @@ targets=(
   "os-3.9.0|opensearchproject/opensearch:3.9.0|19339"
 )
 
+# One more Elasticsearch, with security on, for what the others can't check:
+# authentication (go test -tags integration ./esclient/). Plain HTTP like
+# the others, and a password that protects nothing — the container holds no
+# data and is published on the loopback interface only. Mirrored in
+# internal/testclusters as well, and left out of "env": the reference data
+# tests have no credentials to give it.
+secured="secured-es-9.5.4|docker.elastic.co/elasticsearch/elasticsearch:9.5.4|19395"
+secured_password="tdt-throwaway"
+
 heap="-Xms768m -Xmx768m"
 # Where a snapshot repository may be registered inside each container (the
 # snapshot recipes are run for real by the integration tests).
 snapshots="/tmp/tdt-snapshots"
 
+# selected prints the clusters to act on: every one of them, or those named.
+selected() {
+  for t in "${targets[@]}" "$secured"; do
+    if [ "$#" -eq 0 ]; then
+      echo "$t"
+      continue
+    fi
+    for wanted in "$@"; do
+      if [ "${t%%|*}" = "$wanted" ]; then
+        echo "$t"
+      fi
+    done
+  done
+}
+
 up() {
-  for t in "${targets[@]}"; do
+  mapfile -t chosen < <(selected "$@")
+  if [ "${#chosen[@]}" -eq 0 ]; then
+    echo "no such cluster: $*" >&2
+    return 2
+  fi
+
+  for t in "${chosen[@]}"; do
     IFS='|' read -r name image port <<<"$t"
     if docker ps --format '{{.Names}}' | grep -qx "tdt-$name"; then
       continue
     fi
     docker rm -f "tdt-$name" >/dev/null 2>&1
     case "$name" in
+      secured-es-*)
+        docker run -d --quiet --name "tdt-$name" -p "127.0.0.1:$port:9200" \
+          -e discovery.type=single-node \
+          -e xpack.security.enabled=true \
+          -e xpack.security.http.ssl.enabled=false \
+          -e xpack.security.authc.api_key.enabled=true \
+          -e ELASTIC_PASSWORD="$secured_password" \
+          -e ES_JAVA_OPTS="$heap" \
+          "$image" >/dev/null
+        ;;
       es-*)
         docker run -d --quiet --name "tdt-$name" -p "127.0.0.1:$port:9200" \
           -e discovery.type=single-node \
@@ -65,18 +110,22 @@ up() {
   done
 
   failed=0
-  for t in "${targets[@]}"; do
+  for t in "${chosen[@]}"; do
     IFS='|' read -r name image port <<<"$t"
+    auth=()
+    case "$name" in
+      secured-*) auth=(-u "elastic:$secured_password") ;;
+    esac
     ok=0
     for _ in $(seq 1 90); do
-      if curl -s -m 2 "http://localhost:$port/_cluster/health" | grep -q '"status"'; then
+      if curl -s -m 2 ${auth[@]+"${auth[@]}"} "http://localhost:$port/_cluster/health" | grep -q '"status"'; then
         ok=1
         break
       fi
       sleep 2
     done
     if [ "$ok" = 1 ]; then
-      echo "ready   tdt-$name  $(curl -s -m 2 "http://localhost:$port/" | tr -d '\n ' | grep -o '"number":"[^"]*"')"
+      echo "ready   tdt-$name  $(curl -s -m 2 ${auth[@]+"${auth[@]}"} "http://localhost:$port/" | tr -d '\n ' | grep -o '"number":"[^"]*"')"
     else
       echo "FAILED  tdt-$name"
       docker logs --tail 15 "tdt-$name" 2>&1 | sed 's/^/    /'
@@ -88,7 +137,8 @@ up() {
 }
 
 down() {
-  for t in "${targets[@]}"; do
+  mapfile -t chosen < <(selected "$@")
+  for t in "${chosen[@]}"; do
     IFS='|' read -r name image port <<<"$t"
     docker rm -f "tdt-$name" >/dev/null 2>&1 && echo "removed tdt-$name"
   done
@@ -104,8 +154,8 @@ env_line() {
 }
 
 case "${1:-}" in
-  up) up ;;
-  down) down ;;
+  up) shift; up "$@" ;;
+  down) shift; down "$@" ;;
   env) env_line ;;
-  *) echo "usage: $0 up|down|env" >&2; exit 2 ;;
+  *) echo "usage: $0 up [name...] | down [name...] | env" >&2; exit 2 ;;
 esac

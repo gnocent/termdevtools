@@ -27,13 +27,15 @@ type Strings struct {
 	AuthNone                   string
 	AuthBasic                  string
 	AuthAPIKey                 string
+	AuthBearer                 string
 	AuthMTLS                   string
 	FieldURL                   string
 	FieldURLReadOnly           string
 	FieldUsername              string
 	FieldPassword              string
 	FieldAPIKeyID              string
-	FieldAPIKeySecret          string
+	FieldAPIKeySecret          string // the secret, or the whole key in its "encoded" form
+	FieldBearerToken           string
 	FieldClientCert            string
 	FieldClientKey             string
 	FieldKeyPassphrase         string
@@ -43,6 +45,7 @@ type Strings struct {
 	ButtonCancel               string
 	ErrURLRequired             string
 	ErrURLCredentials          string // a user:password@ part in the URL, which is saved and displayed as is
+	ErrAPIKeyIDRequired        string // API Key authentication with neither an ID nor an encoded key
 	StatusConnecting           string
 	ErrConnectFailedFmt        string // "%s" — why the connection failed
 	ErrClusterHTTPFmt          string // "%d" — the HTTP status the cluster answered with
@@ -153,13 +156,15 @@ var fr = Strings{
 	AuthNone:                   "aucune",
 	AuthBasic:                  "Basic Auth",
 	AuthAPIKey:                 "API Key",
+	AuthBearer:                 "jeton Bearer",
 	AuthMTLS:                   "certificat client (mTLS)",
 	FieldURL:                   "URL (https://host:port)",
 	FieldURLReadOnly:           "URL",
 	FieldUsername:              "Username",
 	FieldPassword:              "Mot de passe",
 	FieldAPIKeyID:              "API Key ID",
-	FieldAPIKeySecret:          "API Key secret",
+	FieldAPIKeySecret:          "Secret, ou clé encodée (sans ID)",
+	FieldBearerToken:           "Jeton",
 	FieldClientCert:            "Certificat client",
 	FieldClientKey:             "Clé privée client",
 	FieldKeyPassphrase:         "Passphrase de la clé (si chiffrée)",
@@ -169,6 +174,7 @@ var fr = Strings{
 	ButtonCancel:               "Annuler",
 	ErrURLRequired:             "L'URL est obligatoire.",
 	ErrURLCredentials:          "Pas d'identifiants dans l'URL (elle est enregistrée et affichée) : choisissez l'authentification Basic Auth.",
+	ErrAPIKeyIDRequired:        "API Key ID manquant : renseignez-le, ou collez la clé sous sa forme encodée à la place du secret.",
 	StatusConnecting:           "Connexion en cours...",
 	ErrConnectFailedFmt:        "Échec de connexion : %s",
 	ErrClusterHTTPFmt:          "Le cluster a répondu HTTP %d",
@@ -313,13 +319,15 @@ var en = Strings{
 	AuthNone:                   "none",
 	AuthBasic:                  "Basic Auth",
 	AuthAPIKey:                 "API Key",
+	AuthBearer:                 "Bearer token",
 	AuthMTLS:                   "client certificate (mTLS)",
 	FieldURL:                   "URL (https://host:port)",
 	FieldURLReadOnly:           "URL",
 	FieldUsername:              "Username",
 	FieldPassword:              "Password",
 	FieldAPIKeyID:              "API Key ID",
-	FieldAPIKeySecret:          "API Key secret",
+	FieldAPIKeySecret:          "Secret, or encoded key (no ID)",
+	FieldBearerToken:           "Token",
 	FieldClientCert:            "Client certificate",
 	FieldClientKey:             "Client private key",
 	FieldKeyPassphrase:         "Key passphrase (if encrypted)",
@@ -329,6 +337,7 @@ var en = Strings{
 	ButtonCancel:               "Cancel",
 	ErrURLRequired:             "The URL is required.",
 	ErrURLCredentials:          "No credentials in the URL (it is saved and displayed): choose the Basic Auth authentication instead.",
+	ErrAPIKeyIDRequired:        "API Key ID missing: fill it in, or paste the key in its encoded form in place of the secret.",
 	StatusConnecting:           "Connecting...",
 	ErrConnectFailedFmt:        "Connection failed: %s",
 	ErrClusterHTTPFmt:          "The cluster responded HTTP %d",

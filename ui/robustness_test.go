@@ -487,6 +487,18 @@ func connectOnce(t *testing.T, clusterURL string) (tcell.SimulationScreen, chan 
 // holds more than its URL.
 func connectOnceTo(t *testing.T, cluster config.Cluster) (tcell.SimulationScreen, chan ConnectResult) {
 	t.Helper()
+	screen, results := openClusterForm(t, cluster)
+	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone) // from the authentication dropdown to Connect
+	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
+	return screen, results
+}
+
+// openClusterForm opens the connection screen on a single known cluster and
+// its form, the focus on the authentication dropdown; it returns the screen
+// and the channel a connection would be reported on.
+func openClusterForm(t *testing.T, cluster config.Cluster) (tcell.SimulationScreen, chan ConnectResult) {
+	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	cfg := &config.Config{Language: i18n.FR, DefaultTimeoutSeconds: 5, Clusters: []config.Cluster{cluster}}
 
@@ -494,7 +506,7 @@ func connectOnceTo(t *testing.T, cluster config.Cluster) (tcell.SimulationScreen
 	if err := screen.Init(); err != nil {
 		t.Fatalf("screen.Init: %v", err)
 	}
-	screen.SetSize(160, 30) // wide: the message under the form is one line
+	screen.SetSize(160, 30) // wide: a message under the form stays on one line
 
 	results := make(chan ConnectResult, 1)
 	tapp := tview.NewApplication().SetScreen(screen)
@@ -505,9 +517,6 @@ func connectOnceTo(t *testing.T, cluster config.Cluster) (tcell.SimulationScreen
 
 	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone) // the cluster, first in the list
 	waitForDraw(t, screen)
-	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone) // from the authentication dropdown to Connect
-	waitForDraw(t, screen)
-	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
 	return screen, results
 }
 

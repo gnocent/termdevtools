@@ -116,7 +116,8 @@ Run `termdevtools`. The interface is in English; once connected, `F3` switches i
    |---|---|
    | none | — |
    | Basic Auth | *Username*, *Password* |
-   | API Key | *API Key ID*, *API Key secret* |
+   | API Key | *API Key ID*, then *Secret, or encoded key (no ID)*: the key's secret — or the whole key in its `encoded` form, in which case the identifier isn't needed |
+   | Bearer token | *Token* |
    | client certificate (mTLS) | *Client certificate*, *Client private key*, *Key passphrase* if it is encrypted |
 
 4. **TLS** (`https://` URLs only):
@@ -126,7 +127,7 @@ Run `termdevtools`. The interface is in English; once connected, `F3` switches i
 
 Once connected, the status bar tells what was recognized: `ES 9.5.4`, `OS 2.19.6`.
 
-**What is remembered, and what is not.** The URL, the authentication type, the username, the API key identifier and the certificate paths are saved in `config.yaml`: on the next connection, that cluster is in the list and only the secret is asked for again. Passwords, API key secrets and passphrases are **never** written to disk.
+**What is remembered, and what is not.** The URL, the authentication type, the username, the API key identifier and the certificate paths are saved in `config.yaml`: on the next connection, that cluster is in the list and only the secret is asked for again. Passwords, API key secrets, tokens and passphrases are **never** written to disk.
 
 ### Creating an API key (Elasticsearch)
 
@@ -139,7 +140,16 @@ POST _security/api_key
 }
 ```
 
-The answer holds `id` and `api_key`: those are the *API Key ID* and the *API Key secret* to enter. The `encoded` value of the same answer is not accepted as is.
+The answer holds `id`, `api_key` and `encoded`. Two ways to enter it, whichever you prefer:
+
+- `id` in *API Key ID* and `api_key` in the secret field;
+- `encoded` alone in the secret field, *API Key ID* left empty. That is also the form Kibana shows when a key is created. The identifier is then taken from the key and saved for next time.
+
+### Bearer token
+
+Choose *Bearer token* when the cluster expects an `Authorization: Bearer …` header: an Elasticsearch service account token or access token, an Elasticsearch or OpenSearch JWT. Paste the token alone; if it was copied with the word `Bearer`, that word is removed.
+
+The token is never saved: it is asked again on every connection, and TermDevTools doesn't renew it when it expires. For lasting access, prefer an API key.
 
 ### Client certificate (mTLS)
 
@@ -304,7 +314,8 @@ Delete the binary and the configuration directory (§5): TermDevTools writes not
 | Symptom | Likely cause, and what to do |
 |---|---|
 | `x509: certificate signed by unknown authority` | The cluster's certificate is signed by an authority your system doesn't know: fill in the *CA file*. |
-| `The cluster responded HTTP 401` | Credentials refused. |
+| `The cluster responded HTTP 401` | Credentials refused — a wrong password or API key secret, a wrong or expired Bearer token. |
+| `API Key ID missing…` | The secret field holds a secret alone, with no identifier: fill in *API Key ID*, or paste the key in its `encoded` form (§3). |
 | `The cluster responded HTTP 403` | The account isn't allowed to read the cluster's root (`GET /`): it needs at least the monitoring privilege (`monitor`). |
 | `The cluster responded HTTP 301` (or `302`…) followed by an address | The URL entered redirects elsewhere: use the address shown. Redirections are never followed. |
 | `No credentials in the URL…` | Remove `user:password@` from the URL and choose Basic Auth. |

@@ -38,6 +38,7 @@ type ConnectResult struct {
 type connectSecrets struct {
 	password      string
 	apiKeySecret  string
+	bearerToken   string
 	keyPassphrase string
 }
 
@@ -160,10 +161,10 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 	username, apiKeyID := cluster.Username, cluster.APIKeyID
 	verify := cluster.TLS.Verify
 	caFile, clientCert, clientKey := cluster.TLS.CAFile, cluster.TLS.ClientCert, cluster.TLS.ClientKey
-	var password, apiKeySecret, keyPassphrase string
+	var password, apiKeySecret, bearerToken, keyPassphrase string
 
-	authOptions := []string{config.AuthNone, config.AuthBasic, config.AuthAPIKey, config.AuthMTLS}
-	authLabels := []string{msgs.AuthNone, msgs.AuthBasic, msgs.AuthAPIKey, msgs.AuthMTLS}
+	authOptions := []string{config.AuthNone, config.AuthBasic, config.AuthAPIKey, config.AuthBearer, config.AuthMTLS}
+	authLabels := []string{msgs.AuthNone, msgs.AuthBasic, msgs.AuthAPIKey, msgs.AuthBearer, msgs.AuthMTLS}
 	authIndex := indexOf(authOptions, authType)
 	if authIndex < 0 {
 		authIndex = 0
@@ -231,6 +232,8 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 		case config.AuthAPIKey:
 			form.AddInputField(msgs.FieldAPIKeyID, apiKeyID, 40, nil, func(v string) { apiKeyID = v })
 			form.AddPasswordField(msgs.FieldAPIKeySecret, "", 40, '*', func(v string) { apiKeySecret = v })
+		case config.AuthBearer:
+			form.AddPasswordField(msgs.FieldBearerToken, "", 40, '*', func(v string) { bearerToken = v })
 		case config.AuthMTLS:
 			// A client certificate is part of the TLS handshake: doesn't
 			// make sense if the connection isn't over https.
@@ -261,7 +264,9 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 			Distribution: cluster.Distribution, Version: cluster.Version,
 			Proxy: cluster.Proxy,
 		}
-		cs.attemptConnect(cl, connectSecrets{password: password, apiKeySecret: apiKeySecret, keyPassphrase: keyPassphrase})
+		cs.attemptConnect(cl, connectSecrets{
+			password: password, apiKeySecret: apiKeySecret, bearerToken: bearerToken, keyPassphrase: keyPassphrase,
+		})
 	})
 	form.AddButton(msgs.ButtonCancel, cancel)
 
@@ -483,6 +488,15 @@ func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecret
 		cs.setMessage(msgs.ErrURLCredentials, "red")
 		return
 	}
+	if cl.AuthType == config.AuthAPIKey {
+		// A key pasted in its encoded form brings its own identifier: that
+		// is the one saved, and shown in the status bar.
+		cl.APIKeyID, secrets.apiKeySecret = esclient.ResolveAPIKey(cl.APIKeyID, secrets.apiKeySecret)
+		if cl.APIKeyID == "" {
+			cs.setMessage(msgs.ErrAPIKeyIDRequired, "red")
+			return
+		}
+	}
 	// The proxy this goes through, if any, is named before anything is sent
 	// through it — and one that can't be used stops the attempt here.
 	proxy, err := esclient.ProxyFor(cl.URL, cl.Proxy)
@@ -503,7 +517,8 @@ func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecret
 		URL: cl.URL, AuthType: cl.AuthType,
 		Username: cl.Username, Password: secrets.password,
 		APIKeyID: cl.APIKeyID, APIKeySecret: secrets.apiKeySecret,
-		Verify: cl.TLS.Verify, CAFile: cl.TLS.CAFile,
+		BearerToken: secrets.bearerToken,
+		Verify:      cl.TLS.Verify, CAFile: cl.TLS.CAFile,
 		ClientCert: cl.TLS.ClientCert, ClientKey: cl.TLS.ClientKey, KeyPassphrase: secrets.keyPassphrase,
 		Proxy:   cl.Proxy,
 		Timeout: timeout,
@@ -620,6 +635,8 @@ func displayUserFor(cl config.Cluster, msgs *i18n.Strings) string {
 		return cl.Username
 	case config.AuthAPIKey:
 		return "api_key:" + cl.APIKeyID
+	case config.AuthBearer:
+		return "Bearer"
 	case config.AuthMTLS:
 		return "mTLS"
 	default:

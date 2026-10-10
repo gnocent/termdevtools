@@ -56,6 +56,26 @@ var defaults = []Cluster{
 	{"os-3.9.0", "http://localhost:19339"},
 }
 
+// Secured is the one cluster started with security on, for what the others
+// can't check: authentication. Its password protects nothing — the container
+// holds no data and is only reachable from this machine. Mirrors
+// tools/testclusters.sh like the list above, and is not part of it: the
+// reference data tests have no credentials to give.
+var Secured = SecuredCluster{
+	Name:     "secured-es-9.5.4",
+	URL:      "http://localhost:19395",
+	Username: "elastic",
+	Password: "tdt-throwaway",
+}
+
+// SecuredCluster is a cluster to query with a user name and password.
+type SecuredCluster struct {
+	Name     string
+	URL      string
+	Username string
+	Password string
+}
+
 // FromEnv returns the clusters named by EnvVar, or the default list if it
 // isn't set.
 func FromEnv() ([]Cluster, error) {

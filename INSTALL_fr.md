@@ -116,7 +116,8 @@ Lancez `termdevtools`. L'interface démarre en anglais ; une fois connecté, `F3
    |---|---|
    | none (*aucune*) | — |
    | Basic Auth | *Username*, *Password* (*Mot de passe*) |
-   | API Key | *API Key ID*, *API Key secret* |
+   | API Key | *API Key ID*, puis *Secret, or encoded key (no ID)* (*Secret, ou clé encodée (sans ID)*) : le secret de la clé — ou la clé entière sous sa forme `encoded`, auquel cas l'identifiant est inutile |
+   | Bearer token (*jeton Bearer*) | *Token* (*Jeton*) |
    | client certificate (mTLS) (*certificat client (mTLS)*) | *Client certificate*, *Client private key*, *Key passphrase* si la clé est chiffrée |
 
 4. **TLS** (URL en `https://` seulement) :
@@ -126,7 +127,7 @@ Lancez `termdevtools`. L'interface démarre en anglais ; une fois connecté, `F3
 
 Une fois connecté, la barre de statut indique ce qui a été reconnu : `ES 9.5.4`, `OS 2.19.6`.
 
-**Ce qui est retenu, et ce qui ne l'est pas.** L'URL, le type d'authentification, le nom d'utilisateur, l'identifiant de clé d'API et les chemins de certificats sont enregistrés dans `config.yaml` : à la prochaine connexion, ce cluster apparaît dans la liste et seul le secret est redemandé. Les mots de passe, secrets de clé d'API et passphrases ne sont **jamais** écrits sur le disque.
+**Ce qui est retenu, et ce qui ne l'est pas.** L'URL, le type d'authentification, le nom d'utilisateur, l'identifiant de clé d'API et les chemins de certificats sont enregistrés dans `config.yaml` : à la prochaine connexion, ce cluster apparaît dans la liste et seul le secret est redemandé. Les mots de passe, secrets de clé d'API, jetons et passphrases ne sont **jamais** écrits sur le disque.
 
 ### Créer une clé d'API (Elasticsearch)
 
@@ -139,7 +140,16 @@ POST _security/api_key
 }
 ```
 
-La réponse contient `id` et `api_key` : ce sont l'*API Key ID* et l'*API Key secret* à saisir. La valeur `encoded` de la même réponse n'est pas acceptée telle quelle.
+La réponse contient `id`, `api_key` et `encoded`. Deux façons de la saisir, au choix :
+
+- `id` dans *API Key ID* et `api_key` dans le champ du secret ;
+- `encoded` seul dans le champ du secret, *API Key ID* laissé vide. C'est aussi la forme que Kibana affiche à la création d'une clé. L'identifiant est alors tiré de la clé et enregistré pour la prochaine fois.
+
+### Jeton Bearer
+
+Choisissez *Bearer token* quand le cluster attend un en-tête `Authorization: Bearer …` : jeton de compte de service ou jeton d'accès d'Elasticsearch, JWT d'Elasticsearch ou d'OpenSearch. Collez le jeton seul ; s'il a été copié avec le mot `Bearer`, celui-ci est retiré.
+
+Le jeton n'est jamais enregistré : il est redemandé à chaque connexion, et TermDevTools ne le renouvelle pas quand il expire. Pour un accès durable, préférez une clé d'API.
 
 ### Certificat client (mTLS)
 
@@ -306,7 +316,8 @@ Les messages sont cités en anglais, tels qu'un premier lancement les affiche, p
 | Symptôme | Cause probable, et que faire |
 |---|---|
 | `x509: certificate signed by unknown authority` | Le certificat du cluster est signé par une autorité inconnue de votre système : renseignez le champ *CA file* (*Fichier CA*). |
-| `The cluster responded HTTP 401` / `Le cluster a répondu HTTP 401` | Identifiants refusés. |
+| `The cluster responded HTTP 401` / `Le cluster a répondu HTTP 401` | Identifiants refusés — mot de passe, secret de clé d'API, ou jeton Bearer erroné ou expiré. |
+| `API Key ID missing…` / `API Key ID manquant…` | Le champ du secret ne contient qu'un secret, sans identifiant : renseignez *API Key ID*, ou collez la clé sous sa forme `encoded` (§3). |
 | `The cluster responded HTTP 403` / `Le cluster a répondu HTTP 403` | Le compte n'a pas le droit de lire la racine du cluster (`GET /`) : il lui faut au moins le privilège de supervision (`monitor`). |
 | `The cluster responded HTTP 301` (ou `302`…) suivi d'une adresse | L'URL saisie redirige ailleurs : utilisez l'adresse indiquée. Les redirections ne sont jamais suivies. |
 | `No credentials in the URL…` / `Pas d'identifiants dans l'URL…` | Retirez `utilisateur:motdepasse@` de l'URL et choisissez Basic Auth. |

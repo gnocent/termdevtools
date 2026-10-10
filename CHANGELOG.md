@@ -5,6 +5,8 @@
 ## Unreleased
 
 - **HTTP and SOCKS5 proxies**: a cluster is reached through the proxy the `HTTPS_PROXY` / `HTTP_PROXY` environment variables designate, unless `NO_PROXY` excludes it. For one cluster in particular, `proxy:` on its entry in `config.yaml` takes precedence: a proxy URL (`http://…`, or `socks5://…` — what `ssh -D` opens), or `none` for a direct connection. The proxy in use is always displayed, and `F9` writes it into the curl command when `config.yaml` sets it.
+- **API key in its `encoded` form**: the key as Kibana shows it when created is pasted straight into the secret field, with no identifier. The identifier is taken from the key and saved. Entering the identifier and the secret works as before.
+- **Bearer token**: a new authentication type, for a service account token, an access token or a JWT. Like any secret, it is asked again on every connection and never saved.
 - **Exports go to your configuration directory**: `Ctrl+S` on the result writes to `~/.config/termdevtools/exports/`, no longer next to the binary. Exporting therefore also works in a shared or read-only installation, and each user has their own. The status bar still shows the path of the file written.
 - **The crash report** (`crash-<date>.log`) is written to the same place.
 - **Messages of the connection screen on three lines**: a long error is no longer cut after the first.
@@ -13,6 +15,8 @@
 
 - **Proxy**: 0.6 ignored `HTTPS_PROXY` and `HTTP_PROXY`. If either is set on your machine, a cluster reached directly so far will go through that proxy. If it must not, add it to `NO_PROXY`, or set `proxy: none` on its entry in `config.yaml`. On failure, the message starts with the proxy gone through and recalls both remedies.
 - **Exports**: an `exports/` directory left next to the binary is neither moved nor deleted; take your files from it if you need them.
+
+**Checks**: password, API key (in both forms) and Bearer token are checked against a real Elasticsearch 9.5 with security on — accepted with the right secret, turned down with a wrong one. The proxy is checked with a test HTTP proxy and a test SOCKS5 server, not with a real corporate proxy; OpenSearch's JWT authentication was not checked.
 
 **Known limits of the proxy**: a proxy reached over TLS (`https://proxy…`) is refused; its credentials are only given through the environment variable, with Basic authentication; NTLM, Kerberos, PAC files and Windows' proxy settings are not supported.
 

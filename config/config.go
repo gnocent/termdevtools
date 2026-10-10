@@ -20,6 +20,7 @@ const (
 	AuthNone   = "none"
 	AuthBasic  = "basic"
 	AuthAPIKey = "api_key"
+	AuthBearer = "bearer"
 	AuthMTLS   = "mtls"
 
 	defaultTimeoutSeconds = 120

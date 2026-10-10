@@ -8,7 +8,7 @@ import "strings"
 // backlog #3): a working command to replicate a call outside the tool (a
 // script, a colleague, a bug report).
 //
-// The actual secret (password, API key secret, private key passphrase) is
+// The actual secret (password, API key secret, token, key passphrase) is
 // deliberately replaced with a "<...>" placeholder rather than embedded in
 // clear text: the generated command is meant to be copied to the clipboard,
 // and from there potentially pasted anywhere — unlike config.yaml (never
@@ -27,6 +27,8 @@ func (c *Client) CurlCommand(method, path string, body []byte) string {
 		b.WriteString(" -u " + shellQuote(c.params.Username+":<password>"))
 	case AuthAPIKey:
 		b.WriteString(" -H " + shellQuote("Authorization: ApiKey <base64("+c.params.APIKeyID+":<api_key_secret>)>"))
+	case AuthBearer:
+		b.WriteString(" -H " + shellQuote("Authorization: Bearer <token>"))
 	case AuthMTLS:
 		if c.params.ClientCert != "" {
 			b.WriteString(" --cert " + shellQuote(c.params.ClientCert))

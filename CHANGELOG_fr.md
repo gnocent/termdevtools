@@ -2,6 +2,12 @@
 
 # Journal des versions
 
+## Non publié
+
+### Corrections
+
+- **Changement de panneau sous PuTTY** : l'aide (`F1`) et la documentation réservaient `Alt+←/→` à macOS ; ce raccourci change de panneau sur tous les systèmes, et c'est celui à utiliser là où `Ctrl+←/→` ne passe pas, comme sous PuTTY. Le conseil de l'aide sur PuTTY le cite désormais.
+
 ## 0.7.3 (bêta) — octobre 2026
 
 **En une phrase** : un cluster de production peut être protégé — confirmation ou refus des requêtes qui écrivent, et un bandeau qui le signale.

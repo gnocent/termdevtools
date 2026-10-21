@@ -237,7 +237,7 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 | Aide | `F1` (`Echap` pour fermer) |
 
 [^entree]: `Ctrl+Entrée` fonctionne aussi sur les terminaux qui le rapportent distinctement d'un simple `Entrée` — beaucoup ne le font pas, d'où `Ctrl+E` comme raccourci principal, toujours fiable.
-[^focus]: Sur macOS, `Option`/`Alt` fonctionne aussi à la place de `Ctrl` — `Ctrl+←/→` est intercepté par le système par défaut (changement d'espace Mission Control).
+[^focus]: `Alt+←/→` fonctionne aussi, sur tous les systèmes — pour les terminaux où `Ctrl+←/→` ne passe pas : PuTTY, ou macOS, où le système l'intercepte par défaut (changement d'espace Mission Control) et où `Option` est la touche Alt.
 [^redim]: `Ctrl+Maj+←/→` (`Option`/`Alt` inclus, sur macOS) fonctionne aussi sur les terminaux qui le rapportent distinctement d'une flèche non modifiée — tous ne le font pas, d'où `F5`/`F6` comme raccourcis principaux, toujours fiables.
 [^tab]: Sur certains terminaux (notamment PuTTY), `Tab` est absorbé entièrement — aucun événement clavier n'atteint l'appli. `F10` est une alternative garantie fiable. **PuTTY est globalement déconseillé** : aucun souci sous macOS/Windows 10+ natifs.
 

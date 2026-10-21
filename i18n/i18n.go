@@ -269,7 +269,7 @@ ou texte brut (ex. réponses _cat/*).
 [yellow]Raccourcis clavier[white]
 [gray]PuTTY est connu pour mal gérer certains raccourcis : fortement
 déconseillé. Aucun souci sous macOS/Windows 10+ natifs. En cas de
-doute, préférez Ctrl+E, F5/F6 et Tab/F10.[white]
+doute, préférez Ctrl+E, Alt+←/→, F5/F6 et Tab/F10.[white]
 
   [aqua]Ctrl+E[white]           Exécuter la requête sous le curseur
                      (aussi : Ctrl+Entrée, Option/Alt+Entrée sur macOS — non garanti partout)
@@ -278,7 +278,7 @@ doute, préférez Ctrl+E, F5/F6 et Tab/F10.[white]
   [aqua]Tab/F10[white]          Compléter un endpoint ou une colonne _cat en cours de frappe
                      (aussi : Ctrl+Espace)
   [aqua]Ctrl+←/→[white]         Changer de panneau
-                     (aussi : Option/Alt+←/→ sur macOS)
+                     (aussi : Alt+←/→, Option+←/→ sur macOS)
   [aqua]F5/F6[white]            Redimensionner le split gauche/droite
                      (aussi : Ctrl+Maj+←/→, Option/Alt+Maj+←/→ sur macOS — non garanti partout)
   [aqua]Ctrl+F[white]           Rechercher dans le panneau actif
@@ -444,7 +444,7 @@ or plain text (e.g. _cat/* responses).
 [yellow]Keyboard shortcuts[white]
 [gray]PuTTY is known to mishandle some shortcuts: strongly discouraged.
 No issues on native macOS/Windows 10+ terminals. When in doubt, prefer
-Ctrl+E, F5/F6, and Tab/F10.[white]
+Ctrl+E, Alt+←/→, F5/F6, and Tab/F10.[white]
 
   [aqua]Ctrl+E[white]           Execute the request under the cursor
                      (also: Ctrl+Enter, Option/Alt+Enter on macOS — not guaranteed everywhere)
@@ -453,7 +453,7 @@ Ctrl+E, F5/F6, and Tab/F10.[white]
   [aqua]Tab/F10[white]          Complete an endpoint or a _cat column while typing
                      (also: Ctrl+Space)
   [aqua]Ctrl+←/→[white]         Switch panel
-                     (also: Option/Alt+←/→ on macOS)
+                     (also: Alt+←/→, Option+←/→ on macOS)
   [aqua]F5/F6[white]            Resize the left/right split
                      (also: Ctrl+Shift+←/→, Option/Alt+Shift+←/→ on macOS — not guaranteed everywhere)
   [aqua]Ctrl+F[white]           Search in the active panel

@@ -125,7 +125,7 @@ A help bar under the status bar reminds the shortcuts; `F1` lists them all.
 | Action | Key | Status |
 |---|---|---|
 | Execute the request under the cursor | `Ctrl+E` (`Ctrl+Enter` also works on terminals that report it) | Defined |
-| Switch focus left ↔ right panel | `Ctrl+←`/`Ctrl+→` | Defined |
+| Switch focus left ↔ right panel | `Ctrl+←`/`Ctrl+→` (or `Alt+←`/`Alt+→`) | Defined |
 | Quit the application (auto-saves the left panel, §3.2) | `Ctrl+C` | Defined |
 | New request / clear the editor | Free-form editing of the left panel text | Defined |
 | Open/change the cluster connection | Quit the program and relaunch it | Defined |
@@ -144,11 +144,11 @@ A help bar under the status bar reminds the shortcuts; `F1` lists them all.
 
 > `Ctrl+E` (and `Ctrl+Enter`, where the terminal reports it) is only active when the left panel (request editing) is focused — no effect from the right panel.
 >
-> **macOS**: `Ctrl+←/→` is intercepted at the OS level by default (Mission Control desktop switching); `Option`/`Alt+←/→` is accepted as a fallback for panel focus switch (see `hasShortcutModifier` in `ui/app.go`).
+> **`Alt+←/→`** is accepted on every system as a fallback for panel focus switch (see `hasShortcutModifier` in `ui/app.go`), for terminals where `Ctrl+←/→` doesn't reach the app: on macOS it is intercepted at the OS level by default (Mission Control desktop switching — `Option` is the Alt key there), and under PuTTY it doesn't get through either, where `Alt+←/→` does.
 >
 > **Mouse** (`mouse: true`, §9.2): a click gives the focus to the panel clicked, and the shortcuts that depend on the focused panel (`Ctrl+S`, `Ctrl+F`, `Ctrl+E`) follow it; a popup takes every click while it is open, and the completion list closes when the focus leaves it. Clicking a completion item is an explicit choice even after a failed type-ahead search; clicking its border is not.
 >
-> Some combinations (`Ctrl+Enter`, `Ctrl+Shift+←/→`, `Tab`) are reported inconsistently — or not at all — depending on the terminal. Terminal-agnostic alternatives cover every case: `Ctrl+E` (execute), `F5`/`F6` (resize), `F10` (complete). **PuTTY is known to mishandle several shortcuts and is strongly discouraged** — no issues found on native macOS or Windows 10+ terminals. When in doubt, prefer the alternatives above.
+> Some combinations (`Ctrl+Enter`, `Ctrl+Shift+←/→`, `Tab`) are reported inconsistently — or not at all — depending on the terminal. Terminal-agnostic alternatives cover these cases: `Ctrl+E` (execute), `F5`/`F6` (resize), `F10` (complete). Panel focus switch has no function key: its fallback is `Alt+←/→`, above. **PuTTY is known to mishandle several shortcuts and is strongly discouraged** — no issues found on native macOS or Windows 10+ terminals. When in doubt, prefer the alternatives above.
 
 ## 5. Connecting to the cluster
 
@@ -207,7 +207,7 @@ What isn't done, by choice or not yet:
 1. ~~**Built-in, version-aware reference data and recipes**~~ — delivered in 0.6: recipes, endpoints and `_cat` columns inside the binary, selected from the distribution (Elasticsearch or OpenSearch) and version detected at connection, extended by the user's own files and reloaded with `F7` (§3.2, §5, §9.1, §9.5). Nothing but the binary to install. Brings self-managed OpenSearch into scope.
 2. ~~**HTTP(S) proxy**~~ — delivered in 0.7: `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` honored, a per-cluster `proxy:` key, `http://` and `socks5://` proxies (§5).
 3. ~~**Extended authentication**~~ — delivered in 0.7: API key in its `encoded` form and Bearer tokens (§3.0, §5). The Cloud ID is moved to the "not scheduled" items below; SigV4 stays out.
-4. ~~**Production guardrails**~~ — done, not released yet: a per-cluster protection (`none`, `confirm`, `read_only`) chosen in the connection form, confirmation or refusal of the requests that write, a banner with a label (§3.0, §3.1, §5). A protection enforced by a team is moved to "not scheduled" below.
+4. ~~**Production guardrails**~~ — delivered in 0.7.3: a per-cluster protection (`none`, `confirm`, `read_only`) chosen in the connection form, confirmation or refusal of the requests that write, a banner with a label (§3.0, §3.1, §5). A protection enforced by a team is moved to "not scheduled" below.
 5. **Secrets without retyping, first tier** — read the secret from an environment variable or a file. An opt-in OS keychain is a separate, later decision (it changes the "no secret ever persisted" promise of §5).
 6. **Watch mode** — re-run the request under the cursor every N seconds and highlight what changed.
 7. **Cancel a running request, live timer** — covers the "live-updating timer" bullet above.

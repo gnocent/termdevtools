@@ -237,7 +237,7 @@ Values live in `~/.config/termdevtools/variables_<cluster>.txt` — one per clus
 | Help | `F1` (`Esc` to close) |
 
 [^enter]: `Ctrl+Enter` also works on terminals that report it as distinct from plain `Enter` — many don't, which is why `Ctrl+E` is the primary, always-reliable shortcut.
-[^focus]: On macOS, `Option`/`Alt` also works instead of `Ctrl` — `Ctrl+←/→` is intercepted by the system by default (Mission Control desktop switching).
+[^focus]: `Alt+←/→` also works, on every system — for terminals where `Ctrl+←/→` doesn't get through: PuTTY, or macOS, where the system intercepts it by default (Mission Control desktop switching) and `Option` is the Alt key.
 [^resize]: `Ctrl+Shift+←/→` (`Option`/`Alt` included, on macOS) also works on terminals that report it distinctly from an unmodified arrow key — not all do, which is why `F5`/`F6` are the primary, always-reliable shortcuts.
 [^tab]: On some terminals (notably PuTTY) `Tab` is swallowed entirely — no key event reaches the app at all. `F10` is a guaranteed-reliable alternative. **PuTTY is generally discouraged**: no issues on native macOS/Windows 10+ terminals.
 

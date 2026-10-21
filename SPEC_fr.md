@@ -125,7 +125,7 @@ Une barre d'aide, sous la barre d'état, rappelle les raccourcis ; `F1` en donne
 | Action | Touche | Statut |
 |---|---|---|
 | Exécuter la requête sous le curseur | `Ctrl+E` (`Ctrl+Entrée` fonctionne aussi sur les terminaux qui le rapportent) | Défini |
-| Basculer focus panneau gauche ↔ droit | `Ctrl+←`/`Ctrl+→` | Défini |
+| Basculer focus panneau gauche ↔ droit | `Ctrl+←`/`Ctrl+→` (ou `Alt+←`/`Alt+→`) | Défini |
 | Quitter l'application (sauvegarde automatiquement le panneau gauche, §3.2) | `Ctrl+C` | Défini |
 | Nouvelle requête / effacer l'éditeur | Edition libre du texte pannel gauche | Défini |
 | Ouvrir/changer la connexion au cluster | On quitte le programme et on relance | Défini |
@@ -144,11 +144,11 @@ Une barre d'aide, sous la barre d'état, rappelle les raccourcis ; `F1` en donne
 
 > `Ctrl+E` (et `Ctrl+Entrée`, quand le terminal le rapporte) n'est actif que lorsque le focus est sur le panneau gauche (édition des requêtes) — sans effet depuis le panneau droit.
 >
-> **macOS** : `Ctrl+←/→` est intercepté au niveau du système par défaut (changement d'espace Mission Control) ; `Option`/`Alt+←/→` est accepté comme repli pour changer de panneau (voir `hasShortcutModifier` dans `ui/app.go`).
+> **`Alt+←/→`** est accepté sur tous les systèmes comme repli pour changer de panneau (voir `hasShortcutModifier` dans `ui/app.go`), pour les terminaux où `Ctrl+←/→` n'atteint pas l'appli : sous macOS, il est intercepté au niveau du système par défaut (changement d'espace Mission Control — `Option` y est la touche Alt), et sous PuTTY il ne passe pas non plus, là où `Alt+←/→` passe.
 >
 > **Souris** (`mouse: true`, §9.2) : un clic donne le focus au panneau cliqué, et les raccourcis qui dépendent du panneau actif (`Ctrl+S`, `Ctrl+F`, `Ctrl+E`) le suivent ; une popup capte tous les clics tant qu'elle est ouverte, et la liste de complétion se ferme quand le focus la quitte. Un clic sur un élément de la liste de complétion est un choix explicite, même après une recherche infructueuse ; un clic sur sa bordure ne l'est pas.
 >
-> Certaines combinaisons (`Ctrl+Entrée`, `Ctrl+Maj+←/→`, `Tab`) sont rapportées de façon incohérente — voire pas du tout — selon le terminal. Des alternatives indépendantes du terminal couvrent chaque cas : `Ctrl+E` (exécuter), `F5`/`F6` (redimensionner), `F10` (compléter). **PuTTY est connu pour mal gérer plusieurs raccourcis et est fortement déconseillé** — aucun souci constaté sous macOS ou Windows 10+ natifs. En cas de doute, préférez les alternatives ci-dessus.
+> Certaines combinaisons (`Ctrl+Entrée`, `Ctrl+Maj+←/→`, `Tab`) sont rapportées de façon incohérente — voire pas du tout — selon le terminal. Des alternatives indépendantes du terminal couvrent ces cas : `Ctrl+E` (exécuter), `F5`/`F6` (redimensionner), `F10` (compléter). Le changement de panneau n'a pas de touche de fonction : son repli est `Alt+←/→`, ci-dessus. **PuTTY est connu pour mal gérer plusieurs raccourcis et est fortement déconseillé** — aucun souci constaté sous macOS ou Windows 10+ natifs. En cas de doute, préférez les alternatives ci-dessus.
 
 ## 5. Connexion au cluster
 
@@ -207,7 +207,7 @@ Ce qui n'est pas fait, par choix ou pas encore :
 1. ~~**Données de référence et recettes intégrées, adaptées à la version**~~ — livré en 0.6 : recettes, endpoints et colonnes `_cat` dans le binaire, sélectionnés selon la distribution (Elasticsearch ou OpenSearch) et la version détectées à la connexion, étendus par les fichiers de l'utilisateur et rechargés avec `F7` (§3.2, §5, §9.1, §9.5). Plus rien d'autre à installer que le binaire. Fait entrer OpenSearch auto-hébergé dans le périmètre.
 2. ~~**Proxy HTTP(S)**~~ — livré en 0.7 : `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` respectés, clé `proxy:` par cluster, proxys `http://` et `socks5://` (§5).
 3. ~~**Authentification étendue**~~ — livré en 0.7 : API key sous sa forme `encoded` et jetons Bearer (§3.0, §5). Le Cloud ID est reporté aux « non planifiés » ci-dessous ; SigV4 reste hors périmètre.
-4. ~~**Garde-fous de production**~~ — fait, pas encore publié : protection par cluster (`none`, `confirm`, `read_only`) choisie dans le formulaire de connexion, confirmation ou refus des requêtes qui écrivent, bandeau avec un libellé (§3.0, §3.1, §5). La protection imposée par une équipe est reportée aux « non planifiés » ci-dessous.
+4. ~~**Garde-fous de production**~~ — livré en 0.7.3 : protection par cluster (`none`, `confirm`, `read_only`) choisie dans le formulaire de connexion, confirmation ou refus des requêtes qui écrivent, bandeau avec un libellé (§3.0, §3.1, §5). La protection imposée par une équipe est reportée aux « non planifiés » ci-dessous.
 5. **Secrets sans ressaisie, premier palier** — lire le secret depuis une variable d'environnement ou un fichier. Le trousseau de l'OS en opt-in est une décision distincte et ultérieure (elle modifie la promesse « aucun secret persisté » du §5).
 6. **Mode watch** — rejouer la requête sous le curseur toutes les N secondes et surligner ce qui a changé.
 7. **Annulation d'une requête en cours, chrono en direct** — couvre la puce « chrono » ci-dessus.

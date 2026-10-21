@@ -2,6 +2,12 @@
 
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **Panel switch under PuTTY**: the help (`F1`) and the documentation said `Alt+←/→` switches panels on macOS only; it does on every system, and is the way to do it where `Ctrl+←/→` doesn't get through, as under PuTTY. The help's PuTTY advice now names it.
+
 ## 0.7.3 (beta) — October 2026
 
 **In one sentence**: a production cluster can be protected — the requests that write are confirmed or refused, and a banner says so.

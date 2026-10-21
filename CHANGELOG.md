@@ -2,7 +2,7 @@
 
 # Changelog
 
-## Unreleased
+## 0.7.3 (beta) — October 2026
 
 **In one sentence**: a production cluster can be protected — the requests that write are confirmed or refused, and a banner says so.
 
@@ -17,11 +17,35 @@
 - **Cluster history**: the protection shows under the URL of each protected cluster (`auth: basic · PROD · writes need confirmation`).
 - **Unknown value** in `config.yaml` (a typo such as `protection: readonly`): read-only applies, the most restrictive level, and the form says so.
 
+The level is set at connection: to change it, connect again. It is a safety net against slips, not security — anyone who can run the tool can remove it. To really prevent writing, use an account with no write privilege on the cluster.
+
 ### Fixes
 
 - **The status bar's message is no longer cut from its first word on an 80-column terminal**: a realistic URL and user name left it a few columns. It now comes first — the user gives way, then the URL is cut short, then the cluster — and is only cut short, with a `…`, when it doesn't fit alone.
 
-The level is set at connection: to change it, connect again. It is a safety net against slips, not security — anyone who can run the tool can remove it. To really prevent writing, use an account with no write privilege on the cluster.
+### Security
+
+- **Binaries built with Go 1.27.3**, the latest Go release; `go.mod` now asks for that version.
+
+### Before upgrading from 0.7.2
+
+- **Nothing to do**: a `config.yaml` without `protection:` loads as before, with no protection and no banner, and a connection without protection writes no `protection:` key.
+- **Status bar**: on a narrow terminal, the user name, then the URL, give way to the message when room is short.
+
+### Checks
+
+- `go vet` and `go test ./...` pass, run on Windows: unit tests, among them one case per pattern of the list of reads, and tests of the interface on a simulated 80×24 screen.
+- The protection is checked against a real Elasticsearch 9.5.4 and OpenSearch 3.9.0: deleting an index is refused in read-only, where a search goes through; it doesn't happen while the confirmation is cancelled, happens once confirmed, and at once without protection. Both clusters do carry out `GET _refresh` and `GET _flush`, classified as writes.
+- A security review of the protection came before the release; the bypasses it found (a `#` in the path, `..` segments, `GET _refresh`) are fixed and covered by tests.
+- Visual review of the protection's screens, at 80×24.
+- `govulncheck`: no known vulnerability, neither in the dependencies nor in the standard library of Go 1.27.3.
+- The reference data (recipes, endpoints, `_cat` columns) has not changed since 0.6.
+- No independent external audit was carried out.
+
+### Known limits
+
+- The list of reads can't be extended: a read missing from it is confirmed, or refused in read-only, for nothing. Only Elasticsearch 9.5 and OpenSearch 3.9 were used for the protection's real-cluster checks.
+- The limits of 0.7 still apply.
 
 ## 0.7.2 (beta) — October 2026
 

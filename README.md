@@ -5,12 +5,12 @@
 A terminal-mode simulator of Kibana's **DevTools** view, for querying an Elasticsearch or OpenSearch cluster directly from a terminal — Linux (including RHEL 8/9/10), Windows, or macOS — without a browser or a working Kibana. A single binary, with nothing else to install.
 
 > [!IMPORTANT]
-> **What's new in 0.7.2 (beta)**
+> **What's new in 0.7.3 (beta)**
 >
-> - **`go install github.com/gnocent/termdevtools@latest`** — for those who have Go; the prebuilt binaries remain the recommended way.
-> - **Completion keeps the query after the cursor** — `GET _cat/ind?format=json` completes to `_cat/indices?v&format=json` — and accepts a leading `/`.
+> - **Production guardrails**, cluster by cluster: "writes need confirmation" asks before sending a request that writes, "read-only" refuses it, and a red or yellow banner reminds you which cluster you are on. A safety net against slips, not security: see [Security](#security).
+> - **The status bar's message comes first** on an 80-column terminal, instead of being cut from its first word.
 >
-> 0.7 had brought proxies (`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, and `proxy:` per cluster in `config.yaml`), API keys the way Kibana gives them, Bearer tokens, and exports in your configuration directory rather than next to the binary.
+> 0.7.2 had brought `go install github.com/gnocent/termdevtools@latest` and completion that keeps the query after the cursor; 0.7, proxies (`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, and `proxy:` per cluster in `config.yaml`), API keys the way Kibana gives them, Bearer tokens, and exports in your configuration directory rather than next to the binary.
 >
 > **Before upgrading from 0.6**: if `HTTPS_PROXY` is set on your machine, your clusters will now go through that proxy — see [Upgrading](#upgrading-from-an-earlier-version).
 >
@@ -263,7 +263,7 @@ Values live in `~/.config/termdevtools/variables_<cluster>.txt` — one per clus
 
 **What was checked, and what wasn't**
 
-- Security review of the code and automated tests for each of the points above; `govulncheck` reports no known vulnerability, neither in the dependencies nor in the standard library of the Go version the binaries are built with (1.27.2).
+- Security review of the code and automated tests for each of the points above; `govulncheck` reports no known vulnerability, neither in the dependencies nor in the standard library of the Go version the binaries are built with (1.27.3).
 - Every request of every recipe was run against eleven real clusters (Elasticsearch 7.17 to 9.5, OpenSearch 2.0 to 3.9).
 - Authentication by password, by API key and by Bearer token is checked against a real Elasticsearch with security on. Going through a proxy is checked with a test HTTP proxy and a test SOCKS5 server, not with a real corporate proxy.
 - The protection is checked against a real Elasticsearch and a real OpenSearch: deleting an index is refused in read-only, doesn't happen while the confirmation is cancelled, and happens once confirmed.

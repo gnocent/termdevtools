@@ -90,7 +90,7 @@ Les Mac à processeur Intel ne sont pas fournis en binaire : compilez depuis les
 
 ### 2.4 Depuis les sources
 
-Il faut [Go](https://go.dev/) 1.25 ou plus récent. `go.mod` demande la chaîne de compilation Go 1.27.2, qui corrige des failles de la bibliothèque standard : une version plus ancienne de Go la télécharge d'elle-même. Sur une machine sans accès à Internet, installez donc Go 1.27.2 ou plus récent.
+Il faut [Go](https://go.dev/) 1.25 ou plus récent. `go.mod` demande la chaîne de compilation Go 1.27.3, celle qui compile les binaires publiés : une version plus ancienne de Go la télécharge d'elle-même. Sur une machine sans accès à Internet, installez donc Go 1.27.3 ou plus récent.
 
 ```bash
 git clone https://github.com/gnocent/termdevtools.git

@@ -5,12 +5,12 @@
 Simulateur en mode terminal de la vue **DevTools** de Kibana, pour interroger un cluster Elasticsearch ou OpenSearch directement depuis un terminal — Linux (dont RHEL 8/9/10), Windows ou macOS — sans navigateur ni Kibana fonctionnel. Un seul binaire, rien d'autre à installer.
 
 > [!IMPORTANT]
-> **Nouveautés de la 0.7.2 (bêta)**
+> **Nouveautés de la 0.7.3 (bêta)**
 >
-> - **`go install github.com/gnocent/termdevtools@latest`** — pour qui a Go ; les binaires précompilés restent la voie recommandée.
-> - **La complétion garde la requête qui suit le curseur** — `GET _cat/ind?format=json` se complète en `_cat/indices?v&format=json` — et accepte un `/` initial.
+> - **Garde-fous de production**, cluster par cluster : « confirmation des écritures » demande avant d'envoyer une requête qui écrit, « lecture seule » la refuse, et un bandeau rouge ou jaune rappelle sur quel cluster vous êtes. Un filet contre l'erreur de manipulation, pas une sécurité : voir [Sécurité](#sécurité).
+> - **Le message de la barre d'état passe en premier** sur un terminal de 80 colonnes, au lieu d'être coupé dès son premier mot.
 >
-> La 0.7 avait apporté les proxys (`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, et `proxy:` par cluster dans `config.yaml`), les clés d'API telles que Kibana les donne, les jetons Bearer, et les exports dans votre dossier de configuration plutôt qu'à côté du binaire.
+> La 0.7.2 avait apporté `go install github.com/gnocent/termdevtools@latest` et une complétion qui garde la requête suivant le curseur ; la 0.7, les proxys (`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, et `proxy:` par cluster dans `config.yaml`), les clés d'API telles que Kibana les donne, les jetons Bearer, et les exports dans votre dossier de configuration plutôt qu'à côté du binaire.
 >
 > **Avant de mettre à jour depuis la 0.6** : si `HTTPS_PROXY` est défini sur votre poste, vos clusters passeront désormais par ce proxy — voir [Mise à jour](#mise-à-jour-depuis-une-version-antérieure).
 >
@@ -263,7 +263,7 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 
 **Ce qui a été vérifié, et ce qui ne l'a pas été**
 
-- Relecture de sécurité du code et tests automatisés pour chacun des points ci-dessus ; `govulncheck` ne signale aucune vulnérabilité connue, ni dans les dépendances ni dans la bibliothèque standard de la version de Go qui compile les binaires (1.27.2).
+- Relecture de sécurité du code et tests automatisés pour chacun des points ci-dessus ; `govulncheck` ne signale aucune vulnérabilité connue, ni dans les dépendances ni dans la bibliothèque standard de la version de Go qui compile les binaires (1.27.3).
 - Chaque requête de chaque recette a été exécutée sur onze clusters réels (Elasticsearch 7.17 à 9.5, OpenSearch 2.0 à 3.9).
 - L'authentification par mot de passe, par clé d'API et par jeton Bearer est vérifiée sur un Elasticsearch réel dont la sécurité est activée. Le passage par un proxy l'est avec un proxy HTTP et un serveur SOCKS5 de test, pas avec un proxy d'entreprise réel.
 - La protection est vérifiée sur un Elasticsearch et un OpenSearch réels : la suppression d'un index est refusée en lecture seule, n'a pas lieu tant que la confirmation est annulée, et a lieu une fois confirmée.

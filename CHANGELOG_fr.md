@@ -2,7 +2,7 @@
 
 # Journal des versions
 
-## Non publié
+## 0.7.3 (bêta) — octobre 2026
 
 **En une phrase** : un cluster de production peut être protégé — confirmation ou refus des requêtes qui écrivent, et un bandeau qui le signale.
 
@@ -17,11 +17,35 @@
 - **Historique des clusters** : la protection apparaît sous l'URL de chaque cluster protégé (`auth: basic · PROD · confirmation des écritures`).
 - **Valeur inconnue** dans `config.yaml` (une faute de frappe comme `protection: readonly`) : la lecture seule s'applique, la plus restrictive, et le formulaire le signale.
 
+Le niveau est fixé à la connexion : pour en changer, on se reconnecte. C'est un filet contre l'erreur de manipulation, pas une sécurité — n'importe qui pouvant lancer l'outil peut le retirer. Pour empêcher vraiment d'écrire, utilisez un compte sans droit d'écriture sur le cluster.
+
 ### Corrections
 
 - **Le message de la barre d'état n'est plus coupé dès son premier mot sur un terminal de 80 colonnes** : une URL et un nom d'utilisateur réalistes ne lui laissaient que quelques colonnes. Il passe désormais avant le reste — l'utilisateur s'efface d'abord, puis l'URL est raccourcie, puis le cluster — et n'est coupé, avec un `…`, que s'il ne tient pas seul.
 
-Le niveau est fixé à la connexion : pour en changer, on se reconnecte. C'est un filet contre l'erreur de manipulation, pas une sécurité — n'importe qui pouvant lancer l'outil peut le retirer. Pour empêcher vraiment d'écrire, utilisez un compte sans droit d'écriture sur le cluster.
+### Sécurité
+
+- **Binaires compilés avec Go 1.27.3**, la dernière version de Go ; `go.mod` demande désormais cette version.
+
+### À savoir avant de mettre à jour depuis la 0.7.2
+
+- **Rien à faire** : un `config.yaml` sans `protection:` se charge comme avant, sans protection ni bandeau, et une connexion sans protection n'écrit pas de clé `protection:`.
+- **Barre d'état** : sur un terminal étroit, le nom d'utilisateur, puis l'URL, s'effacent devant le message quand la place manque.
+
+### Vérifications
+
+- `go vet` et `go test ./...` passent, sous Windows : tests unitaires, dont un cas par motif de la liste des lectures, et tests de l'interface sur un écran simulé de 80×24.
+- La protection est vérifiée sur un Elasticsearch 9.5.4 et un OpenSearch 3.9.0 réels : la suppression d'un index est refusée en lecture seule, où une recherche passe ; elle n'a pas lieu tant que la confirmation est annulée, a lieu une fois confirmée, et aussitôt sans protection. Les deux clusters exécutent bien `GET _refresh` et `GET _flush`, classés en écritures.
+- Une relecture de sécurité de la protection a précédé la publication ; les contournements relevés (un `#` dans le chemin, des segments `..`, `GET _refresh`) sont corrigés et couverts par des tests.
+- Recette visuelle des écrans de la protection, en 80×24.
+- `govulncheck` : aucune vulnérabilité connue, ni dans les dépendances ni dans la bibliothèque standard de Go 1.27.3.
+- Les données de référence (recettes, endpoints, colonnes `_cat`) n'ont pas changé depuis la 0.6.
+- Aucun audit externe indépendant n'a été réalisé.
+
+### Limites connues
+
+- La liste des lectures n'est pas extensible : une lecture qui n'y figure pas est confirmée, ou refusée en lecture seule, à tort. Seuls Elasticsearch 9.5 et OpenSearch 3.9 ont servi aux essais réels de la protection.
+- Les limites de la 0.7 restent valables.
 
 ## 0.7.2 (bêta) — octobre 2026
 

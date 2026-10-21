@@ -90,7 +90,7 @@ No binary is provided for Intel Macs: build from source (§2.4).
 
 ### 2.4 From source
 
-[Go](https://go.dev/) 1.25 or later is required. `go.mod` asks for the Go 1.27.2 toolchain, which fixes flaws of the standard library: an older version of Go downloads it by itself. On a machine without Internet access, install Go 1.27.2 or later.
+[Go](https://go.dev/) 1.25 or later is required. `go.mod` asks for the Go 1.27.3 toolchain, the one the release binaries are built with: an older version of Go downloads it by itself. On a machine without Internet access, install Go 1.27.3 or later.
 
 ```bash
 git clone https://github.com/gnocent/termdevtools.git

@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"github.com/rivo/uniseg"
 
 	"github.com/gnocent/termdevtools/i18n"
 )
@@ -19,10 +21,30 @@ type StatusBar struct {
 	user    string
 	msgs    *i18n.Strings
 
-	status *tview.TextView
+	status *statusLine
 	help   *tview.TextView
 	// renders counts what was written to the status line, see Version.
 	renders int
+	// message and color are what the status line currently says, at its end.
+	message, color string
+}
+
+// statusLine is the status line's TextView, its text composed for the width
+// it is drawn at (StatusBar.compose): the width is only known then.
+type statusLine struct {
+	*tview.TextView
+	compose func(width int) string
+	// width is the one the current text was composed for; 0 before the
+	// first draw, when the whole line is composed.
+	width int
+}
+
+func (l *statusLine) Draw(screen tcell.Screen) {
+	if _, _, width, _ := l.GetInnerRect(); width != l.width {
+		l.width = width
+		l.SetText(l.compose(width))
+	}
+	l.TextView.Draw(screen)
 }
 
 // Version changes every time the status line is written: what lets a
@@ -40,9 +62,9 @@ func NewStatusBar(product, cluster, user string, msgs *i18n.Strings) *StatusBar 
 		cluster: cluster,
 		user:    user,
 		msgs:    msgs,
-		status:  tview.NewTextView().SetDynamicColors(true),
 		help:    tview.NewTextView().SetDynamicColors(true).SetText(msgs.ShortcutsHelpBar),
 	}
+	sb.status = &statusLine{TextView: tview.NewTextView().SetDynamicColors(true), compose: sb.compose}
 	sb.SetIdle()
 	return sb
 }
@@ -64,21 +86,56 @@ func (sb *StatusBar) Widget() tview.Primitive {
 		AddItem(sb.help, 1, 0, false)
 }
 
-// render draws the status line. The detected product, when known, takes the
-// place of the generic "Cluster" caption in front of the URL rather than
-// being appended to it: on an 80-column terminal the line has no room to
-// spare, and whatever it gains in width is taken from the message at its
-// end — the part that matters most.
+// render writes message at the end of the status line.
 func (sb *StatusBar) render(message, color string) {
 	sb.renders++
+	sb.message, sb.color = message, color
+	sb.status.SetText(sb.compose(sb.status.width))
+}
+
+// statusSeparator separates the parts of the status line.
+const statusSeparator = "  |  "
+
+// minStatusURLWidth is the fewest columns a URL cut short keeps on the status
+// line, "…" included: fewer wouldn't say which cluster it is.
+const minStatusURLWidth = 12
+
+// compose builds the status line for width columns: the cluster, the user,
+// then the message — the part that matters most, often the only sign that
+// something happened (a write refused on a read-only cluster). When the
+// whole line doesn't fit, the user goes first, then the URL is cut short,
+// and last the cluster goes too, the message being cut short only when it
+// doesn't fit alone. The detected product, when known, takes the place of
+// the generic "Cluster" caption in front of the URL rather than being added
+// to the line, for the same reason. A width of 0 (not drawn yet) gives the
+// whole line.
+func (sb *StatusBar) compose(width int) string {
 	caption := sb.product
 	if caption == "" {
 		caption = sb.msgs.StatusClusterCaption
 	}
-	sb.status.SetText(fmt.Sprintf(
-		sb.msgs.StatusBarTemplate,
-		tview.Escape(caption), tview.Escape(sb.cluster), tview.Escape(sb.user), color, tview.Escape(message),
-	))
+	cluster := func(url string) string {
+		return fmt.Sprintf("[white]%s: [green]%s[white]", tview.Escape(caption), tview.Escape(url))
+	}
+	user := fmt.Sprintf("%s: [green]%s[white]", tview.Escape(sb.msgs.StatusUserCaption), tview.Escape(sb.user))
+	message := func(text string) string {
+		return fmt.Sprintf("[%s]%s[white]", sb.color, tview.Escape(text))
+	}
+
+	clusterWidth := uniseg.StringWidth(caption + ": " + sb.cluster)
+	userWidth := uniseg.StringWidth(sb.msgs.StatusUserCaption + ": " + sb.user)
+	messageWidth := uniseg.StringWidth(sb.message)
+	separator := len(statusSeparator)
+	switch {
+	case width <= 0 || clusterWidth+separator+userWidth+separator+messageWidth <= width:
+		return cluster(sb.cluster) + statusSeparator + user + statusSeparator + message(sb.message)
+	case clusterWidth+separator+messageWidth <= width:
+		return cluster(sb.cluster) + statusSeparator + message(sb.message)
+	}
+	if room := width - separator - messageWidth - uniseg.StringWidth(caption+": "); room >= minStatusURLWidth {
+		return cluster(cutShort(sb.cluster, room)) + statusSeparator + message(sb.message)
+	}
+	return message(cutShort(sb.message, width))
 }
 
 // SetIdle displays the default "ready" state.

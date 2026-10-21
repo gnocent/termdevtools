@@ -47,9 +47,12 @@ func readPalette(app *App) paletteView {
 	return v
 }
 
+// statusText returns the whole status line, message included even where the
+// screen is too narrow to show all of it (see TestProtectionMessagesOn80Columns
+// for what is shown).
 func statusText(app *App) string {
 	text := stoppedText
-	onUI(app, func() { text = app.status.status.GetText(true) })
+	onUI(app, func() { text = plainText(app.status.compose(0)) })
 	return text
 }
 

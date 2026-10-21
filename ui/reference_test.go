@@ -71,7 +71,7 @@ func TestReferenceFileProblemsAreReported(t *testing.T) {
 	app, _ := newTestAppWith(t, testAppOptions{reference: refdata.Sources{UserDir: userDir}})
 
 	var status string
-	app.tapp.QueueUpdate(func() { status = app.status.status.GetText(true) })
+	app.tapp.QueueUpdate(func() { status = plainText(app.status.compose(0)) })
 	if !strings.Contains(status, "endpoints.txt:2") {
 		t.Errorf("expected the status bar to point at endpoints.txt line 2, got %q", status)
 	}

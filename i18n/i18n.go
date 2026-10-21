@@ -77,7 +77,7 @@ type Strings struct {
 	SearchLabel     string
 
 	// Status bar (statusbar.go)
-	StatusBarTemplate    string // caption, cluster URL, user, message color, message
+	StatusUserCaption    string // caption in front of the user
 	StatusClusterCaption string // caption in front of the URL when the cluster's product isn't known
 	StatusIdle           string
 	StatusRunning        string
@@ -216,7 +216,7 @@ var fr = Strings{
 	HelpViewTitle:   " Aide (Echap pour fermer) ",
 	SearchLabel:     "Rechercher : ",
 
-	StatusBarTemplate:    "[white]%s: [green]%s[white]  |  Utilisateur: [green]%s[white]  |  [%s]%s[white]",
+	StatusUserCaption:    "Utilisateur",
 	StatusClusterCaption: "Cluster",
 	StatusIdle:           "prêt",
 	StatusRunning:        "requête en cours...",
@@ -391,7 +391,7 @@ var en = Strings{
 	HelpViewTitle:   " Help (Esc to close) ",
 	SearchLabel:     "Search: ",
 
-	StatusBarTemplate:    "[white]%s: [green]%s[white]  |  User: [green]%s[white]  |  [%s]%s[white]",
+	StatusUserCaption:    "User",
 	StatusClusterCaption: "Cluster",
 	StatusIdle:           "ready",
 	StatusRunning:        "request in progress...",

@@ -16,6 +16,11 @@
 - **Banner** across the top of a protected cluster's main screen: red with confirmation, yellow with read-only, with an optional label ("PROD · read-only"). It follows the interface language (`F3`). A cluster without protection keeps exactly the layout of earlier versions.
 - **Cluster history**: the protection shows under the URL of each protected cluster (`auth: basic · PROD · writes need confirmation`).
 - **Unknown value** in `config.yaml` (a typo such as `protection: readonly`): read-only applies, the most restrictive level, and the form says so.
+
+### Fixes
+
+- **The status bar's message is no longer cut from its first word on an 80-column terminal**: a realistic URL and user name left it a few columns. It now comes first — the user gives way, then the URL is cut short, then the cluster — and is only cut short, with a `…`, when it doesn't fit alone.
+
 The level is set at connection: to change it, connect again. It is a safety net against slips, not security — anyone who can run the tool can remove it. To really prevent writing, use an account with no write privilege on the cluster.
 
 ## 0.7.2 (beta) — October 2026

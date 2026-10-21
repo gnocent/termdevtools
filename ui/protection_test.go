@@ -250,6 +250,27 @@ func TestConfirmPath(t *testing.T) {
 	}
 }
 
+// TestProtectionMessagesOn80Columns checks that the refusal and the
+// cancellation can be read on an 80-column terminal, a cluster's URL and
+// the user taking most of the status line: they are all there is to tell
+// that nothing was sent.
+func TestProtectionMessagesOn80Columns(t *testing.T) {
+	const url = "https://es-audit.example.test:9200"
+	app, screen := newTestAppWith(t, testAppOptions{clusterURL: url, protection: config.ProtectionReadOnly})
+	execute(t, app, screen, "DELETE /my-index")
+	if text := screenText(screen); !strings.Contains(text, "lecture seule : écriture non envoyée (DELETE /my-index)") {
+		t.Errorf("expected the refusal on screen, got:\n%s", text)
+	}
+
+	app, screen = newTestAppWith(t, testAppOptions{clusterURL: url, protection: config.ProtectionConfirm})
+	execute(t, app, screen, "DELETE /my-index")
+	screen.InjectKey(tcell.KeyEscape, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+	if text := screenText(screen); !strings.Contains(text, "envoi annulé : rien n'a été envoyé") {
+		t.Errorf("expected the cancellation on screen, got:\n%s", text)
+	}
+}
+
 // TestQuitWhileConfirming checks that Ctrl+C still quits while a write waits
 // for confirmation — sending nothing.
 func TestQuitWhileConfirming(t *testing.T) {

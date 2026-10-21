@@ -16,6 +16,11 @@
 - **Bandeau** en haut de l'écran principal d'un cluster protégé : rouge en confirmation, jaune en lecture seule, avec un libellé facultatif (« PROD · lecture seule »). Il suit la langue de l'interface (`F3`). Un cluster sans protection garde exactement la mise en page des versions précédentes.
 - **Historique des clusters** : la protection apparaît sous l'URL de chaque cluster protégé (`auth: basic · PROD · confirmation des écritures`).
 - **Valeur inconnue** dans `config.yaml` (une faute de frappe comme `protection: readonly`) : la lecture seule s'applique, la plus restrictive, et le formulaire le signale.
+
+### Corrections
+
+- **Le message de la barre d'état n'est plus coupé dès son premier mot sur un terminal de 80 colonnes** : une URL et un nom d'utilisateur réalistes ne lui laissaient que quelques colonnes. Il passe désormais avant le reste — l'utilisateur s'efface d'abord, puis l'URL est raccourcie, puis le cluster — et n'est coupé, avec un `…`, que s'il ne tient pas seul.
+
 Le niveau est fixé à la connexion : pour en changer, on se reconnecte. C'est un filet contre l'erreur de manipulation, pas une sécurité — n'importe qui pouvant lancer l'outil peut le retirer. Pour empêcher vraiment d'écrire, utilisez un compte sans droit d'écriture sur le cluster.
 
 ## 0.7.2 (bêta) — octobre 2026

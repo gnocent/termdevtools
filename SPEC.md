@@ -46,6 +46,7 @@ On launch, a connection screen lists the URLs of known clusters (no separate nam
 - **Bearer token**: pasted as it is; the spaces or line break around it, and the word `Bearer` if it was copied along, are removed.
 - **Active field highlighted**: the field currently focused is displayed in inverted colors (background/text), so it stays identifiable even when the blinking cursor alone isn't enough.
 - **24-row terminal**: the longest form (https with a client certificate) only fits by dropping the blank line between two fields; it is dropped in that case alone, so that the buttons stay on screen.
+- **80-column terminal**: a field wider than the room the labels leave (a path, 60 columns, past the French labels) is narrowed to fit inside the frame, its content scrolling; it gets its width back as soon as there is room.
 - In both cases, once the connection succeeds, the entry (new or existing) is moved/inserted at the **first position** of the `clusters` list in `config.yaml` — no secret is ever written there.
 - **Detection**: the answer to the `GET /` that validates the connection also tells which distribution and version the cluster runs (§5). Nothing to choose or fill in; a cluster that can't be identified is still connected to.
 - **One attempt at a time**: an attempt given up on (`Esc` or the Cancel button) or superseded by a newer one is ignored when its answer finally arrives — a cluster slow to answer can't replace the session opened on another one since, and pressing Connect twice opens a single session.

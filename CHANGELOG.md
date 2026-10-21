@@ -10,6 +10,7 @@
 
 ### Fixes
 
+- **Connection form on 80 columns**: a new connection's URL, the paths of the client certificate, its key and the CA, and in French the passphrase, ran over the form's frame; these fields are now narrowed to fit inside it, their content scrolling.
 - **Secret field after switching authentication**: switching to another authentication type and back left the field looking empty while the secret typed was still sent; the field now shows what it holds.
 
 - **Panel switch under PuTTY**: the help (`F1`) and the documentation said `Alt+←/→` switches panels on macOS only; it does on every system, and is the way to do it where `Ctrl+←/→` doesn't get through, as under PuTTY. The help's PuTTY advice now names it.

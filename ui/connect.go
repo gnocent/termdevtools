@@ -55,14 +55,18 @@ type highlightForm struct {
 	// disabled holds the fields disabled with SetDisabled, which tview draws
 	// with no box at all (greyOut).
 	disabled map[tview.FormItem]bool
+	// widths holds each input field's width as it was added, which
+	// fitFieldWidths may narrow for a while.
+	widths map[*tview.InputField]int
 }
 
 func newHighlightForm() *highlightForm {
-	return &highlightForm{Form: tview.NewForm(), disabled: map[tview.FormItem]bool{}}
+	return &highlightForm{Form: tview.NewForm(), disabled: map[tview.FormItem]bool{}, widths: map[*tview.InputField]int{}}
 }
 
 func (h *highlightForm) Draw(screen tcell.Screen) {
 	h.fitItemPadding()
+	h.fitFieldWidths()
 	h.Form.Draw(screen)
 
 	for i := 0; i < h.Form.GetFormItemCount(); i++ {
@@ -91,12 +95,7 @@ func (h *highlightForm) greyOut(screen tcell.Screen, item tview.FormItem) {
 	if _, top, _, height := h.GetInnerRect(); y < top || y >= top+height {
 		return // scrolled out of the form, as Form.Draw leaves it undrawn
 	}
-	// Where Form.Draw puts the field: past the longest label and a space.
-	labelWidth := 0
-	for i := 0; i < h.GetFormItemCount(); i++ {
-		labelWidth = max(labelWidth, tview.TaggedStringWidth(h.GetFormItem(i).GetLabel()))
-	}
-	fieldStart := x + labelWidth + 1
+	fieldStart := x + h.labelWidth() + 1
 	fieldEnd := min(fieldStart+item.GetFieldWidth(), x+width)
 	for column := x; column < fieldEnd; column++ {
 		mainc, combc, style, _ := screen.GetContent(column, y)
@@ -106,6 +105,38 @@ func (h *highlightForm) greyOut(screen tcell.Screen, item tview.FormItem) {
 			style = style.Background(tcell.ColorGray).Foreground(tcell.ColorBlack)
 		}
 		screen.SetContent(column, y, mainc, combc, style)
+	}
+}
+
+// labelWidth is the width of the longest label: Form.Draw puts every field
+// past it and a space.
+func (h *highlightForm) labelWidth() int {
+	width := 0
+	for i := 0; i < h.GetFormItemCount(); i++ {
+		width = max(width, tview.TaggedStringWidth(h.GetFormItem(i).GetLabel()))
+	}
+	return width
+}
+
+// fitFieldWidths narrows the input fields that would run past the form's
+// right edge, which tview draws them over: the paths, 60 columns wide, past
+// labels as long as the French ones, on an 80-column terminal. Each gets its
+// own width back as soon as there is room for it; a narrowed field still
+// takes text of any length, scrolled.
+func (h *highlightForm) fitFieldWidths() {
+	_, _, width, _ := h.GetInnerRect()
+	room := max(width-h.labelWidth()-1, 1)
+	for i := 0; i < h.GetFormItemCount(); i++ {
+		field, ok := h.GetFormItem(i).(*tview.InputField)
+		if !ok {
+			continue
+		}
+		wanted, known := h.widths[field]
+		if !known {
+			wanted = field.GetFieldWidth()
+			h.widths[field] = wanted
+		}
+		field.SetFieldWidth(min(wanted, room))
 	}
 }
 

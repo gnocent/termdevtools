@@ -10,6 +10,7 @@
 
 ### Corrections
 
+- **Formulaire de connexion sur 80 colonnes** : l'URL d'une nouvelle connexion, les chemins du certificat client, de sa clé et du CA, et en français la passphrase, débordaient sur le cadre du formulaire ; ces champs sont désormais rétrécis pour y tenir, leur contenu défilant.
 - **Champ secret après un changement d'authentification** : passer à un autre type d'authentification puis revenir laissait le champ vide à l'écran alors que le secret saisi était toujours envoyé ; le champ montre désormais ce qu'il contient.
 
 - **Changement de panneau sous PuTTY** : l'aide (`F1`) et la documentation réservaient `Alt+←/→` à macOS ; ce raccourci change de panneau sur tous les systèmes, et c'est celui à utiliser là où `Ctrl+←/→` ne passe pas, comme sous PuTTY. Le conseil de l'aide sur PuTTY le cite désormais.

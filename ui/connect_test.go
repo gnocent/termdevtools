@@ -43,6 +43,89 @@ func newTestConnectScreenWithCallback(t *testing.T, cfg *config.Config, onConnec
 	return screen
 }
 
+// TestFormStaysInsideItsBorderOn80Columns checks that no field of the
+// connection form draws over the form's right border on a standard 80x24
+// terminal, in either language: the widest forms — a new connection, whose
+// URL is typed, and a cluster in https with a client certificate — included.
+func TestFormStaysInsideItsBorderOn80Columns(t *testing.T) {
+	for _, lang := range []string{i18n.FR, i18n.EN} {
+		for name, clusters := range map[string][]config.Cluster{
+			"new connection": nil, // then first in the list
+			"https and client certificate": {{
+				URL: "https://es.example.test:9200", AuthType: config.AuthMTLS, TLS: config.TLS{Verify: true},
+			}},
+		} {
+			t.Run(lang+", "+name, func(t *testing.T) {
+				t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+				cfg := &config.Config{Language: lang, DefaultTimeoutSeconds: 5, Clusters: clusters}
+				screen := newTestConnectScreen(t, cfg)
+				screen.SetSize(80, 24)
+				waitForDraw(t, screen)
+				screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone) // the first entry
+				waitForDraw(t, screen)
+				checkFormRightBorder(t, screen)
+			})
+		}
+	}
+}
+
+// TestNarrowedFieldTakesALongValue checks that a field narrowed to fit an
+// 80-column terminal still takes a value longer than itself, whole: a URL
+// typed there reaches the cluster in full, the border intact meanwhile.
+func TestNarrowedFieldTakesALongValue(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	paths := make(chan string, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths <- r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(elasticsearchRoot))
+	}))
+	defer srv.Close()
+	prefix := "/" + strings.Repeat("p", 80)
+
+	results := make(chan ConnectResult, 1)
+	screen := newTestConnectScreenWithCallback(t, &config.Config{Language: i18n.FR, DefaultTimeoutSeconds: 5},
+		func(cr ConnectResult) { results <- cr })
+	screen.SetSize(80, 24)
+	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone) // New connection
+	waitForDraw(t, screen)
+	injectText(screen, srv.URL+prefix)
+	waitForDraw(t, screen)
+	checkFormRightBorder(t, screen)
+
+	// In http: the protection, the authentication (the label, disabled
+	// without protection, is skipped), then Connect.
+	for range 3 {
+		screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
+	}
+	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
+
+	select {
+	case <-results:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("no connection; screen:\n%s", screenText(screen))
+	}
+	if got := <-paths; !strings.HasPrefix(got, prefix) {
+		t.Errorf("expected the whole URL to be used, the cluster got the path %q", got)
+	}
+}
+
+// checkFormRightBorder fails the test if anything covers the right border
+// of the connection form, as drawn above the message area.
+func checkFormRightBorder(t *testing.T, screen tcell.SimulationScreen) {
+	t.Helper()
+	cells, width, height := screenContents(screen)
+	bottom := height - connectMessageLines - 1 // the form's bottom border
+	for y := 1; y < bottom; y++ {
+		if got := string(cells[y*width+width-1].Runes); got != "║" {
+			t.Errorf("row %d: expected the form's right border, got %q:\n%s", y, got, screenText(screen))
+			return
+		}
+	}
+}
+
 func TestNewConnectionCertificateDirectoriesAreOnlyPickerDefaults(t *testing.T) {
 	for _, secure := range []bool{false, true} {
 		name := "HTTP"

@@ -32,7 +32,7 @@ Autres documents : [guide d'installation et de paramétrage](INSTALL_fr.md) · [
 
 ## Démo
 
-<p align="center"><img src="demotermdevtools.gif" alt="Démo animée : connexion à un cluster, exécution de requêtes, consultation du mapping d'un index et de _cat/shards, et recherche dans un résultat"></p>
+<p align="center"><img src="demotermdevtools.gif" alt="Démo animée : connexion à un cluster dont le mot de passe est lu dans une variable d'environnement, exécution d'une requête, complétion d'un endpoint et de colonnes _cat, insertion d'une recette du catalogue, puis une recherche dont le corps est reformaté et dont le résultat est fouillé"></p>
 
 *Animation enregistrée avec la version 0.5 : le catalogue de recettes (`F8`) et les nouveautés des versions suivantes n'y figurent pas.*
 

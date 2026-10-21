@@ -32,7 +32,7 @@ Other documents: [installation and configuration guide](INSTALL.md) · [changelo
 
 ## Demo
 
-<p align="center"><img src="demotermdevtools.gif" alt="Animated demo: connecting to a cluster, running requests, browsing an index mapping and _cat/shards, and searching within a result"></p>
+<p align="center"><img src="demotermdevtools.gif" alt="Animated demo: connecting to a cluster with its password read from an environment variable, running a request, completing an endpoint and _cat columns, inserting a recipe from the catalog, then a search whose body is reformatted and whose result is searched"></p>
 
 *Animation recorded with version 0.5: the recipe catalog (`F8`) and what later versions added aren't in it.*
 

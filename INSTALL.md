@@ -140,7 +140,7 @@ Run `termdevtools`. The interface is in English; once connected, `F3` switches i
 
 Once connected, the status bar tells what was recognized: `ES 9.5.4`, `OS 2.19.6`.
 
-**What is remembered, and what is not.** The URL, the protection and its label, the authentication type, the username, the API key identifier and the certificate paths are saved in `config.yaml`: on the next connection, that cluster is in the list and only the secret is asked for again. Passwords, API key secrets, tokens and passphrases are **never** written to disk.
+**What is remembered, and what is not.** The URL, the protection and its label, the authentication type, the username, the API key identifier and the certificate paths are saved in `config.yaml`: on the next connection, that cluster is in the list and only the secret is asked for again. Passwords, API key secrets, tokens and passphrases are **never** written to disk. To stop typing the secret, add `secret_env: VARIABLE_NAME` or `secret_file: ~/path/to/file` by hand to the cluster's entry in `config.yaml`: it is read from there when the form opens (see the [README](README.md#configuration)).
 
 ### Creating an API key (Elasticsearch)
 

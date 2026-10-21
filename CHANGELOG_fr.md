@@ -4,7 +4,13 @@
 
 ## Non publié
 
+### Nouveautés
+
+- **Secret sans ressaisie** : `secret_env: NOM` (une variable d'environnement) ou `secret_file: chemin` (un fichier, chemin absolu ou en `~/`), ajoutés à la main sur l'entrée d'un cluster dans `config.yaml`, disent où lire son secret — mot de passe, secret ou forme `encoded` d'une API key, jeton Bearer, passphrase de la clé client. Le formulaire s'ouvre avec le champ rempli et le focus sur « Se connecter », la zone de message nomme la source. Secret introuvable : le message dit pourquoi, et il se saisit comme avant. Le programme n'écrit toujours aucun secret ; sous Linux et macOS, un fichier lisible par d'autres que vous est signalé.
+
 ### Corrections
+
+- **Champ secret après un changement d'authentification** : passer à un autre type d'authentification puis revenir laissait le champ vide à l'écran alors que le secret saisi était toujours envoyé ; le champ montre désormais ce qu'il contient.
 
 - **Changement de panneau sous PuTTY** : l'aide (`F1`) et la documentation réservaient `Alt+←/→` à macOS ; ce raccourci change de panneau sur tous les systèmes, et c'est celui à utiliser là où `Ctrl+←/→` ne passe pas, comme sous PuTTY. Le conseil de l'aide sur PuTTY le cite désormais.
 

@@ -59,6 +59,18 @@ type Strings struct {
 	HintProxyEnvFmt             string // "%s", "%s" — put in front of a connection failure
 	HintProxyConfigFmt          string // "%s" — same, for a proxy set in config.yaml
 	DisplayUserNoAuth           string
+	// The secret a cluster's secret_env or secret_file points to: where it
+	// was read from, or why it wasn't — then it is typed as usual. "%s" is
+	// the variable or the file as written in config.yaml.
+	InfoSecretEnvFmt          string // "%s"
+	InfoSecretFileFmt         string // "%s"
+	WarnSecretFileReadableFmt string // "%s" — read, but other users can read the file too
+	ErrSecretEnvFmt           string // "%s" — not set, or empty
+	ErrSecretFileFmt          string // "%s", "%v" — why the file couldn't be read
+	ErrSecretFileRelativeFmt  string // "%s"
+	ErrSecretFileSizeFmt      string // "%s" — empty, or larger than a secret can be
+	ErrSecretFileEncodingFmt  string // "%s" — UTF-16 or binary, not text in UTF-8
+	ErrSecretBothKeys         string
 
 	// Certificate picker popup (connect.go): Enter on the CA/client-cert/
 	// client-key fields browses the configured default_ca_dir/
@@ -204,11 +216,22 @@ var fr = Strings{
 	HintProxyEnvFmt:             "Via le proxy %s (%s) — pour s'en passer : ajoutez le cluster à NO_PROXY, ou « proxy: none » à son entrée de config.yaml.",
 	HintProxyConfigFmt:          "Via le proxy %s (« proxy: » de ce cluster dans config.yaml).",
 	DisplayUserNoAuth:           "(aucune auth)",
-	BrowseHint:                  " (Entrée : parcourir)",
-	CertPickerTitleFmt:          " Choisir un fichier — %s (Entrée: ouvrir, Retour: dossier parent, Echap: annuler) ",
-	ErrNoCertDirConfiguredFmt:   "aucun dossier configuré (%s dans config.yaml)",
-	ErrNoCertFilesInDirFmt:      "aucun fichier dans %s",
-	ErrCertDirNotFoundFmt:       "le dossier %s n'existe pas",
+
+	InfoSecretEnvFmt:          "Secret lu dans la variable %s.",
+	InfoSecretFileFmt:         "Secret lu dans le fichier %s.",
+	WarnSecretFileReadableFmt: "Secret lu dans le fichier %s, que d'autres utilisateurs peuvent lire : réservez-le à vous seul (chmod 600).",
+	ErrSecretEnvFmt:           "Variable %s absente ou vide (« secret_env » de config.yaml) : saisissez le secret.",
+	ErrSecretFileFmt:          "Fichier %s illisible (%v) : saisissez le secret.",
+	ErrSecretFileRelativeFmt:  "« secret_file » doit être un chemin absolu ou commencer par ~/ : %s. Saisissez le secret.",
+	ErrSecretFileSizeFmt:      "Fichier %s vide ou de plus de 64 Kio : saisissez le secret.",
+	ErrSecretFileEncodingFmt:  "Fichier %s en UTF-16 ou binaire : enregistrez-le en UTF-8, ou saisissez le secret.",
+	ErrSecretBothKeys:         "« secret_env » et « secret_file » sont tous deux dans l'entrée de config.yaml : n'en gardez qu'un. Saisissez le secret.",
+
+	BrowseHint:                " (Entrée : parcourir)",
+	CertPickerTitleFmt:        " Choisir un fichier — %s (Entrée: ouvrir, Retour: dossier parent, Echap: annuler) ",
+	ErrNoCertDirConfiguredFmt: "aucun dossier configuré (%s dans config.yaml)",
+	ErrNoCertFilesInDirFmt:    "aucun fichier dans %s",
+	ErrCertDirNotFoundFmt:     "le dossier %s n'existe pas",
 
 	EditorTitle:     " Requêtes ",
 	ResultTitle:     " Résultat ",
@@ -379,11 +402,22 @@ var en = Strings{
 	HintProxyEnvFmt:             "Through proxy %s (%s) — to do without it: add the cluster to NO_PROXY, or \"proxy: none\" to its entry in config.yaml.",
 	HintProxyConfigFmt:          "Through proxy %s (this cluster's \"proxy:\" in config.yaml).",
 	DisplayUserNoAuth:           "(no auth)",
-	BrowseHint:                  " (Enter: browse)",
-	CertPickerTitleFmt:          " Choose a file — %s (Enter: open, Backspace: parent dir, Esc: cancel) ",
-	ErrNoCertDirConfiguredFmt:   "no directory configured (%s in config.yaml)",
-	ErrNoCertFilesInDirFmt:      "no files in %s",
-	ErrCertDirNotFoundFmt:       "the %s directory doesn't exist",
+
+	InfoSecretEnvFmt:          "Secret read from the %s variable.",
+	InfoSecretFileFmt:         "Secret read from file %s.",
+	WarnSecretFileReadableFmt: "Secret read from file %s, which other users can read: keep it to yourself (chmod 600).",
+	ErrSecretEnvFmt:           "Variable %s is not set or empty (\"secret_env\" in config.yaml): type the secret.",
+	ErrSecretFileFmt:          "Cannot read file %s (%v): type the secret.",
+	ErrSecretFileRelativeFmt:  "\"secret_file\" must be an absolute path or start with ~/: %s. Type the secret.",
+	ErrSecretFileSizeFmt:      "File %s is empty or larger than 64 KiB: type the secret.",
+	ErrSecretFileEncodingFmt:  "File %s is UTF-16 or binary: save it as UTF-8, or type the secret.",
+	ErrSecretBothKeys:         "Both \"secret_env\" and \"secret_file\" are in the config.yaml entry: keep only one. Type the secret.",
+
+	BrowseHint:                " (Enter: browse)",
+	CertPickerTitleFmt:        " Choose a file — %s (Enter: open, Backspace: parent dir, Esc: cancel) ",
+	ErrNoCertDirConfiguredFmt: "no directory configured (%s in config.yaml)",
+	ErrNoCertFilesInDirFmt:    "no files in %s",
+	ErrCertDirNotFoundFmt:     "the %s directory doesn't exist",
 
 	EditorTitle:     " Requests ",
 	ResultTitle:     " Result ",

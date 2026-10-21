@@ -4,7 +4,13 @@
 
 ## Unreleased
 
+### What's new
+
+- **Secret without retyping**: `secret_env: NAME` (an environment variable) or `secret_file: path` (a file, absolute path or `~/`), added by hand to a cluster's entry in `config.yaml`, say where to read its secret — password, API key secret or `encoded` form, Bearer token, client key passphrase. The form opens with the field filled in and the focus on "Connect", and the message area names the source. Secret not found: the message says why, and it is typed as before. The program still writes no secret; on Linux and macOS, a file others than you can read is pointed out.
+
 ### Fixes
+
+- **Secret field after switching authentication**: switching to another authentication type and back left the field looking empty while the secret typed was still sent; the field now shows what it holds.
 
 - **Panel switch under PuTTY**: the help (`F1`) and the documentation said `Alt+←/→` switches panels on macOS only; it does on every system, and is the way to do it where `Ctrl+←/→` doesn't get through, as under PuTTY. The help's PuTTY advice now names it.
 

@@ -176,11 +176,13 @@ La version pas à pas, champ par champ, avec la création d'une clé d'API et le
 
 ## Configuration
 
-Aucune configuration n'est nécessaire pour démarrer : un écran de connexion permet de saisir directement l'URL et les identifiants d'un cluster, et `~/.config/termdevtools/config.yaml` est créé automatiquement, chaque paramètre documenté sur place. Un exemple est fourni à titre indicatif dans `config.yaml.example` — **il ne contient jamais de secret** : mots de passe, secrets de clé d'API, jetons et passphrases sont redemandés à chaque connexion, jamais écrits sur disque (voir [Sécurité](#sécurité)). Chaque paramètre est décrit dans le [guide, §5](INSTALL_fr.md#5-réglages--configyaml).
+Aucune configuration n'est nécessaire pour démarrer : un écran de connexion permet de saisir directement l'URL et les identifiants d'un cluster, et `~/.config/termdevtools/config.yaml` est créé automatiquement, chaque paramètre documenté sur place. Un exemple est fourni à titre indicatif dans `config.yaml.example` — **il ne contient jamais de secret** : mots de passe, secrets de clé d'API, jetons et passphrases sont redemandés à chaque connexion, sauf à dire où les lire (ci-dessous), et jamais écrits sur disque (voir [Sécurité](#sécurité)). Chaque paramètre est décrit dans le [guide, §5](INSTALL_fr.md#5-réglages--configyaml).
 
 La distribution et la version du cluster sont détectées à chaque connexion et affichées dans la barre de statut (`ES 9.5.4`, `OS 2.19.6`). Quand elles ne peuvent pas l'être — un proxy qui masque la réponse du cluster, ou un OpenSearch en mode compatibilité, qui annonce une fausse version — tout ce qui pourrait s'appliquer est proposé plutôt que masqué ; `distribution:` et `version:` sur l'entrée du cluster dans `config.yaml` permettent alors de les indiquer vous-même.
 
 **Proxy.** Un cluster est joint à travers le proxy que désignent les variables d'environnement `HTTPS_PROXY` / `HTTP_PROXY`, sauf si `NO_PROXY` l'exclut ; `localhost` n'y passe jamais. Pour un cluster en particulier, `proxy:` sur son entrée dans `config.yaml` l'emporte : `proxy: http://proxy.example.com:3128`, `proxy: socks5://127.0.0.1:1080` (ce qu'ouvre `ssh -D 1080 bastion`), ou `proxy: none` pour une connexion directe. Le proxy utilisé est toujours affiché, à la connexion et en cas d'échec. Détails et limites dans le [guide, §5](INSTALL_fr.md#5-réglages--configyaml).
+
+**Secret sans ressaisie.** `secret_env: ES_PW` (une variable d'environnement) ou `secret_file: ~/.es-prod.secret` (un fichier, chemin absolu ou en `~/`) sur l'entrée d'un cluster dans `config.yaml` : le formulaire s'ouvre avec le secret déjà rempli et le focus sur le bouton de connexion, `Entrée` suffit. La clé vaut pour le secret que demande l'authentification du cluster, quel qu'il soit. À écrire à la main : le programme ne l'écrit jamais, ni le secret. Le fichier reste sous votre responsabilité — lisible par vous seul (`chmod 600`), sans quoi un avertissement s'affiche. Secret introuvable : le message dit pourquoi, et il se saisit comme d'habitude.
 
 La langue de l'interface (anglais par défaut, ou français) se règle via `language: en` / `language: fr` dans ce même `config.yaml` — ou se change à la volée dans l'appli avec `F3`, qui enregistre le choix pour la prochaine fois.
 
@@ -246,7 +248,7 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 **Ce que le programme fait, et ne fait pas**
 
 - **Il ne parle qu'au cluster que vous avez choisi** — à travers un proxy seulement si votre environnement ou `config.yaml` en désigne un, et en l'affichant. Aucune télémétrie, aucune recherche de mise à jour, aucune commande externe exécutée.
-- **Aucun secret n'est écrit sur le disque** : mot de passe, secret d'API Key, jeton Bearer et passphrase de clé privée sont redemandés à chaque connexion. Seuls l'URL, le type d'authentification et les identifiants non sensibles (nom d'utilisateur, identifiant de clé d'API, chemins de certificats) sont enregistrés dans `config.yaml`.
+- **Aucun secret n'est écrit sur le disque** : mot de passe, secret d'API Key, jeton Bearer et passphrase de clé privée sont redemandés à chaque connexion, ou lus dans la variable ou le fichier que l'entrée du cluster désigne (`secret_env`, `secret_file`) — ce fichier-là est le vôtre, à protéger : qui peut le lire peut se connecter. Seuls l'URL, le type d'authentification et les identifiants non sensibles (nom d'utilisateur, identifiant de clé d'API, chemins de certificats) sont enregistrés dans `config.yaml`.
 - **Une URL contenant des identifiants est refusée** (`https://utilisateur:motdepasse@hôte`) : enregistrée et affichée, elle aurait exposé le mot de passe.
 - **TLS vérifié par défaut**, TLS 1.2 au minimum ; la vérification du certificat serveur ne se désactive qu'explicitement, connexion par connexion.
 - **Les redirections HTTP ne sont jamais suivies** : vos identifiants ne partent pas vers une autre adresse que celle saisie, et une requête n'est pas rejouée ailleurs. Une redirection est affichée telle quelle.
@@ -265,7 +267,7 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 
 - Relecture de sécurité du code et tests automatisés pour chacun des points ci-dessus ; `govulncheck` ne signale aucune vulnérabilité connue, ni dans les dépendances ni dans la bibliothèque standard de la version de Go qui compile les binaires (1.27.3).
 - Chaque requête de chaque recette a été exécutée sur onze clusters réels (Elasticsearch 7.17 à 9.5, OpenSearch 2.0 à 3.9).
-- L'authentification par mot de passe, par clé d'API et par jeton Bearer est vérifiée sur un Elasticsearch réel dont la sécurité est activée. Le passage par un proxy l'est avec un proxy HTTP et un serveur SOCKS5 de test, pas avec un proxy d'entreprise réel.
+- L'authentification par mot de passe, par clé d'API et par jeton Bearer est vérifiée sur un Elasticsearch réel dont la sécurité est activée, le secret saisi ou lu dans une variable ou un fichier. Le passage par un proxy l'est avec un proxy HTTP et un serveur SOCKS5 de test, pas avec un proxy d'entreprise réel.
 - La protection est vérifiée sur un Elasticsearch et un OpenSearch réels : la suppression d'un index est refusée en lecture seule, n'a pas lieu tant que la confirmation est annulée, et a lieu une fois confirmée.
 - **Aucun audit externe indépendant n'a été réalisé**, et les binaires ne sont pas signés : vérifiez leur somme SHA-256. Voir aussi l'[avertissement](#avertissement--limitation-de-responsabilité) ci-dessous.
 

@@ -176,11 +176,13 @@ The step-by-step version, field by field, with how to create an API key and whic
 
 ## Configuration
 
-No configuration is needed to get started: a connection screen lets you enter a cluster's URL and credentials directly, and `~/.config/termdevtools/config.yaml` is created automatically, every setting documented in place. A sample is provided for reference in `config.yaml.example` — **it never contains a secret**: passwords, API key secrets, tokens, and passphrases are always re-requested on connection, never written to disk (see [Security](#security)). Every setting is described in the [guide, §5](INSTALL.md#5-settings-configyaml).
+No configuration is needed to get started: a connection screen lets you enter a cluster's URL and credentials directly, and `~/.config/termdevtools/config.yaml` is created automatically, every setting documented in place. A sample is provided for reference in `config.yaml.example` — **it never contains a secret**: passwords, API key secrets, tokens, and passphrases are re-requested on every connection, unless you say where to read them (below), and never written to disk (see [Security](#security)). Every setting is described in the [guide, §5](INSTALL.md#5-settings-configyaml).
 
 The cluster's distribution and version are detected at every connection and shown in the status bar (`ES 9.5.4`, `OS 2.19.6`). When they can't be — a proxy hiding the cluster's answer, or an OpenSearch in compatibility mode, which reports a fake version — everything that might apply is offered rather than hidden; `distribution:` and `version:` on a cluster's entry in `config.yaml` then let you state them yourself.
 
 **Proxy.** A cluster is reached through the proxy the `HTTPS_PROXY` / `HTTP_PROXY` environment variables designate, unless `NO_PROXY` excludes it; `localhost` never goes through it. For one cluster in particular, `proxy:` on its entry in `config.yaml` takes precedence: `proxy: http://proxy.example.com:3128`, `proxy: socks5://127.0.0.1:1080` (what `ssh -D 1080 bastion` opens), or `proxy: none` for a direct connection. The proxy in use is always displayed, on connecting and on failure. Details and limits in the [guide, §5](INSTALL.md#5-settings-configyaml).
+
+**Secret without retyping.** `secret_env: ES_PW` (an environment variable) or `secret_file: ~/.es-prod.secret` (a file, absolute path or `~/`) on a cluster's entry in `config.yaml`: the form opens with the secret already filled in and the focus on "Connect", `Enter` is enough. The key stands for whichever secret the cluster's authentication asks for. Written by hand: the program never writes it, nor the secret. The file is yours to look after — readable by you alone (`chmod 600`), or a warning is shown. Secret not found: the message says why, and it is typed as usual.
 
 The interface language (English by default, or French) is set via `language: en` / `language: fr` in that same `config.yaml` — or switched live from the app with `F3`, which saves the choice for next time.
 
@@ -246,7 +248,7 @@ Values live in `~/.config/termdevtools/variables_<cluster>.txt` — one per clus
 **What the program does, and doesn't**
 
 - **It only talks to the cluster you chose** — through a proxy only if your environment or `config.yaml` designates one, and showing it. No telemetry, no update check, no external command run.
-- **No secret is ever written to disk**: password, API Key secret, Bearer token and private key passphrase are asked again on every connection. Only the URL, the authentication type and the non-sensitive identifiers (username, API key ID, certificate paths) are saved in `config.yaml`.
+- **No secret is ever written to disk**: password, API Key secret, Bearer token and private key passphrase are asked again on every connection, or read from the variable or the file the cluster's entry names (`secret_env`, `secret_file`) — that file is yours to protect: whoever can read it can connect. Only the URL, the authentication type and the non-sensitive identifiers (username, API key ID, certificate paths) are saved in `config.yaml`.
 - **A URL carrying credentials is refused** (`https://user:password@host`): saved and displayed, it would have exposed the password.
 - **TLS verified by default**, TLS 1.2 at least; server certificate verification is only turned off explicitly, connection by connection.
 - **HTTP redirections are never followed**: your credentials don't leave for an address other than the one entered, and a request isn't replayed elsewhere. A redirection is displayed as it is.
@@ -265,7 +267,7 @@ Values live in `~/.config/termdevtools/variables_<cluster>.txt` — one per clus
 
 - Security review of the code and automated tests for each of the points above; `govulncheck` reports no known vulnerability, neither in the dependencies nor in the standard library of the Go version the binaries are built with (1.27.3).
 - Every request of every recipe was run against eleven real clusters (Elasticsearch 7.17 to 9.5, OpenSearch 2.0 to 3.9).
-- Authentication by password, by API key and by Bearer token is checked against a real Elasticsearch with security on. Going through a proxy is checked with a test HTTP proxy and a test SOCKS5 server, not with a real corporate proxy.
+- Authentication by password, by API key and by Bearer token is checked against a real Elasticsearch with security on, the secret typed or read from a variable or a file. Going through a proxy is checked with a test HTTP proxy and a test SOCKS5 server, not with a real corporate proxy.
 - The protection is checked against a real Elasticsearch and a real OpenSearch: deleting an index is refused in read-only, doesn't happen while the confirmation is cancelled, and happens once confirmed.
 - **No independent external audit was carried out**, and the binaries are not signed: check their SHA-256 checksum. See also the [disclaimer](#disclaimer--limitation-of-liability) below.
 

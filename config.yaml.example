@@ -2,8 +2,9 @@
 # ~/.config/termdevtools/config.yaml and is created automatically on first
 # launch (see SPEC.md §9.1-§9.2). Specific to each user: two people running
 # the same shared binary don't share a connection history. No secret is ever
-# stored in it: passwords, API key secrets and private key passphrases are
-# always asked again on connection.
+# stored in it: passwords, API key secrets, tokens and private key
+# passphrases are asked again on connection, unless a cluster's entry says
+# where to read them (secret_env, secret_file, below).
 
 default_timeout_seconds: 120
 
@@ -45,6 +46,15 @@ default_client_cert_dir: ""
 # authenticated proxy goes through the environment variable), or "none" for
 # a direct connection.
 #
+# "secret_env" (an environment variable) or "secret_file" (an absolute path,
+# or one starting with ~/), optional and never written by the program, say
+# where the cluster's secret is — whichever its authentication asks for: the
+# password, the API key's secret or its encoded form, the Bearer token, the
+# client key's passphrase. The connection form opens with it filled in and
+# the focus on Connect. The file is read whole, without its final line ends,
+# and is yours to protect (chmod 600): whoever can read it can connect. Not
+# found, the secret is typed as usual (§5).
+#
 # "protection", set from the connection form (§5), guards against a mistake
 # on a cluster that matters: "confirm" asks before sending a request that
 # writes, "read_only" refuses it; reads are always sent. Either level shows a
@@ -57,6 +67,7 @@ clusters:
     label: PROD
     auth_type: basic # none | basic | api_key | bearer | mtls
     username: svc_devtools
+    secret_env: ES_PROD_PW # or secret_file: ~/.es-prod.secret
     tls:
       verify: true
       ca_file: /etc/pki/ca-trust/es-prod-ca.pem

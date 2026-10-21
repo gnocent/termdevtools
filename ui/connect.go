@@ -191,13 +191,27 @@ func (cs *connectScreen) refreshList() {
 }
 
 func (cs *connectScreen) openForm(existing *config.Cluster) {
-	form := cs.buildForm(existing)
-	cs.setMessage("", "white")
+	var secret string
+	var notices []string
+	color := "white"
 	if existing != nil {
 		if _, known := config.NormalizeProtection(existing.Protection); !known {
-			cs.setMessage(fmt.Sprintf(cs.msgs.WarnUnknownProtectionFmt, existing.Protection), "yellow")
+			notices = append(notices, fmt.Sprintf(cs.msgs.WarnUnknownProtectionFmt, existing.Protection))
+			color = "yellow"
+		}
+		// Read anew on every opening: the variable or the file may have
+		// changed since.
+		var notice string
+		var warn bool
+		if secret, notice, warn = clusterSecret(*existing, cs.msgs); notice != "" {
+			notices = append(notices, notice)
+		}
+		if warn {
+			color = "yellow"
 		}
 	}
+	form := cs.buildForm(existing, secret)
+	cs.setMessage(strings.Join(notices, " · "), color)
 	cs.pages.AddAndSwitchToPage("form", cs.formLayout(form), true)
 }
 
@@ -207,7 +221,10 @@ func (cs *connectScreen) formLayout(form tview.Primitive) tview.Primitive {
 		AddItem(cs.message, connectMessageLines, 0, false)
 }
 
-func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
+// buildForm builds the form of a new connection, or of the existing one;
+// secret, if not empty, is that cluster's secret read from where its entry
+// says (clusterSecret), filled in as if typed.
+func (cs *connectScreen) buildForm(existing *config.Cluster, secret string) *highlightForm {
 	msgs := cs.msgs
 	cluster := config.Cluster{
 		AuthType: config.AuthNone,
@@ -226,6 +243,18 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 	verify := cluster.TLS.Verify
 	caFile, clientCert, clientKey := cluster.TLS.CAFile, cluster.TLS.ClientCert, cluster.TLS.ClientKey
 	var password, apiKeySecret, bearerToken, keyPassphrase string
+	if secret != "" {
+		switch authType {
+		case config.AuthBasic:
+			password = secret
+		case config.AuthAPIKey:
+			apiKeySecret = secret
+		case config.AuthBearer:
+			bearerToken = secret
+		case config.AuthMTLS:
+			keyPassphrase = secret
+		}
+	}
 	// An unknown level read from config.yaml is offered as the most
 	// restrictive one (openForm says so).
 	protection, _ := config.NormalizeProtection(cluster.Protection)
@@ -319,15 +348,19 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 
 		isHTTPS := urlLooksHTTPS(url)
 
+		// A secret field shows what it holds, as the others do: the secret
+		// read from config.yaml's secret_env or secret_file, or the one typed
+		// before the authentication type was switched away and back — which
+		// is what gets sent.
 		switch authType {
 		case config.AuthBasic:
 			form.AddInputField(msgs.FieldUsername, username, 40, nil, func(v string) { username = v })
-			form.AddPasswordField(msgs.FieldPassword, "", 40, '*', func(v string) { password = v })
+			form.AddPasswordField(msgs.FieldPassword, password, 40, '*', func(v string) { password = v })
 		case config.AuthAPIKey:
 			form.AddInputField(msgs.FieldAPIKeyID, apiKeyID, 40, nil, func(v string) { apiKeyID = v })
-			form.AddPasswordField(msgs.FieldAPIKeySecret, "", 40, '*', func(v string) { apiKeySecret = v })
+			form.AddPasswordField(msgs.FieldAPIKeySecret, apiKeySecret, 40, '*', func(v string) { apiKeySecret = v })
 		case config.AuthBearer:
-			form.AddPasswordField(msgs.FieldBearerToken, "", 40, '*', func(v string) { bearerToken = v })
+			form.AddPasswordField(msgs.FieldBearerToken, bearerToken, 40, '*', func(v string) { bearerToken = v })
 		case config.AuthMTLS:
 			// A client certificate is part of the TLS handshake: doesn't
 			// make sense if the connection isn't over https.
@@ -336,7 +369,7 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 				cs.attachCertPicker(form, cs.cfg.DefaultClientCertDir, "default_client_cert_dir")
 				form.AddInputField(msgs.FieldClientKey+msgs.BrowseHint, clientKey, 60, nil, func(v string) { clientKey = v })
 				cs.attachCertPicker(form, cs.cfg.DefaultClientCertDir, "default_client_cert_dir")
-				form.AddPasswordField(msgs.FieldKeyPassphrase, "", 40, '*', func(v string) { keyPassphrase = v })
+				form.AddPasswordField(msgs.FieldKeyPassphrase, keyPassphrase, 40, '*', func(v string) { keyPassphrase = v })
 			}
 		}
 
@@ -360,7 +393,7 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 			// Not form fields: carried over from config.yaml as-is, or
 			// Promote would erase them on every reconnection.
 			Distribution: cluster.Distribution, Version: cluster.Version,
-			Proxy: cluster.Proxy,
+			Proxy: cluster.Proxy, SecretEnv: cluster.SecretEnv, SecretFile: cluster.SecretFile,
 		}
 		cs.attemptConnect(cl, connectSecrets{
 			password: password, apiKeySecret: apiKeySecret, bearerToken: bearerToken, keyPassphrase: keyPassphrase,
@@ -368,7 +401,11 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 	})
 	form.AddButton(msgs.ButtonCancel, cancel)
 
-	if existing != nil {
+	switch {
+	case secret != "":
+		// Nothing left to type: Enter connects (the first button).
+		form.SetFocus(form.GetFormItemCount())
+	case existing != nil:
 		// A known cluster's form opens on its authentication, as it did
 		// before protection levels existed: Tab, then the secret.
 		form.SetFocus(authDropdownIndex)

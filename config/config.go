@@ -107,6 +107,14 @@ type Cluster struct {
 	// above, set by hand and never written by the program itself. See
 	// SPEC.md §5 and §9.2.
 	Proxy string `yaml:"proxy,omitempty"`
+	// SecretEnv names an environment variable, SecretFile an absolute path
+	// (or "~/..."), where the connection form reads this cluster's secret
+	// instead of having it typed: the password, the API key secret or its
+	// encoded form, the Bearer token or the client key's passphrase, whichever
+	// AuthType asks for. Where the secret is, never the secret itself: set by
+	// hand, never written by the program. See SPEC.md §5 and §9.2.
+	SecretEnv  string `yaml:"secret_env,omitempty"`
+	SecretFile string `yaml:"secret_file,omitempty"`
 }
 
 // Config is the full content of config.yaml.
@@ -379,8 +387,9 @@ func mappingValue(mapping *yaml.Node, key string) *yaml.Node {
 const configFileHeader = `# TermDevTools configuration file — generated automatically on first launch
 # (see SPEC.md §9.1-§9.2). Specific to this user: two people running the
 # same shared binary don't share a connection history. No secret is ever
-# stored here: passwords, API key secrets and private key passphrases are
-# always asked again on connection.
+# stored here: passwords, API key secrets, tokens and private key
+# passphrases are asked again on connection, unless a cluster's entry says
+# where to read them (secret_env, secret_file, below).
 #
 # Every setting below is shown at its default value; change or remove them
 # as you see fit.
@@ -439,6 +448,10 @@ default_client_cert_dir: %s
 # Also optional, per cluster: "proxy: http://host:3128" (or socks5://...)
 # reaches it through that proxy, "proxy: none" directly. Without it, the
 # HTTPS_PROXY, HTTP_PROXY and NO_PROXY environment variables decide.
+# Also optional, per cluster, never written by the program:
+# "secret_env: ES_PW" or "secret_file: ~/.es.secret" (absolute, or ~/) say
+# where its secret is, read when its connection form opens. The file is
+# yours to protect (chmod 600).
 # "protection: confirm" asks before sending a request that writes,
 # "protection: read_only" refuses it, and "label: PROD" names the cluster in
 # the banner either level shows. Both are set from the connection form.

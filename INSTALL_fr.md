@@ -140,7 +140,7 @@ Lancez `termdevtools`. L'interface démarre en anglais ; une fois connecté, `F3
 
 Une fois connecté, la barre de statut indique ce qui a été reconnu : `ES 9.5.4`, `OS 2.19.6`.
 
-**Ce qui est retenu, et ce qui ne l'est pas.** L'URL, la protection et son libellé, le type d'authentification, le nom d'utilisateur, l'identifiant de clé d'API et les chemins de certificats sont enregistrés dans `config.yaml` : à la prochaine connexion, ce cluster apparaît dans la liste et seul le secret est redemandé. Les mots de passe, secrets de clé d'API, jetons et passphrases ne sont **jamais** écrits sur le disque.
+**Ce qui est retenu, et ce qui ne l'est pas.** L'URL, la protection et son libellé, le type d'authentification, le nom d'utilisateur, l'identifiant de clé d'API et les chemins de certificats sont enregistrés dans `config.yaml` : à la prochaine connexion, ce cluster apparaît dans la liste et seul le secret est redemandé. Les mots de passe, secrets de clé d'API, jetons et passphrases ne sont **jamais** écrits sur le disque. Pour ne plus saisir le secret, ajoutez à la main `secret_env: NOM_DE_VARIABLE` ou `secret_file: ~/chemin/du/fichier` à l'entrée du cluster dans `config.yaml` : il y est lu à l'ouverture du formulaire (voir le [README](README_fr.md#configuration)).
 
 ### Créer une clé d'API (Elasticsearch)
 

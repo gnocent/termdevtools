@@ -5,12 +5,12 @@
 A terminal-mode simulator of Kibana's **DevTools** view, for querying an Elasticsearch or OpenSearch cluster directly from a terminal — Linux (including RHEL 8/9/10), Windows, or macOS — without a browser or a working Kibana. A single binary, with nothing else to install.
 
 > [!IMPORTANT]
-> **What's new in 0.7.3 (beta)**
+> **What's new in 0.7.4 (beta)**
 >
-> - **Production guardrails**, cluster by cluster: "writes need confirmation" asks before sending a request that writes, "read-only" refuses it, and a red or yellow banner reminds you which cluster you are on. A safety net against slips, not security: see [Security](#security).
-> - **The status bar's message comes first** on an 80-column terminal, instead of being cut from its first word.
+> - **Secret without retyping**: `secret_env: ES_PW` or `secret_file: ~/.es-prod.secret` on a cluster's entry in `config.yaml`, and the connection form opens with the secret already filled in — `Enter` is enough. The program still writes no secret: see [Configuration](#configuration).
+> - **The connection form fits on 80 columns**, and `Alt+←/→` switches panels on every system, PuTTY included.
 >
-> 0.7.2 had brought `go install github.com/gnocent/termdevtools@latest` and completion that keeps the query after the cursor; 0.7, proxies (`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, and `proxy:` per cluster in `config.yaml`), API keys the way Kibana gives them, Bearer tokens, and exports in your configuration directory rather than next to the binary.
+> 0.7.3 had brought production guardrails (requests that write confirmed or refused, behind a banner); 0.7.2, `go install github.com/gnocent/termdevtools@latest`; 0.7, proxies (`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, and `proxy:` per cluster in `config.yaml`), API keys the way Kibana gives them, Bearer tokens, and exports in your configuration directory rather than next to the binary.
 >
 > **Before upgrading from 0.6**: if `HTTPS_PROXY` is set on your machine, your clusters will now go through that proxy — see [Upgrading](#upgrading-from-an-earlier-version).
 >

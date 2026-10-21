@@ -4,7 +4,7 @@
 
 > Terminal-mode simulator of Kibana's "DevTools" view, for submitting requests to an Elasticsearch or OpenSearch cluster without going through a browser.
 
-Status: this document describes the design as shipped — version 0.7.3 (beta). The version history is in [CHANGELOG.md](CHANGELOG.md), the step-by-step installation in [INSTALL.md](INSTALL.md).
+Status: this document describes the design as shipped — version 0.7.4 (beta). The version history is in [CHANGELOG.md](CHANGELOG.md), the step-by-step installation in [INSTALL.md](INSTALL.md).
 
 ---
 
@@ -216,7 +216,7 @@ What isn't done, by choice or not yet:
 2. ~~**HTTP(S) proxy**~~ — delivered in 0.7: `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` honored, a per-cluster `proxy:` key, `http://` and `socks5://` proxies (§5).
 3. ~~**Extended authentication**~~ — delivered in 0.7: API key in its `encoded` form and Bearer tokens (§3.0, §5). The Cloud ID is moved to the "not scheduled" items below; SigV4 stays out.
 4. ~~**Production guardrails**~~ — delivered in 0.7.3: a per-cluster protection (`none`, `confirm`, `read_only`) chosen in the connection form, confirmation or refusal of the requests that write, a banner with a label (§3.0, §3.1, §5). A protection enforced by a team is moved to "not scheduled" below.
-5. ~~**Secrets without retyping, first tier**~~ — done, not released yet: `secret_env` and `secret_file` on a cluster's entry, read on opening the connection form (§3.0, §5). An opt-in OS keychain is a separate, later decision (it changes the "no secret ever persisted" promise of §5).
+5. ~~**Secrets without retyping, first tier**~~ — delivered in 0.7.4: `secret_env` and `secret_file` on a cluster's entry, read on opening the connection form (§3.0, §5). An opt-in OS keychain is a separate, later decision (it changes the "no secret ever persisted" promise of §5).
 6. **Watch mode** — re-run the request under the cursor every N seconds and highlight what changed.
 7. **Cancel a running request, live timer** — covers the "live-updating timer" bullet above.
 8. **Diff between two runs** of the same request.

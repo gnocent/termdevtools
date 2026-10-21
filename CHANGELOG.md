@@ -2,18 +2,41 @@
 
 # Changelog
 
-## Unreleased
+## 0.7.4 (beta) — October 2026
+
+**In one sentence**: a cluster's secret can be read from an environment variable or a file instead of being typed at every connection.
 
 ### What's new
 
-- **Secret without retyping**: `secret_env: NAME` (an environment variable) or `secret_file: path` (a file, absolute path or `~/`), added by hand to a cluster's entry in `config.yaml`, say where to read its secret — password, API key secret or `encoded` form, Bearer token, client key passphrase. The form opens with the field filled in and the focus on "Connect", and the message area names the source. Secret not found: the message says why, and it is typed as before. The program still writes no secret; on Linux and macOS, a file others than you can read is pointed out.
+- **Secret without retyping**: `secret_env: NAME` (an environment variable) or `secret_file: path` (a file, absolute path or `~/`), added by hand to a cluster's entry in `config.yaml`, say where its secret is — password, API key secret or `encoded` form, Bearer token, client key passphrase, whichever its authentication asks for. The form opens with the field filled in and the focus on "Connect": `Enter` is enough. The message area names the variable or the file.
+- **Never blocking**: a variable unset or empty, a file missing, unreadable, empty or larger than 64 KiB, a relative path, both keys on one entry, or a file that isn't a regular UTF-8 text file (a pipe, a device, UTF-16 as `>` writes it in Windows PowerShell 5.1) — the field stays empty, the message says why, and the secret is typed as before. Nothing is sent before "Connect".
+- **The program still writes no secret**: `config.yaml` holds where the secret is, never what it is, and `F9` keeps its placeholders. The file is yours to protect: on Linux and macOS, one that other users can read is used all the same, with a warning (`chmod 600`).
 
 ### Fixes
 
 - **Connection form on 80 columns**: a new connection's URL, the paths of the client certificate, its key and the CA, and in French the passphrase, ran over the form's frame; these fields are now narrowed to fit inside it, their content scrolling.
 - **Secret field after switching authentication**: switching to another authentication type and back left the field looking empty while the secret typed was still sent; the field now shows what it holds.
+- **Panel switch under PuTTY** (#8): the help (`F1`) and the documentation said `Alt+←/→` switches panels on macOS only; it does on every system, and is the way to do it where `Ctrl+←/→` doesn't get through, as under PuTTY. The help's PuTTY advice now names it.
 
-- **Panel switch under PuTTY**: the help (`F1`) and the documentation said `Alt+←/→` switches panels on macOS only; it does on every system, and is the way to do it where `Ctrl+←/→` doesn't get through, as under PuTTY. The help's PuTTY advice now names it.
+### Before upgrading from 0.7.3
+
+- **Nothing to do**: a `config.yaml` without `secret_env` or `secret_file` behaves as before — the secret is asked for at every connection.
+
+### Checks
+
+- `go vet` and `go test ./...` pass, run on Windows: unit tests and tests of the interface on a simulated 80×24 screen; the secret tests also pass on Linux, where the warning about a file other users can read and the refusal of a device are checked.
+- Basic Auth, API key and Bearer token connect against a real Elasticsearch 9.5.4 with security on, each with its secret read from a variable and from a file, through the connection form. The real-cluster tests of authentication and of the protection (Elasticsearch 9.5.4, OpenSearch 3.9.0) still pass.
+- A security review of the secrets came before the release: no leak of the secret, nothing sent before "Connect". The two points it raised — a pipe or a terminal named by `secret_file` froze the interface, a UTF-16 file sent a garbled secret — are fixed and covered by tests.
+- Visual review of the form's messages, in English and French, at 80×24.
+- `govulncheck`: no known vulnerability, neither in the dependencies nor in the standard library of Go 1.27.3, which the binaries are built with.
+- The reference data (recipes, endpoints, `_cat` columns) has not changed since 0.6.
+- No independent external audit was carried out.
+
+### Known limits
+
+- The secret is read when the form opens; `F9` doesn't refer to the variable or the file (it keeps its placeholder). No OS keychain.
+- A "New connection" typed with the URL of a known cluster replaces its entry: the keys written by hand (`secret_env`, `secret_file`, `proxy`, `distribution`, `version`) are lost. Picking the cluster from the list keeps them.
+- The limits of 0.7 still apply.
 
 ## 0.7.3 (beta) — October 2026
 

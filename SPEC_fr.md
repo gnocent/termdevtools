@@ -4,7 +4,7 @@
 
 > Simulateur en mode terminal de la vue "DevTools" de Kibana, pour soumettre des requêtes à un cluster Elasticsearch ou OpenSearch sans passer par un navigateur.
 
-Statut : ce document décrit la conception telle qu'elle est livrée — version 0.7.3 (bêta). Le journal des versions est dans [CHANGELOG_fr.md](CHANGELOG_fr.md), l'installation pas à pas dans [INSTALL_fr.md](INSTALL_fr.md).
+Statut : ce document décrit la conception telle qu'elle est livrée — version 0.7.4 (bêta). Le journal des versions est dans [CHANGELOG_fr.md](CHANGELOG_fr.md), l'installation pas à pas dans [INSTALL_fr.md](INSTALL_fr.md).
 
 ---
 
@@ -216,7 +216,7 @@ Ce qui n'est pas fait, par choix ou pas encore :
 2. ~~**Proxy HTTP(S)**~~ — livré en 0.7 : `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` respectés, clé `proxy:` par cluster, proxys `http://` et `socks5://` (§5).
 3. ~~**Authentification étendue**~~ — livré en 0.7 : API key sous sa forme `encoded` et jetons Bearer (§3.0, §5). Le Cloud ID est reporté aux « non planifiés » ci-dessous ; SigV4 reste hors périmètre.
 4. ~~**Garde-fous de production**~~ — livré en 0.7.3 : protection par cluster (`none`, `confirm`, `read_only`) choisie dans le formulaire de connexion, confirmation ou refus des requêtes qui écrivent, bandeau avec un libellé (§3.0, §3.1, §5). La protection imposée par une équipe est reportée aux « non planifiés » ci-dessous.
-5. ~~**Secrets sans ressaisie, premier palier**~~ — fait, pas encore publié : `secret_env` et `secret_file` sur l'entrée d'un cluster, lus à l'ouverture du formulaire de connexion (§3.0, §5). Le trousseau de l'OS en opt-in est une décision distincte et ultérieure (elle modifie la promesse « aucun secret persisté » du §5).
+5. ~~**Secrets sans ressaisie, premier palier**~~ — livré en 0.7.4 : `secret_env` et `secret_file` sur l'entrée d'un cluster, lus à l'ouverture du formulaire de connexion (§3.0, §5). Le trousseau de l'OS en opt-in est une décision distincte et ultérieure (elle modifie la promesse « aucun secret persisté » du §5).
 6. **Mode watch** — rejouer la requête sous le curseur toutes les N secondes et surligner ce qui a changé.
 7. **Annulation d'une requête en cours, chrono en direct** — couvre la puce « chrono » ci-dessus.
 8. **Diff entre deux exécutions** d'une même requête.

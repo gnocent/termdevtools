@@ -5,12 +5,12 @@
 Simulateur en mode terminal de la vue **DevTools** de Kibana, pour interroger un cluster Elasticsearch ou OpenSearch directement depuis un terminal — Linux (dont RHEL 8/9/10), Windows ou macOS — sans navigateur ni Kibana fonctionnel. Un seul binaire, rien d'autre à installer.
 
 > [!IMPORTANT]
-> **Nouveautés de la 0.7.3 (bêta)**
+> **Nouveautés de la 0.7.4 (bêta)**
 >
-> - **Garde-fous de production**, cluster par cluster : « confirmation des écritures » demande avant d'envoyer une requête qui écrit, « lecture seule » la refuse, et un bandeau rouge ou jaune rappelle sur quel cluster vous êtes. Un filet contre l'erreur de manipulation, pas une sécurité : voir [Sécurité](#sécurité).
-> - **Le message de la barre d'état passe en premier** sur un terminal de 80 colonnes, au lieu d'être coupé dès son premier mot.
+> - **Secret sans ressaisie** : `secret_env: ES_PW` ou `secret_file: ~/.es-prod.secret` sur l'entrée d'un cluster dans `config.yaml`, et le formulaire de connexion s'ouvre avec le secret déjà rempli — `Entrée` suffit. Le programme n'écrit toujours aucun secret : voir [Configuration](#configuration).
+> - **Le formulaire de connexion tient sur 80 colonnes**, et `Alt+←/→` change de panneau sur tous les systèmes, PuTTY compris.
 >
-> La 0.7.2 avait apporté `go install github.com/gnocent/termdevtools@latest` et une complétion qui garde la requête suivant le curseur ; la 0.7, les proxys (`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, et `proxy:` par cluster dans `config.yaml`), les clés d'API telles que Kibana les donne, les jetons Bearer, et les exports dans votre dossier de configuration plutôt qu'à côté du binaire.
+> La 0.7.3 avait apporté les garde-fous de production (confirmation ou refus des requêtes qui écrivent, avec un bandeau) ; la 0.7.2, `go install github.com/gnocent/termdevtools@latest` ; la 0.7, les proxys (`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, et `proxy:` par cluster dans `config.yaml`), les clés d'API telles que Kibana les donne, les jetons Bearer, et les exports dans votre dossier de configuration plutôt qu'à côté du binaire.
 >
 > **Avant de mettre à jour depuis la 0.6** : si `HTTPS_PROXY` est défini sur votre poste, vos clusters passeront désormais par ce proxy — voir [Mise à jour](#mise-à-jour-depuis-une-version-antérieure).
 >

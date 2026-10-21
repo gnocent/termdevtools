@@ -2,18 +2,41 @@
 
 # Journal des versions
 
-## Non publié
+## 0.7.4 (bêta) — octobre 2026
+
+**En une phrase** : le secret d'un cluster peut être lu dans une variable d'environnement ou un fichier au lieu d'être saisi à chaque connexion.
 
 ### Nouveautés
 
-- **Secret sans ressaisie** : `secret_env: NOM` (une variable d'environnement) ou `secret_file: chemin` (un fichier, chemin absolu ou en `~/`), ajoutés à la main sur l'entrée d'un cluster dans `config.yaml`, disent où lire son secret — mot de passe, secret ou forme `encoded` d'une API key, jeton Bearer, passphrase de la clé client. Le formulaire s'ouvre avec le champ rempli et le focus sur « Se connecter », la zone de message nomme la source. Secret introuvable : le message dit pourquoi, et il se saisit comme avant. Le programme n'écrit toujours aucun secret ; sous Linux et macOS, un fichier lisible par d'autres que vous est signalé.
+- **Secret sans ressaisie** : `secret_env: NOM` (une variable d'environnement) ou `secret_file: chemin` (un fichier, chemin absolu ou en `~/`), ajoutés à la main sur l'entrée d'un cluster dans `config.yaml`, disent où lire son secret — mot de passe, secret ou forme `encoded` d'une API key, jeton Bearer, passphrase de la clé client, celui que demande son authentification. Le formulaire s'ouvre avec le champ rempli et le focus sur « Se connecter » : `Entrée` suffit. La zone de message nomme la variable ou le fichier.
+- **Jamais bloquant** : variable absente ou vide, fichier manquant, illisible, vide ou de plus de 64 Kio, chemin relatif, les deux clés sur une même entrée, ou un fichier qui n'est pas un fichier texte ordinaire en UTF-8 (un tube, un périphérique, de l'UTF-16 comme en écrit `>` dans Windows PowerShell 5.1) — le champ reste vide, le message dit pourquoi, et le secret se saisit comme avant. Rien n'est envoyé avant « Se connecter ».
+- **Le programme n'écrit toujours aucun secret** : `config.yaml` dit où est le secret, jamais ce qu'il est, et `F9` garde ses rappels à compléter. Le fichier est sous votre responsabilité : sous Linux et macOS, un fichier que d'autres utilisateurs peuvent lire est utilisé quand même, avec un avertissement (`chmod 600`).
 
 ### Corrections
 
 - **Formulaire de connexion sur 80 colonnes** : l'URL d'une nouvelle connexion, les chemins du certificat client, de sa clé et du CA, et en français la passphrase, débordaient sur le cadre du formulaire ; ces champs sont désormais rétrécis pour y tenir, leur contenu défilant.
 - **Champ secret après un changement d'authentification** : passer à un autre type d'authentification puis revenir laissait le champ vide à l'écran alors que le secret saisi était toujours envoyé ; le champ montre désormais ce qu'il contient.
+- **Changement de panneau sous PuTTY** (#8) : l'aide (`F1`) et la documentation réservaient `Alt+←/→` à macOS ; ce raccourci change de panneau sur tous les systèmes, et c'est celui à utiliser là où `Ctrl+←/→` ne passe pas, comme sous PuTTY. Le conseil de l'aide sur PuTTY le cite désormais.
 
-- **Changement de panneau sous PuTTY** : l'aide (`F1`) et la documentation réservaient `Alt+←/→` à macOS ; ce raccourci change de panneau sur tous les systèmes, et c'est celui à utiliser là où `Ctrl+←/→` ne passe pas, comme sous PuTTY. Le conseil de l'aide sur PuTTY le cite désormais.
+### À savoir avant de mettre à jour depuis la 0.7.3
+
+- **Rien à faire** : un `config.yaml` sans `secret_env` ni `secret_file` se comporte comme avant — le secret est demandé à chaque connexion.
+
+### Vérifications
+
+- `go vet` et `go test ./...` passent, sous Windows : tests unitaires et tests de l'interface sur un écran simulé de 80×24 ; les tests des secrets passent aussi sous Linux, où sont vérifiés l'avertissement sur un fichier lisible par d'autres et le refus d'un périphérique.
+- Basic Auth, API key et jeton Bearer se connectent sur un Elasticsearch 9.5.4 réel dont la sécurité est activée, chacun avec son secret lu dans une variable et dans un fichier, en passant par le formulaire de connexion. Les tests réels de l'authentification et de la protection (Elasticsearch 9.5.4, OpenSearch 3.9.0) passent toujours.
+- Une relecture de sécurité des secrets a précédé la publication : aucune fuite du secret, rien d'envoyé avant « Se connecter ». Les deux points relevés — un tube ou un terminal désigné par `secret_file` figeait l'interface, un fichier en UTF-16 envoyait un secret déformé — sont corrigés et couverts par des tests.
+- Recette visuelle des messages du formulaire, en français et en anglais, en 80×24.
+- `govulncheck` : aucune vulnérabilité connue, ni dans les dépendances ni dans la bibliothèque standard de Go 1.27.3, qui compile les binaires.
+- Les données de référence (recettes, endpoints, colonnes `_cat`) n'ont pas changé depuis la 0.6.
+- Aucun audit externe indépendant n'a été réalisé.
+
+### Limites connues
+
+- Le secret est lu à l'ouverture du formulaire ; `F9` ne renvoie ni à la variable ni au fichier (il garde son rappel à compléter). Pas de trousseau du système.
+- Une « nouvelle connexion » saisie avec l'URL d'un cluster déjà connu remplace son entrée : les clés écrites à la main (`secret_env`, `secret_file`, `proxy`, `distribution`, `version`) sont perdues. Choisir le cluster dans la liste les conserve.
+- Les limites de la 0.7 restent valables.
 
 ## 0.7.3 (bêta) — octobre 2026
 

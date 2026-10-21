@@ -143,6 +143,24 @@ type Strings struct {
 	// Language switch (F3, app.go)
 	LanguageName            string // this catalog's own language, in its own language ("Français"/"English")
 	InfoLanguageSwitchedFmt string
+
+	// Protected clusters (SPEC.md §5, protection.go): the names of the
+	// protection levels, as the connection form offers them and the banner at
+	// the top of the main screen shows them
+	ProtectionNoneName     string
+	ProtectionConfirmName  string
+	ProtectionReadOnlyName string
+	FieldProtection        string
+	FieldLabel             string
+	// "%s" — the value config.yaml holds, replaced by the read-only level
+	WarnUnknownProtectionFmt string
+	// What Ctrl+E does with a request that writes: confirmed first (the
+	// cluster, then the method and path), refused, or given up on
+	ConfirmWriteTitle   string
+	ConfirmWriteFmt     string // "%s", "%s", "%s"
+	ButtonSend          string
+	InfoWriteCancelled  string
+	ErrReadOnlyWriteFmt string // "%s", "%s" — the method and path not sent
 }
 
 var fr = Strings{
@@ -306,6 +324,18 @@ intégrés. Ces fichiers, tous facultatifs, s'y ajoutent.[white]
 
 	LanguageName:            "Français",
 	InfoLanguageSwitchedFmt: "Langue : %s",
+
+	ProtectionNoneName:       "aucune",
+	ProtectionConfirmName:    "confirmation des écritures",
+	ProtectionReadOnlyName:   "lecture seule",
+	FieldProtection:          "Protection",
+	FieldLabel:               "Libellé (bandeau)",
+	WarnUnknownProtectionFmt: "protection « %s » inconnue dans config.yaml : lecture seule retenue, enregistrée à la connexion",
+	ConfirmWriteTitle:        " Écriture sur un cluster protégé ",
+	ConfirmWriteFmt:          "Cette requête écrit sur %s :\n\n%s %s\n\nL'envoyer ?",
+	ButtonSend:               "Envoyer",
+	InfoWriteCancelled:       "envoi annulé : rien n'a été envoyé",
+	ErrReadOnlyWriteFmt:      "lecture seule : écriture non envoyée (%s %s) — pour l'autoriser, reconnectez-vous en protection « confirmation des écritures »",
 }
 
 var en = Strings{
@@ -469,6 +499,18 @@ built in. These files, all optional, add to them.[white]
 
 	LanguageName:            "English",
 	InfoLanguageSwitchedFmt: "Language: %s",
+
+	ProtectionNoneName:       "none",
+	ProtectionConfirmName:    "writes need confirmation",
+	ProtectionReadOnlyName:   "read-only",
+	FieldProtection:          "Protection",
+	FieldLabel:               "Label (banner)",
+	WarnUnknownProtectionFmt: "unknown protection \"%s\" in config.yaml: read-only applied, saved on connecting",
+	ConfirmWriteTitle:        " Write to a protected cluster ",
+	ConfirmWriteFmt:          "This request writes to %s:\n\n%s %s\n\nSend it?",
+	ButtonSend:               "Send",
+	InfoWriteCancelled:       "cancelled: nothing was sent",
+	ErrReadOnlyWriteFmt:      "read-only: write not sent (%s %s) — to allow it, connect again with the \"writes need confirmation\" protection",
 }
 
 // Normalize maps lang ("fr"/"en", case-insensitive, possibly padded with

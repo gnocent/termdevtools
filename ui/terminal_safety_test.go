@@ -9,6 +9,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
+	"github.com/gnocent/termdevtools/config"
 	"github.com/gnocent/termdevtools/refdata"
 )
 
@@ -89,6 +90,29 @@ func TestControlCharactersNeverReachTheTerminal(t *testing.T) {
 		screen.InjectKey(tcell.KeyF10, 0, tcell.ModNone)
 		eventually(t, "the completion list", func() bool { return completionCount(app) == 2 })
 		check(t, screen, "_zz/one")
+	})
+
+	// A protection and a label are written by hand in config.yaml as often
+	// as through the connection form.
+
+	t.Run("protection banner and confirmation", func(t *testing.T) {
+		app, screen := newTestAppWith(t, testAppOptions{protection: config.ProtectionConfirm, label: hostile})
+		execute(t, app, screen, "DELETE /my-index\x1b]0;x\x07")
+		if !confirmVisible(app) {
+			t.Fatal("expected a confirmation")
+		}
+		check(t, screen, "seen")
+	})
+
+	t.Run("connection form and history", func(t *testing.T) {
+		cluster := config.Cluster{URL: "https://es.example.test:9200", AuthType: config.AuthNone, Protection: config.ProtectionConfirm, Label: hostile}
+		screen := newTestConnectScreen(t, &config.Config{Language: "fr", DefaultTimeoutSeconds: 5, Clusters: []config.Cluster{cluster}})
+		check(t, screen, "seen")
+
+		cluster.Protection = "x\x1b]52;c;aGFjaw==\x07y"
+		screen = newTestConnectScreen(t, &config.Config{Language: "fr", DefaultTimeoutSeconds: 5, Clusters: []config.Cluster{cluster}})
+		screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone) // opens the form: the warning, the label field
+		check(t, screen, "inconnue")
 	})
 
 	t.Run("recipe catalog", func(t *testing.T) {

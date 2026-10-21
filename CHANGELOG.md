@@ -2,6 +2,22 @@
 
 # Changelog
 
+## Unreleased
+
+**In one sentence**: a production cluster can be protected — the requests that write are confirmed or refused, and a banner says so.
+
+### What's new
+
+- **Per-cluster protection**, chosen in the connection form, right under the URL, and saved in `config.yaml` (`protection:`):
+  - "writes need confirmation" (`confirm`): a request that writes opens a popup naming the cluster and the request, with the focus on "Cancel" — `Enter` pressed out of habit or `Esc` sends nothing. "Send" sends the request as it was resolved on `Ctrl+E`.
+  - "read-only" (`read_only`): a request that writes is refused, nothing is sent, and the status bar says how to allow it.
+  - "none" (`none`), the default: nothing changes for existing clusters.
+- **What writes**: any `PUT`, any `DELETE`, and any `POST` missing from a list of known reads (`_search`, `_count`, `_msearch`, `_mget`, `_field_caps`, `_analyze`, `_explain`, pipeline simulations…) — `_bulk` and `_delete_by_query`, but also `_refresh`, `_flush` or `_forcemerge`, which act on the cluster. The request is classified after `${name}` variables are substituted. `GET` requests go through, except `_refresh`, `_flush` and OpenSearch's SQL or PPL; `F9`, completion and recipes aren't affected. The path classified is the one actually sent (without what follows a `#`), and a path with a `.` or `..` segment is always a write.
+- **Banner** across the top of a protected cluster's main screen: red with confirmation, yellow with read-only, with an optional label ("PROD · read-only"). It follows the interface language (`F3`). A cluster without protection keeps exactly the layout of earlier versions.
+- **Cluster history**: the protection shows under the URL of each protected cluster (`auth: basic · PROD · writes need confirmation`).
+- **Unknown value** in `config.yaml` (a typo such as `protection: readonly`): read-only applies, the most restrictive level, and the form says so.
+The level is set at connection: to change it, connect again. It is a safety net against slips, not security — anyone who can run the tool can remove it. To really prevent writing, use an account with no write privilege on the cluster.
+
 ## 0.7.2 (beta) — October 2026
 
 **In one sentence**: TermDevTools installs with `go install`, and completion keeps the query after the cursor and accepts a leading `/`.

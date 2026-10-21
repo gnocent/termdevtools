@@ -54,6 +54,7 @@ Sometimes an Elasticsearch cluster has no Kibana available, or its Kibana is dow
 - **Automatic save** of in-progress requests per cluster and per user (on exit and via `Ctrl+S`), reloaded on reconnection.
 - **Export** of the displayed result to a timestamped file (`Ctrl+S`, right panel) and **clipboard copy** via OSC 52 (`F2`, works over SSH).
 - **Connection**: Basic Auth, API Key (identifier and secret, or its `encoded` form), Bearer token, or client certificate (mTLS, key encrypted or not), with or without TLS verification, through an HTTP or SOCKS5 proxy if one is needed (see [Configuration](#configuration)); history of previously used clusters (never storing a secret there — see [Security](#security)); a certificate picker (`Enter` on the CA/client cert fields) browses the configured directory instead of typing a filename from memory.
+- **Production guardrails**, cluster by cluster: with "writes need confirmation", a request that writes (`DELETE`, `PUT`, `_bulk`, `_delete_by_query`…) waits for your go-ahead before leaving; with "read-only", it is refused. A red or yellow banner, with a label such as `PROD`, reminds you which cluster you are on. It is a safety net against slips, not security: see [Security](#security).
 - **Built-in help** (`F1`): reminder of shortcuts and file locations.
 
 Full detail of design choices and behavior: [SPEC.md](SPEC.md).
@@ -161,7 +162,7 @@ The interface now starts in English as long as no language was chosen: `F3` swit
 ## Quick start
 
 1. **Launch it**: `termdevtools` (`termdevtools.exe` on Windows). The connection screen lists any previously used clusters, plus a **"+ New connection"** option.
-2. **Connect**: enter the cluster's URL, pick an authentication type (none, Basic Auth, API Key, Bearer token, or client certificate), and the secret if there is one. Everything except the secret is remembered for next time (see [Configuration](#configuration) below).
+2. **Connect**: enter the cluster's URL, pick its protection if it matters (production), an authentication type (none, Basic Auth, API Key, Bearer token, or client certificate), and the secret if there is one. Everything except the secret is remembered for next time (see [Configuration](#configuration) below).
 3. **Write a request** in the left panel, Kibana Console style — method, endpoint, and an optional JSON body on the following lines:
    ```
    GET _cluster/health
@@ -258,13 +259,14 @@ Values live in `~/.config/termdevtools/variables_<cluster>.txt` — one per clus
 
 - **The binary's directory and your configuration directory.** The recipes, endpoints and starting content found there are offered to the user: in a shared installation, the binary's directory must be writable by trusted people only. A recipe or endpoint file holding control characters is refused.
 - **The proxy, when there is one.** For a cluster in https, it only sees the address asked for: encryption and certificate verification are end to end. For a cluster in http, it sees everything, credentials included. Its own credentials are only given through the environment variable; they are neither saved, nor displayed, nor sent to the cluster. A proxy reached over TLS (`https://`) is refused.
-- **You.** A request is sent as it is written, with no confirmation — `DELETE` included.
+- **You.** On a cluster without protection, a request is sent as it is written, with no confirmation — `DELETE` included. The protection chosen at connection ("writes need confirmation" or "read-only") saves you from a slip, but doesn't stop someone who means to write: anyone who runs the tool can remove it, in the form or in `config.yaml`. To really prevent writing, connect with an account that has no write privilege on the cluster.
 
 **What was checked, and what wasn't**
 
 - Security review of the code and automated tests for each of the points above; `govulncheck` reports no known vulnerability, neither in the dependencies nor in the standard library of the Go version the binaries are built with (1.27.2).
 - Every request of every recipe was run against eleven real clusters (Elasticsearch 7.17 to 9.5, OpenSearch 2.0 to 3.9).
 - Authentication by password, by API key and by Bearer token is checked against a real Elasticsearch with security on. Going through a proxy is checked with a test HTTP proxy and a test SOCKS5 server, not with a real corporate proxy.
+- The protection is checked against a real Elasticsearch and a real OpenSearch: deleting an index is refused in read-only, doesn't happen while the confirmation is cancelled, and happens once confirmed.
 - **No independent external audit was carried out**, and the binaries are not signed: check their SHA-256 checksum. See also the [disclaimer](#disclaimer--limitation-of-liability) below.
 
 ## License

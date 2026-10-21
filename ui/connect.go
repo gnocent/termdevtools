@@ -48,18 +48,29 @@ type connectSecrets struct {
 // per-field customization set elsewhere (e.g. via SetFocusFunc) is therefore
 // systematically overwritten on the next refresh. Here, we redraw only the
 // focused field afterwards, with inverted colors, which survives the next
-// frame since it's repeated on every Draw().
+// frame since it's repeated on every Draw(). Disabled fields are greyed out
+// the same way, afterwards (greyOut).
 type highlightForm struct {
 	*tview.Form
+	// disabled holds the fields disabled with SetDisabled, which tview draws
+	// with no box at all (greyOut).
+	disabled map[tview.FormItem]bool
 }
 
 func newHighlightForm() *highlightForm {
-	return &highlightForm{Form: tview.NewForm()}
+	return &highlightForm{Form: tview.NewForm(), disabled: map[tview.FormItem]bool{}}
 }
 
 func (h *highlightForm) Draw(screen tcell.Screen) {
+	h.fitItemPadding()
 	h.Form.Draw(screen)
 
+	for i := 0; i < h.Form.GetFormItemCount(); i++ {
+		if item := h.Form.GetFormItem(i); h.disabled[item] {
+			h.greyOut(screen, item)
+		}
+	}
+	// The focused field last: a dropdown's open list may cover the others.
 	for i := 0; i < h.Form.GetFormItemCount(); i++ {
 		item := h.Form.GetFormItem(i)
 		if !item.HasFocus() {
@@ -69,6 +80,50 @@ func (h *highlightForm) Draw(screen tcell.Screen) {
 		item.Draw(screen)
 		break
 	}
+}
+
+// greyOut redraws a disabled field greyed out, its label and its box: tview
+// draws one in the form's own background, so that only its label remains
+// and nothing says there is a field there. Gray is one of the 16 colors
+// every terminal has; one of the 256 could come out black on some.
+func (h *highlightForm) greyOut(screen tcell.Screen, item tview.FormItem) {
+	x, y, width, _ := item.GetRect()
+	if _, top, _, height := h.GetInnerRect(); y < top || y >= top+height {
+		return // scrolled out of the form, as Form.Draw leaves it undrawn
+	}
+	// Where Form.Draw puts the field: past the longest label and a space.
+	labelWidth := 0
+	for i := 0; i < h.GetFormItemCount(); i++ {
+		labelWidth = max(labelWidth, tview.TaggedStringWidth(h.GetFormItem(i).GetLabel()))
+	}
+	fieldStart := x + labelWidth + 1
+	fieldEnd := min(fieldStart+item.GetFieldWidth(), x+width)
+	for column := x; column < fieldEnd; column++ {
+		mainc, combc, style, _ := screen.GetContent(column, y)
+		if column < fieldStart {
+			style = style.Foreground(tcell.ColorGray)
+		} else {
+			style = style.Background(tcell.ColorGray).Foreground(tcell.ColorBlack)
+		}
+		screen.SetContent(column, y, mainc, combc, style)
+	}
+}
+
+// fitItemPadding drops the blank line tview.Form leaves between two fields
+// when, with it, the buttons would fall below the form's own height: the
+// longest form (https, client certificate) on an 80x24 terminal. Every form
+// that fits keeps its usual spacing.
+func (h *highlightForm) fitItemPadding() {
+	_, _, _, height := h.GetInnerRect()
+	rows := 1 // the buttons
+	for i := 0; i < h.GetFormItemCount(); i++ {
+		rows += h.GetFormItem(i).GetFieldHeight() + 1
+	}
+	padding := 1
+	if rows > height {
+		padding = 0
+	}
+	h.SetItemPadding(padding)
 }
 
 // connectScreen implements the connection screen: list of known clusters
@@ -126,6 +181,9 @@ func (cs *connectScreen) refreshList() {
 	for _, cl := range cs.cfg.Clusters {
 		cl := cl
 		secondary := fmt.Sprintf("auth: %s", cl.AuthType)
+		if level, _ := config.NormalizeProtection(cl.Protection); level != config.ProtectionNone {
+			secondary += " · " + tview.Escape(bannerText(level, cl.Label, cs.msgs))
+		}
 		cs.list.AddItem(cl.URL, secondary, 0, func() { cs.openForm(&cl) })
 	}
 	cs.list.AddItem(cs.msgs.NewConnectionLabel, cs.msgs.NewConnectionSecondary, 0, func() { cs.openForm(nil) })
@@ -135,6 +193,11 @@ func (cs *connectScreen) refreshList() {
 func (cs *connectScreen) openForm(existing *config.Cluster) {
 	form := cs.buildForm(existing)
 	cs.setMessage("", "white")
+	if existing != nil {
+		if _, known := config.NormalizeProtection(existing.Protection); !known {
+			cs.setMessage(fmt.Sprintf(cs.msgs.WarnUnknownProtectionFmt, existing.Protection), "yellow")
+		}
+	}
 	cs.pages.AddAndSwitchToPage("form", cs.formLayout(form), true)
 }
 
@@ -163,6 +226,13 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 	verify := cluster.TLS.Verify
 	caFile, clientCert, clientKey := cluster.TLS.CAFile, cluster.TLS.ClientCert, cluster.TLS.ClientKey
 	var password, apiKeySecret, bearerToken, keyPassphrase string
+	// An unknown level read from config.yaml is offered as the most
+	// restrictive one (openForm says so).
+	protection, _ := config.NormalizeProtection(cluster.Protection)
+	label := cluster.Label
+
+	protectionOptions := []string{config.ProtectionNone, config.ProtectionConfirm, config.ProtectionReadOnly}
+	protectionLabels := []string{msgs.ProtectionNoneName, msgs.ProtectionConfirmName, msgs.ProtectionReadOnlyName}
 
 	authOptions := []string{config.AuthNone, config.AuthBasic, config.AuthAPIKey, config.AuthBearer, config.AuthMTLS}
 	authLabels := []string{msgs.AuthNone, msgs.AuthBasic, msgs.AuthAPIKey, msgs.AuthBearer, msgs.AuthMTLS}
@@ -185,13 +255,14 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 	}
 	form.SetCancelFunc(cancel)
 
-	// The first 2 fields (URL, Authentication) are static and never
-	// rebuilt, so as not to lose focus/cursor while typing. Everything
+	// The first 4 fields (URL, Protection, Label, Authentication) are static
+	// and never rebuilt, so as not to lose focus/cursor while typing — a
+	// dropdown rebuilt from its own callback would lose it too. Everything
 	// after that (auth-specific + TLS) is dynamically rebuilt by
 	// refreshDynamicFields, showing only the fields relevant to the current
 	// URL scheme and auth type.
-	const staticItemCount = 2
-	const authDropdownIndex = 1
+	const staticItemCount = 4
+	const authDropdownIndex = 3
 	lastIsHTTPS := urlLooksHTTPS(url)
 	var refreshDynamicFields func()
 
@@ -206,6 +277,28 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 	} else {
 		form.AddTextView(msgs.FieldURLReadOnly, url, 60, 1, true, false)
 	}
+
+	// The label only matters to a protected cluster: disabled rather than
+	// removed otherwise, a field that comes and goes being one tview.Form can
+	// only add at its end. What it holds is kept either way.
+	labelField := tview.NewInputField().SetLabel(msgs.FieldLabel).SetText(label).
+		SetFieldWidth(labelMaxLength + 1).SetAcceptanceFunc(tview.InputFieldMaxLength(labelMaxLength)).
+		SetChangedFunc(func(v string) { label = v })
+	form.AddDropDown(msgs.FieldProtection, protectionLabels, indexOf(protectionOptions, protection), func(_ string, index int) {
+		protection = protectionOptions[index]
+		// SetDisabled hands the form a "finished" event, which the form takes
+		// for the last Tab or Backtab pressed and replays, moving the focus
+		// off this list. So the form's handler is detached for the call, and
+		// set back on every field by focusing the form again — not while the
+		// form is being built, when it has no handler yet nor the focus.
+		labelField.SetFinishedFunc(nil)
+		labelField.SetDisabled(protection == config.ProtectionNone)
+		form.disabled[labelField] = protection == config.ProtectionNone
+		if form.HasFocus() {
+			cs.tapp.SetFocus(form)
+		}
+	})
+	form.AddFormItem(labelField)
 
 	form.AddDropDown(msgs.AuthFieldLabel, authLabels, authIndex, func(_ string, index int) {
 		authType = authOptions[index]
@@ -256,8 +349,12 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 	refreshDynamicFields()
 
 	form.AddButton(msgs.ButtonConnect, func() {
+		saved := protection
+		if saved == config.ProtectionNone {
+			saved = "" // the default: no key written for it
+		}
 		cl := config.Cluster{
-			URL: url, AuthType: authType,
+			URL: url, Protection: saved, Label: strings.TrimSpace(label), AuthType: authType,
 			Username: username, APIKeyID: apiKeyID,
 			TLS: config.TLS{Verify: verify, CAFile: caFile, ClientCert: clientCert, ClientKey: clientKey},
 			// Not form fields: carried over from config.yaml as-is, or
@@ -271,8 +368,17 @@ func (cs *connectScreen) buildForm(existing *config.Cluster) *highlightForm {
 	})
 	form.AddButton(msgs.ButtonCancel, cancel)
 
+	if existing != nil {
+		// A known cluster's form opens on its authentication, as it did
+		// before protection levels existed: Tab, then the secret.
+		form.SetFocus(authDropdownIndex)
+	}
 	return form
 }
+
+// labelMaxLength bounds the label typed in the connection form: a few
+// words on the banner, not a description.
+const labelMaxLength = 30
 
 // certPickerPageName is the tview.Pages key for the certificate-picker
 // popup (openCertPicker) — added/removed on top of the "form" page, same

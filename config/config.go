@@ -23,6 +23,13 @@ const (
 	AuthBearer = "bearer"
 	AuthMTLS   = "mtls"
 
+	// Protection levels of a cluster (Cluster.Protection, SPEC.md §5): what
+	// happens to a request that writes — sent as is, sent once confirmed, or
+	// refused. Reads are always sent.
+	ProtectionNone     = "none"
+	ProtectionConfirm  = "confirm"
+	ProtectionReadOnly = "read_only"
+
 	defaultTimeoutSeconds = 120
 	fileName              = "config.yaml"
 	queriesFilePrefix     = "queries_"
@@ -75,11 +82,17 @@ type TLS struct {
 // serves as the identifier (no separate name: the URL is already the most
 // explicit piece of information to recognize a cluster in the history).
 type Cluster struct {
-	URL      string `yaml:"url"`
-	AuthType string `yaml:"auth_type"`
-	Username string `yaml:"username,omitempty"`
-	APIKeyID string `yaml:"api_key_id,omitempty"`
-	TLS      TLS    `yaml:"tls"`
+	URL string `yaml:"url"`
+	// Protection is one of the Protection* levels, chosen in the connection
+	// form; absent means ProtectionNone. Label, optional, names the cluster
+	// in the banner a protected cluster gets ("PROD"). See SPEC.md §5 and
+	// NormalizeProtection.
+	Protection string `yaml:"protection,omitempty"`
+	Label      string `yaml:"label,omitempty"`
+	AuthType   string `yaml:"auth_type"`
+	Username   string `yaml:"username,omitempty"`
+	APIKeyID   string `yaml:"api_key_id,omitempty"`
+	TLS        TLS    `yaml:"tls"`
 	// Distribution ("elasticsearch" or "opensearch") and Version ("8.19")
 	// override what is detected from the cluster's "GET /" at connection —
 	// for a cluster hidden behind a proxy that masks it, or an OpenSearch in
@@ -426,6 +439,9 @@ default_client_cert_dir: %s
 # Also optional, per cluster: "proxy: http://host:3128" (or socks5://...)
 # reaches it through that proxy, "proxy: none" directly. Without it, the
 # HTTPS_PROXY, HTTP_PROXY and NO_PROXY environment variables decide.
+# "protection: confirm" asks before sending a request that writes,
+# "protection: read_only" refuses it, and "label: PROD" names the cluster in
+# the banner either level shows. Both are set from the connection form.
 clusters: []
 `},
 }
@@ -502,4 +518,20 @@ func (c *Config) Promote(cluster Cluster) {
 		}
 	}
 	c.Clusters = filtered
+}
+
+// NormalizeProtection returns the protection level a Cluster.Protection
+// value stands for — ignoring case and surrounding spaces, absent meaning
+// ProtectionNone — and whether it is one of the known levels at all. An
+// unknown value (a typo made by hand in config.yaml: "readonly") gives the
+// most restrictive level, ProtectionReadOnly: a mistake must not turn a
+// cluster's protection off without a word. The caller says so.
+func NormalizeProtection(value string) (level string, known bool) {
+	switch level := strings.ToLower(strings.TrimSpace(value)); level {
+	case "":
+		return ProtectionNone, true
+	case ProtectionNone, ProtectionConfirm, ProtectionReadOnly:
+		return level, true
+	}
+	return ProtectionReadOnly, false
 }

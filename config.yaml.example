@@ -44,8 +44,17 @@ default_client_cert_dir: ""
 # cluster: a proxy URL (http:// or socks5://, without credentials — an
 # authenticated proxy goes through the environment variable), or "none" for
 # a direct connection.
+#
+# "protection", set from the connection form (§5), guards against a mistake
+# on a cluster that matters: "confirm" asks before sending a request that
+# writes, "read_only" refuses it; reads are always sent. Either level shows a
+# banner at the top of the screen, naming the cluster by its optional
+# "label". A safety net, not a security barrier: a read-only account on the
+# cluster is what actually prevents writing.
 clusters:
   - url: https://es-prod.example.com:9200
+    protection: confirm # none (default) | confirm | read_only
+    label: PROD
     auth_type: basic # none | basic | api_key | bearer | mtls
     username: svc_devtools
     tls:

@@ -112,7 +112,18 @@ Lancez `termdevtools`. L'interface démarre en anglais ; une fois connecté, `F3
 
 1. **L'écran de connexion** liste les clusters déjà utilisés — aucun la première fois — puis **« + New connection »** (*+ Nouvelle connexion*) et **« Quit »** (*Quitter*). Choisissez « + New connection » avec les flèches et `Entrée`.
 2. **URL** : l'adresse du cluster, schéma et port compris, par exemple `https://es.example.com:9200`. N'y mettez pas d'identifiants (`https://utilisateur:motdepasse@…` est refusé : l'URL est enregistrée).
-3. **Authentication** (*Authentification*) : `Tab` jusqu'au champ, `Entrée` pour ouvrir la liste, puis choisissez. Les champs qui suivent s'adaptent à ce choix.
+3. **Protection** : pour un cluster qui compte — la production —, `Entrée` ouvre la liste.
+
+   | Choix | Effet |
+   |---|---|
+   | none (*aucune*) | Tout est envoyé, comme dans les versions précédentes. |
+   | writes need confirmation (*confirmation des écritures*) | Bandeau rouge. Une requête qui écrit ouvre une fenêtre de confirmation dont le bouton actif est « Cancel » (*Annuler*) : `Entrée` par réflexe n'envoie rien. `Tab` ou `→` jusqu'à « Send » (*Envoyer*), puis `Entrée`, l'envoie. |
+   | read-only (*lecture seule*) | Bandeau jaune. Une requête qui écrit est refusée, rien n'est envoyé. |
+
+   Une requête qui écrit, c'est tout `PUT` et tout `DELETE`, et tout `POST` qui n'est pas une recherche ou une autre lecture connue (`_search`, `_count`, `_msearch`, `_mget`, `_analyze`…) : `_bulk`, `_delete_by_query`, mais aussi `_refresh` ou `_forcemerge`. Les `GET` sont envoyés, sauf `_refresh` et `_flush`, qui agissent sur le cluster. Le niveau vaut pour toute la session : pour en changer, quittez et reconnectez-vous.
+
+   **Label (banner)** (*Libellé (bandeau)*), juste dessous : quelques mots affichés dans le bandeau, par exemple `PROD`. Avec « none », le champ est grisé et `Tab` le saute.
+4. **Authentication** (*Authentification*) : `Tab` jusqu'au champ, `Entrée` pour ouvrir la liste, puis choisissez. Les champs qui suivent s'adaptent à ce choix.
 
    | Choix | Champs à remplir |
    |---|---|
@@ -122,14 +133,14 @@ Lancez `termdevtools`. L'interface démarre en anglais ; une fois connecté, `F3
    | Bearer token (*jeton Bearer*) | *Token* (*Jeton*) |
    | client certificate (mTLS) (*certificat client (mTLS)*) | *Client certificate*, *Client private key*, *Key passphrase* si la clé est chiffrée |
 
-4. **TLS** (URL en `https://` seulement) :
+5. **TLS** (URL en `https://` seulement) :
    - *CA file* (*Fichier CA*) : le certificat de l'autorité qui a signé celui du cluster, s'il ne fait pas partie des autorités connues de votre système. `Entrée` sur ce champ ouvre un sélecteur de fichier quand un dossier par défaut est configuré (§5) ; sinon, tapez le chemin.
    - *Verify server certificate (TLS)* (*Vérifier le certificat serveur (TLS)*) : coché par défaut. Ne le décochez que pour un test, sur un réseau de confiance.
-5. `Tab` jusqu'à **« Connect »** (*Se connecter*), puis `Entrée`. `Echap` ou « Cancel » (*Annuler*) revient à la liste.
+6. `Tab` jusqu'à **« Connect »** (*Se connecter*), puis `Entrée`. `Echap` ou « Cancel » (*Annuler*) revient à la liste.
 
 Une fois connecté, la barre de statut indique ce qui a été reconnu : `ES 9.5.4`, `OS 2.19.6`.
 
-**Ce qui est retenu, et ce qui ne l'est pas.** L'URL, le type d'authentification, le nom d'utilisateur, l'identifiant de clé d'API et les chemins de certificats sont enregistrés dans `config.yaml` : à la prochaine connexion, ce cluster apparaît dans la liste et seul le secret est redemandé. Les mots de passe, secrets de clé d'API, jetons et passphrases ne sont **jamais** écrits sur le disque.
+**Ce qui est retenu, et ce qui ne l'est pas.** L'URL, la protection et son libellé, le type d'authentification, le nom d'utilisateur, l'identifiant de clé d'API et les chemins de certificats sont enregistrés dans `config.yaml` : à la prochaine connexion, ce cluster apparaît dans la liste et seul le secret est redemandé. Les mots de passe, secrets de clé d'API, jetons et passphrases ne sont **jamais** écrits sur le disque.
 
 ### Créer une clé d'API (Elasticsearch)
 
@@ -237,6 +248,21 @@ clusters:
 Trois limites : un proxy joint en TLS (`https://proxy…`) est refusé ; un proxy qui demande un mot de passe se déclare dans la variable d'environnement (`HTTPS_PROXY=http://utilisateur:motdepasse@proxy:3128`), jamais dans `config.yaml` ; l'authentification NTLM ou Kerberos et les fichiers PAC ne sont pas pris en charge.
 
 Le proxy utilisé est affiché pendant la connexion, puis dans la barre de statut. Pour un cluster qui n'est pas encore dans l'historique, écrivez son entrée à la main comme ci-dessus, ou passez par les variables d'environnement.
+
+**Protection.** Le niveau choisi dans le formulaire de connexion (§3) est enregistré sur l'entrée du cluster, avec son libellé :
+
+```yaml
+clusters:
+  - url: https://es-prod.example.com:9200
+    protection: confirm   # none (défaut, ligne alors absente) | confirm | read_only
+    label: PROD
+    auth_type: basic
+    username: admin
+```
+
+Une valeur que le programme ne connaît pas (`protection: readonly`, faute de frappe) vaut `read_only`, le plus restrictif : le formulaire le signale à son ouverture, et la connexion suivante enregistre `read_only`. Un libellé sans protection est conservé, sans effet.
+
+Cette protection est un filet contre l'erreur, pas une sécurité : n'importe qui pouvant lancer l'outil peut la retirer. Pour qu'un cluster ne puisse vraiment pas être modifié, connectez-vous avec un compte qui n'a pas le droit d'écrire.
 
 Modifiez le fichier avec TermDevTools fermé : le programme le réécrit à chaque connexion réussie (il conserve vos commentaires et les clés qu'il ne connaît pas).
 

@@ -2,6 +2,22 @@
 
 # Journal des versions
 
+## Non publié
+
+**En une phrase** : un cluster de production peut être protégé — confirmation ou refus des requêtes qui écrivent, et un bandeau qui le signale.
+
+### Nouveautés
+
+- **Protection par cluster**, choisie dans le formulaire de connexion, juste sous l'URL, et enregistrée dans `config.yaml` (`protection:`) :
+  - « confirmation des écritures » (`confirm`) : une requête qui écrit ouvre une fenêtre qui nomme le cluster et la requête, avec le focus sur « Annuler » — `Entrée` par réflexe ou `Echap` n'envoie rien. « Envoyer » envoie la requête telle qu'elle a été résolue au `Ctrl+E`.
+  - « lecture seule » (`read_only`) : une requête qui écrit est refusée, rien n'est envoyé, et la barre de statut dit comment l'autoriser.
+  - « aucune » (`none`), le défaut : rien ne change pour les clusters existants.
+- **Ce qui écrit** : tout `PUT`, tout `DELETE`, et tout `POST` absent d'une liste de lectures connues (`_search`, `_count`, `_msearch`, `_mget`, `_field_caps`, `_analyze`, `_explain`, les simulations de pipeline…) — `_bulk` et `_delete_by_query`, mais aussi `_refresh`, `_flush` ou `_forcemerge`, qui agissent sur le cluster. Le classement porte sur la requête après substitution des variables `${nom}`. Les `GET` passent, sauf `_refresh`, `_flush` et le SQL ou le PPL d'OpenSearch ; `F9`, la complétion et les recettes ne sont pas concernés. Le chemin classé est celui qui part réellement (sans ce qui suit un `#`), et un chemin à segment `.` ou `..` est toujours une écriture.
+- **Bandeau** en haut de l'écran principal d'un cluster protégé : rouge en confirmation, jaune en lecture seule, avec un libellé facultatif (« PROD · lecture seule »). Il suit la langue de l'interface (`F3`). Un cluster sans protection garde exactement la mise en page des versions précédentes.
+- **Historique des clusters** : la protection apparaît sous l'URL de chaque cluster protégé (`auth: basic · PROD · confirmation des écritures`).
+- **Valeur inconnue** dans `config.yaml` (une faute de frappe comme `protection: readonly`) : la lecture seule s'applique, la plus restrictive, et le formulaire le signale.
+Le niveau est fixé à la connexion : pour en changer, on se reconnecte. C'est un filet contre l'erreur de manipulation, pas une sécurité — n'importe qui pouvant lancer l'outil peut le retirer. Pour empêcher vraiment d'écrire, utilisez un compte sans droit d'écriture sur le cluster.
+
 ## 0.7.2 (bêta) — octobre 2026
 
 **En une phrase** : TermDevTools s'installe avec `go install`, et la complétion garde la requête qui suit le curseur et accepte un `/` initial.

@@ -91,6 +91,17 @@ type App struct {
 	// reference is where the team's and user's reference files live;
 	// kept to reload them on demand (F7).
 	reference refdata.Sources
+	// protection is the connected cluster's protection level (one of the
+	// config.Protection* values) and label its name on the banner (SPEC.md
+	// §5) — the banner itself nil for an unprotected cluster. clusterURL
+	// names the cluster when a write is to be confirmed.
+	protection string
+	label      string
+	banner     *tview.TextView
+	clusterURL string
+	// confirmVisible is set while a write waits for confirmation
+	// (confirmWrite): every key but Ctrl+C goes to the popup.
+	confirmVisible bool
 
 	editor *Editor
 	result *ResultView
@@ -264,8 +275,18 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 		AddItem(a.editor.Widget(), 0, a.leftWeight, true).
 		AddItem(a.result.Widget(), 0, splitTotalWeight-a.leftWeight, false)
 
-	a.root = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(a.mainFlex, 0, 1, true).
+	// The connection form has already turned an unknown level into the most
+	// restrictive one, and said so.
+	a.protection, _ = config.NormalizeProtection(cr.Cluster.Protection)
+	a.label = cr.Cluster.Label
+	a.banner = newProtectionBanner(a.protection, a.label, msgs)
+	a.clusterURL = cr.Cluster.URL
+
+	a.root = tview.NewFlex().SetDirection(tview.FlexRow)
+	if a.banner != nil {
+		a.root.AddItem(a.banner, 1, 0, false)
+	}
+	a.root.AddItem(a.mainFlex, 0, 1, true).
 		AddItem(a.searchBar, 0, 0, false).
 		AddItem(a.completionList, 0, 0, false).
 		AddItem(a.status.Widget(), 2, 0, false)
@@ -425,6 +446,9 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 			return nil
 		}
 		return event // let the help TextView scroll if content overflows
+	}
+	if a.confirmVisible {
+		return event // the confirmation popup handles Tab, Enter and Escape itself
 	}
 	if a.recipesVisible {
 		if event.Key() == tcell.KeyEscape {
@@ -754,9 +778,24 @@ func (a *App) executeCurrent() {
 		a.status.SetError(err.Error())
 		return
 	}
+	// Checked last: a request refused for another reason is never confirmed.
+	if !esclient.IsRead(req.Method, path) {
+		switch a.protection {
+		case config.ProtectionReadOnly:
+			a.status.SetError(fmt.Sprintf(a.msgs.ErrReadOnlyWriteFmt, req.Method, path))
+			return
+		case config.ProtectionConfirm:
+			a.confirmWrite(req.Method, path, body)
+			return
+		}
+	}
+	a.send(req.Method, path, body)
+}
 
+// send executes a request ready to go — the one under the cursor, variables
+// substituted, body validated — and displays its result.
+func (a *App) send(method, path string, body []byte) {
 	a.status.SetRunning()
-	method := req.Method
 	a.execution++
 	execution := a.execution
 
@@ -1307,4 +1346,7 @@ func (a *App) applyLanguage() {
 	a.helpView.SetTitle(a.msgs.HelpViewTitle)
 	a.helpView.SetText(a.msgs.HelpContent)
 	a.palette.applyLanguage(a.msgs)
+	if a.banner != nil {
+		a.banner.SetText(bannerText(a.protection, a.label, a.msgs))
+	}
 }

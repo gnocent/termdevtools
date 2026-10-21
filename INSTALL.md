@@ -112,7 +112,18 @@ Run `termdevtools`. The interface is in English; once connected, `F3` switches i
 
 1. **The connection screen** lists the clusters already used — none the first time — then **"+ New connection"** and **"Quit"**. Choose "+ New connection" with the arrow keys and `Enter`.
 2. **URL**: the address of the cluster, scheme and port included, for instance `https://es.example.com:9200`. Don't put credentials in it (`https://user:password@…` is refused: the URL is saved).
-3. **Authentication**: `Tab` to the field, `Enter` to open the list, then choose. The fields that follow adapt to that choice.
+3. **Protection**: for a cluster that matters — production —, `Enter` opens the list.
+
+   | Choice | Effect |
+   |---|---|
+   | none | Everything is sent, as in earlier versions. |
+   | writes need confirmation | Red banner. A request that writes opens a confirmation popup whose active button is "Cancel": `Enter` pressed out of habit sends nothing. `Tab` or `→` to "Send", then `Enter`, sends it. |
+   | read-only | Yellow banner. A request that writes is refused, nothing is sent. |
+
+   A request that writes is any `PUT`, any `DELETE`, and any `POST` that isn't a search or another known read (`_search`, `_count`, `_msearch`, `_mget`, `_analyze`…): `_bulk`, `_delete_by_query`, but also `_refresh` or `_forcemerge`. `GET` requests are sent, except `_refresh` and `_flush`, which act on the cluster. The level holds for the whole session: to change it, quit and connect again.
+
+   **Label (banner)**, right below: a few words shown on the banner, `PROD` for instance. With "none", the field is greyed out and `Tab` skips it.
+4. **Authentication**: `Tab` to the field, `Enter` to open the list, then choose. The fields that follow adapt to that choice.
 
    | Choice | Fields to fill in |
    |---|---|
@@ -122,14 +133,14 @@ Run `termdevtools`. The interface is in English; once connected, `F3` switches i
    | Bearer token | *Token* |
    | client certificate (mTLS) | *Client certificate*, *Client private key*, *Key passphrase* if it is encrypted |
 
-4. **TLS** (`https://` URLs only):
+5. **TLS** (`https://` URLs only):
    - *CA file*: the certificate of the authority that signed the cluster's, if it isn't among the authorities your system knows. `Enter` on that field opens a file picker when a default directory is configured (§5); otherwise, type the path.
    - *Verify server certificate (TLS)*: checked by default. Only uncheck it for a test, on a trusted network.
-5. `Tab` to **"Connect"**, then `Enter`. `Esc` or "Cancel" goes back to the list.
+6. `Tab` to **"Connect"**, then `Enter`. `Esc` or "Cancel" goes back to the list.
 
 Once connected, the status bar tells what was recognized: `ES 9.5.4`, `OS 2.19.6`.
 
-**What is remembered, and what is not.** The URL, the authentication type, the username, the API key identifier and the certificate paths are saved in `config.yaml`: on the next connection, that cluster is in the list and only the secret is asked for again. Passwords, API key secrets, tokens and passphrases are **never** written to disk.
+**What is remembered, and what is not.** The URL, the protection and its label, the authentication type, the username, the API key identifier and the certificate paths are saved in `config.yaml`: on the next connection, that cluster is in the list and only the secret is asked for again. Passwords, API key secrets, tokens and passphrases are **never** written to disk.
 
 ### Creating an API key (Elasticsearch)
 
@@ -237,6 +248,21 @@ clusters:
 Three limits: a proxy reached over TLS (`https://proxy…`) is refused; a proxy asking for a password is declared in the environment variable (`HTTPS_PROXY=http://user:password@proxy:3128`), never in `config.yaml`; NTLM or Kerberos authentication and PAC files are not supported.
 
 The proxy in use is displayed while connecting, then in the status bar. For a cluster that isn't in the history yet, write its entry by hand as above, or use the environment variables.
+
+**Protection.** The level chosen in the connection form (§3) is saved on the cluster's entry, with its label:
+
+```yaml
+clusters:
+  - url: https://es-prod.example.com:9200
+    protection: confirm   # none (default, line then absent) | confirm | read_only
+    label: PROD
+    auth_type: basic
+    username: admin
+```
+
+A value the program doesn't know (`protection: readonly`, a typo) counts as `read_only`, the most restrictive level: the form says so when it opens, and the next connection saves `read_only`. A label without protection is kept, to no effect.
+
+This protection is a safety net against slips, not security: anyone who can run the tool can remove it. For a cluster that really can't be modified, connect with an account that isn't allowed to write.
 
 Edit the file with TermDevTools closed: the program rewrites it on every successful connection (it keeps your comments and the keys it doesn't know).
 

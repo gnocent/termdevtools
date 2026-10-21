@@ -68,6 +68,9 @@ type testAppOptions struct {
 	// savedUnreadable puts something that can't be read as a file (a
 	// directory) where this cluster's saved requests are expected.
 	savedUnreadable bool
+	// protection and label are the cluster's, as the connection form would
+	// hand them over (none by default).
+	protection, label string
 }
 
 func newTestAppWith(t *testing.T, opts testAppOptions) (*App, tcell.SimulationScreen) {
@@ -87,7 +90,7 @@ func newTestAppWith(t *testing.T, opts testAppOptions) (*App, tcell.SimulationSc
 		target = es95
 	}
 	cr := ConnectResult{
-		Client: client, Cluster: config.Cluster{URL: url}, DisplayUser: "test",
+		Client: client, Cluster: config.Cluster{URL: url, Protection: opts.protection, Label: opts.label}, DisplayUser: "test",
 		Target: target, Warning: opts.warning,
 	}
 	lang := opts.lang

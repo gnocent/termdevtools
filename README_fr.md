@@ -54,6 +54,7 @@ Il arrive qu'un cluster Elasticsearch n'ait pas de Kibana disponible, ou que son
 - **Sauvegarde automatique** des requêtes en cours par cluster et par utilisateur (à la fermeture et via `Ctrl+S`), rechargées à la reconnexion.
 - **Export** du résultat affiché vers un fichier horodaté (`Ctrl+S`, panneau droit) et **copie presse-papier** via OSC 52 (`F2`, fonctionne à travers SSH).
 - **Connexion** : Basic Auth, API Key (identifiant et secret, ou sa forme `encoded`), jeton Bearer ou certificat client (mTLS, clé chiffrée ou non), avec ou sans vérification TLS, à travers un proxy HTTP ou SOCKS5 s'il en faut un (voir [Configuration](#configuration)) ; historique des clusters déjà utilisés (sans jamais y stocker de secret — voir [Sécurité](#sécurité)) ; un sélecteur de certificat (`Entrée` sur les champs CA/certificat client) parcourt le dossier configuré plutôt que de taper un nom de fichier de mémoire.
+- **Garde-fous de production**, cluster par cluster : en « confirmation des écritures », une requête qui écrit (`DELETE`, `PUT`, `_bulk`, `_delete_by_query`…) attend votre accord avant de partir ; en « lecture seule », elle est refusée. Un bandeau rouge ou jaune, avec un libellé comme `PROD`, rappelle sur quel cluster vous êtes. C'est un filet contre l'erreur de manipulation, pas une sécurité : voir [Sécurité](#sécurité).
 - **Aide intégrée** (`F1`) : rappel des raccourcis et de l'emplacement des fichiers.
 
 Détail complet des choix et du comportement : [SPEC_fr.md](SPEC_fr.md).
@@ -161,7 +162,7 @@ L'interface démarre désormais en anglais tant qu'aucune langue n'a été chois
 ## Démarrage rapide
 
 1. **Lancer l'outil** : `termdevtools` (`termdevtools.exe` sous Windows). L'écran de connexion liste les clusters déjà utilisés, plus une option **« + New connection »**. L'interface démarre en anglais : une fois connecté, `F3` la passe en français et retient ce choix.
-2. **Se connecter** : saisir l'URL du cluster, choisir un type d'authentification (aucune, Basic Auth, API Key, jeton Bearer ou certificat client), puis le secret s'il y en a un. Tout est mémorisé pour la prochaine fois, sauf le secret (voir [Configuration](#configuration) ci-dessous).
+2. **Se connecter** : saisir l'URL du cluster, choisir sa protection s'il compte (production), un type d'authentification (aucune, Basic Auth, API Key, jeton Bearer ou certificat client), puis le secret s'il y en a un. Tout est mémorisé pour la prochaine fois, sauf le secret (voir [Configuration](#configuration) ci-dessous).
 3. **Écrire une requête** dans le panneau de gauche, façon Kibana Console — méthode, endpoint, puis un corps JSON optionnel sur les lignes suivantes :
    ```
    GET _cluster/health
@@ -258,13 +259,14 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 
 - **Le dossier du binaire et votre dossier de configuration.** Les recettes, endpoints et contenu de départ qui s'y trouvent sont proposés à l'utilisateur : dans une installation partagée, le dossier du binaire ne doit être modifiable que par des personnes de confiance. Un fichier de recettes ou d'endpoints contenant des caractères de contrôle est refusé.
 - **Le proxy, quand il y en a un.** Pour un cluster en https, il ne voit que l'adresse demandée : le chiffrement et la vérification du certificat se font de bout en bout. Pour un cluster en http, il voit tout, identifiants compris. Ses propres identifiants ne se donnent que par la variable d'environnement ; ils ne sont ni enregistrés, ni affichés, ni envoyés au cluster. Un proxy joint en TLS (`https://`) est refusé.
-- **Vous.** Une requête est envoyée telle qu'elle est écrite, sans confirmation — `DELETE` compris.
+- **Vous.** Sur un cluster sans protection, une requête est envoyée telle qu'elle est écrite, sans confirmation — `DELETE` compris. La protection choisie à la connexion (« confirmation des écritures » ou « lecture seule ») vous évite une erreur, mais n'arrête pas qui veut écrire : quiconque lance l'outil peut la retirer, dans le formulaire ou dans `config.yaml`. Pour empêcher vraiment d'écrire, connectez-vous avec un compte sans droit d'écriture sur le cluster.
 
 **Ce qui a été vérifié, et ce qui ne l'a pas été**
 
 - Relecture de sécurité du code et tests automatisés pour chacun des points ci-dessus ; `govulncheck` ne signale aucune vulnérabilité connue, ni dans les dépendances ni dans la bibliothèque standard de la version de Go qui compile les binaires (1.27.2).
 - Chaque requête de chaque recette a été exécutée sur onze clusters réels (Elasticsearch 7.17 à 9.5, OpenSearch 2.0 à 3.9).
 - L'authentification par mot de passe, par clé d'API et par jeton Bearer est vérifiée sur un Elasticsearch réel dont la sécurité est activée. Le passage par un proxy l'est avec un proxy HTTP et un serveur SOCKS5 de test, pas avec un proxy d'entreprise réel.
+- La protection est vérifiée sur un Elasticsearch et un OpenSearch réels : la suppression d'un index est refusée en lecture seule, n'a pas lieu tant que la confirmation est annulée, et a lieu une fois confirmée.
 - **Aucun audit externe indépendant n'a été réalisé**, et les binaires ne sont pas signés : vérifiez leur somme SHA-256. Voir aussi l'[avertissement](#avertissement--limitation-de-responsabilité) ci-dessous.
 
 ## Licence

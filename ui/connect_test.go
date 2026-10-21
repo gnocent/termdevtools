@@ -72,6 +72,7 @@ func TestNewConnectionCertificateDirectoriesAreOnlyPickerDefaults(t *testing.T) 
 			screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
 			waitForDraw(t, screen)
 			injectText(screen, srv.URL)
+			screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone) // to Protection (the label, disabled, is skipped)
 			screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 			screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 			if secure {
@@ -163,7 +164,9 @@ func TestCertPickerFillsFieldFromConfiguredDir(t *testing.T) {
 	waitForDraw(t, screen)
 
 	// Field order on a fresh form (empty URL => isHTTPS defaults true,
-	// AuthNone): URL, Authentication, CA file, Verify checkbox.
+	// AuthNone): URL, Protection, Label (disabled, skipped), Authentication,
+	// CA file, Verify checkbox.
+	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 	waitForDraw(t, screen)
@@ -194,6 +197,7 @@ func TestCertPickerReportsUnconfiguredDir(t *testing.T) {
 
 	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
 	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone) // to Protection (the label, disabled, is skipped)
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 	waitForDraw(t, screen)
@@ -282,6 +286,7 @@ func TestCertPickerEscapeCancelsWithoutChange(t *testing.T) {
 
 	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
 	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone) // to Protection (the label, disabled, is skipped)
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 	screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
 	waitForDraw(t, screen)

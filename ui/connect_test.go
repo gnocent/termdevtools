@@ -597,6 +597,70 @@ func TestConnectAppliesAndKeepsOverride(t *testing.T) {
 	}
 }
 
+// TestNewConnectionToAKnownURLKeepsItsKeys checks that a new connection
+// typed with the URL of a known cluster keeps the keys written by hand on
+// its entry — not form fields, they were lost when the entry was replaced —
+// and applies them already: the proxy is the entry's, the override wins
+// over detection.
+func TestNewConnectionToAKnownURLKeepsItsKeys(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cluster := httptest.NewServer(rootHandler(elasticsearchRoot))
+	t.Cleanup(cluster.Close)
+	// An http:// proxy is handed the whole request, and answers it here.
+	viaProxy := make(chan string, 1)
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		viaProxy <- r.URL.String()
+		rootHandler(`{"version": {"number": "7.10.2"}, "tagline": "You Know, for Search"}`)(w, r)
+	}))
+	t.Cleanup(proxy.Close)
+
+	known := config.Cluster{
+		URL: cluster.URL, AuthType: config.AuthBasic, Username: "svc",
+		Proxy: proxy.URL, Distribution: "opensearch", Version: "2.11", SecretEnv: "ES_TEST_SECRET",
+	}
+	cfg := &config.Config{Language: i18n.FR, DefaultTimeoutSeconds: 5, Clusters: []config.Cluster{known}}
+	results := make(chan ConnectResult, 1)
+	screen := newTestConnectScreenWithCallback(t, cfg, func(cr ConnectResult) { results <- cr })
+	screen.InjectKey(tcell.KeyDown, 0, tcell.ModNone) // New connection, after the known cluster
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+	injectText(screen, cluster.URL)
+	// In http: the protection, the authentication (the label, disabled
+	// without protection, is skipped), then Connect.
+	for range 3 {
+		screen.InjectKey(tcell.KeyTab, 0, tcell.ModNone)
+	}
+	waitForDraw(t, screen)
+	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
+
+	var cr ConnectResult
+	select {
+	case cr = <-results:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("no connection; screen:\n%s", screenText(screen))
+	}
+	select {
+	case <-viaProxy:
+	default:
+		t.Error("expected the connection to go through the known cluster's proxy")
+	}
+	want := refdata.Target{Distribution: refdata.OpenSearch, Version: refdata.Version{Major: 2, Minor: 11}, HasVersion: true}
+	if cr.Target != want {
+		t.Errorf("expected the known cluster's override, got target %+v", cr.Target)
+	}
+	if len(cfg.Clusters) != 1 {
+		t.Fatalf("expected the known cluster's entry to be replaced, got %+v", cfg.Clusters)
+	}
+	got := cfg.Clusters[0]
+	if got.Proxy != known.Proxy || got.Distribution != known.Distribution || got.Version != known.Version ||
+		got.SecretEnv != known.SecretEnv || got.SecretFile != known.SecretFile {
+		t.Errorf("keys written by hand lost from the saved entry: %+v", got)
+	}
+	if got.AuthType != config.AuthNone || got.Username != "" {
+		t.Errorf("expected the form's fields to replace the entry's, got %+v", got)
+	}
+}
+
 // TestConnectIgnoresInvalidOverride checks that a typo in the override
 // doesn't lock the user out: the connection succeeds on the detected target,
 // with a warning.

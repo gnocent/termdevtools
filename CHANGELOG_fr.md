@@ -10,6 +10,10 @@
 - **Chrono en direct** : dès la première seconde, la barre de statut compte les secondes d'attente — `requête en cours... 12 s — Echap pour abandonner`.
 - **Une nouvelle requête annule une lecture encore en cours**, au lieu de la laisser courir jusqu'au délai d'expiration pour une réponse qui serait ignorée : une recherche lourde cesse de charger le cluster. Une écriture va à son terme.
 
+### Corrections
+
+- **Une « nouvelle connexion » saisie avec l'URL d'un cluster connu ne perd plus les clés écrites à la main sur son entrée** (`secret_env`, `secret_file`, `proxy`, `distribution`, `version`) : elles sont conservées, et s'appliquent dès cette connexion — son proxy, son forçage de version. Limite connue de la 0.7.4.
+
 ## 0.7.4 (bêta) — octobre 2026
 
 **En une phrase** : le secret d'un cluster peut être lu dans une variable d'environnement ou un fichier au lieu d'être saisi à chaque connexion.

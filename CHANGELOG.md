@@ -10,6 +10,10 @@
 - **Live timer**: from the first second on, the status bar counts the seconds of the wait — `request in progress... 12 s — Esc to abandon`.
 - **A newer request cancels a read still in progress**, instead of letting it run until the timeout for an answer that would be ignored: a heavy search stops loading the cluster. A write is left to finish.
 
+### Fixes
+
+- **A "New connection" typed with the URL of a known cluster no longer loses the keys written by hand on its entry** (`secret_env`, `secret_file`, `proxy`, `distribution`, `version`): they are kept, and apply to that connection already — its proxy, its override. Known limitation of 0.7.4.
+
 ## 0.7.4 (beta) — October 2026
 
 **In one sentence**: a cluster's secret can be read from an environment variable or a file instead of being typed at every connection.

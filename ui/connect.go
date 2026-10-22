@@ -417,14 +417,23 @@ func (cs *connectScreen) buildForm(existing *config.Cluster, secret string) *hig
 		if saved == config.ProtectionNone {
 			saved = "" // the default: no key written for it
 		}
+		// The entry this connection will replace (Promote): the one known at
+		// that URL, even when it is typed as a new connection.
+		kept := cluster
+		for _, known := range cs.cfg.Clusters {
+			if known.URL == url {
+				kept = known
+				break
+			}
+		}
 		cl := config.Cluster{
 			URL: url, Protection: saved, Label: strings.TrimSpace(label), AuthType: authType,
 			Username: username, APIKeyID: apiKeyID,
 			TLS: config.TLS{Verify: verify, CAFile: caFile, ClientCert: clientCert, ClientKey: clientKey},
 			// Not form fields: carried over from config.yaml as-is, or
 			// Promote would erase them on every reconnection.
-			Distribution: cluster.Distribution, Version: cluster.Version,
-			Proxy: cluster.Proxy, SecretEnv: cluster.SecretEnv, SecretFile: cluster.SecretFile,
+			Distribution: kept.Distribution, Version: kept.Version,
+			Proxy: kept.Proxy, SecretEnv: kept.SecretEnv, SecretFile: kept.SecretFile,
 		}
 		cs.attemptConnect(cl, connectSecrets{
 			password: password, apiKeySecret: apiKeySecret, bearerToken: bearerToken, keyPassphrase: keyPassphrase,

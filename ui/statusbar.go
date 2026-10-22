@@ -148,6 +148,12 @@ func (sb *StatusBar) SetRunning() {
 	sb.render(sb.msgs.StatusRunning, "yellow")
 }
 
+// SetRunningFor indicates that a request has been executing for elapsed,
+// and how to abandon it.
+func (sb *StatusBar) SetRunningFor(elapsed time.Duration) {
+	sb.render(fmt.Sprintf(sb.msgs.StatusRunningForFmt, int(elapsed/time.Second)), "yellow")
+}
+
 // SetInfo displays a confirmation (e.g. successful save/export).
 func (sb *StatusBar) SetInfo(message string) {
 	sb.render(message, "green")

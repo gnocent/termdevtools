@@ -224,6 +224,7 @@ Values live in `~/.config/termdevtools/variables_<cluster>.txt` — one per clus
 | Action | Key |
 |---|---|
 | Execute the request under the cursor | `Ctrl+E` [^enter] |
+| Abandon the request in progress | `Esc` |
 | Switch focus left ↔ right panel | `Ctrl+←` / `Ctrl+→` [^focus] |
 | Quit (auto-saves the left panel) | `Ctrl+C` |
 | Search in requests / in the result | `Ctrl+F` (depending on focused panel) |

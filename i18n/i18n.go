@@ -94,6 +94,7 @@ type Strings struct {
 	StatusIdle           string
 	StatusRunning        string
 	StatusResultFmt      string // "%d", "%s" — HTTP status, duration
+	StatusRunningForFmt  string // "%d" — seconds since the request was sent
 	ShortcutsHelpBar     string
 
 	// App-level status/error messages (app.go)
@@ -173,6 +174,10 @@ type Strings struct {
 	ButtonSend          string
 	InfoWriteCancelled  string
 	ErrReadOnlyWriteFmt string // "%s", "%s" — the method and path not sent
+	// What Esc does with the request in progress: abandoned, a read with
+	// nothing more to say, a write with what can't be known ("%d" — seconds)
+	InfoRequestAbandonedFmt string
+	WarnWriteAbandonedFmt   string
 }
 
 var fr = Strings{
@@ -244,6 +249,7 @@ var fr = Strings{
 	StatusIdle:           "prêt",
 	StatusRunning:        "requête en cours...",
 	StatusResultFmt:      "HTTP %d en %s",
+	StatusRunningForFmt:  "requête en cours... %d s — Echap pour abandonner",
 	// Deliberate order: the most essential commands (help, language, quit)
 	// come first, so they stay visible even on a narrow terminal where the
 	// end of the line gets cut off (only 1 row is allocated for this bar).
@@ -296,6 +302,7 @@ doute, préférez Ctrl+E, Alt+←/→, F5/F6 et Tab/F10.[white]
 
   [aqua]Ctrl+E[white]           Exécuter la requête sous le curseur
                      (aussi : Ctrl+Entrée, Option/Alt+Entrée sur macOS — non garanti partout)
+  [aqua]Echap[white]            Abandonner la requête en cours
   [aqua]F8[white]               Catalogue de recettes : requêtes prêtes à l'emploi,
                      choisies selon la version du cluster (taper pour filtrer)
   [aqua]Tab/F10[white]          Compléter un endpoint ou une colonne _cat en cours de frappe
@@ -359,6 +366,8 @@ intégrés. Ces fichiers, tous facultatifs, s'y ajoutent.[white]
 	ButtonSend:               "Envoyer",
 	InfoWriteCancelled:       "envoi annulé : rien n'a été envoyé",
 	ErrReadOnlyWriteFmt:      "lecture seule : écriture non envoyée (%s %s) — pour l'autoriser, reconnectez-vous en protection « confirmation des écritures »",
+	InfoRequestAbandonedFmt:  "requête abandonnée après %d s",
+	WarnWriteAbandonedFmt:    "écriture abandonnée après %d s : le cluster a pu l'exécuter quand même",
 }
 
 var en = Strings{
@@ -430,6 +439,7 @@ var en = Strings{
 	StatusIdle:           "ready",
 	StatusRunning:        "request in progress...",
 	StatusResultFmt:      "HTTP %d in %s",
+	StatusRunningForFmt:  "request in progress... %d s — Esc to abandon",
 	// Deliberate order: the most essential commands (help, language, quit)
 	// come first, so they stay visible even on a narrow terminal where the
 	// end of the line gets cut off (only 1 row is allocated for this bar).
@@ -482,6 +492,7 @@ Ctrl+E, Alt+←/→, F5/F6, and Tab/F10.[white]
 
   [aqua]Ctrl+E[white]           Execute the request under the cursor
                      (also: Ctrl+Enter, Option/Alt+Enter on macOS — not guaranteed everywhere)
+  [aqua]Esc[white]              Abandon the request in progress
   [aqua]F8[white]               Recipe catalog: ready-made requests, selected for the
                      cluster's version (type to filter)
   [aqua]Tab/F10[white]          Complete an endpoint or a _cat column while typing
@@ -545,6 +556,8 @@ built in. These files, all optional, add to them.[white]
 	ButtonSend:               "Send",
 	InfoWriteCancelled:       "cancelled: nothing was sent",
 	ErrReadOnlyWriteFmt:      "read-only: write not sent (%s %s) — to allow it, connect again with the \"writes need confirmation\" protection",
+	InfoRequestAbandonedFmt:  "request abandoned after %d s",
+	WarnWriteAbandonedFmt:    "write abandoned after %d s: the cluster may have carried it out anyway",
 }
 
 // Normalize maps lang ("fr"/"en", case-insensitive, possibly padded with

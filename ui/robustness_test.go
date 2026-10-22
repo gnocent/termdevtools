@@ -241,7 +241,8 @@ func TestSaveOnSignalGoesThroughTheInterface(t *testing.T) {
 
 // TestLateAnswerDoesNotReplaceANewerResult checks that when two requests
 // are in flight, the result displayed is that of the last one sent — not
-// whichever answers last.
+// whichever answers last. The slow one is a write: a read still in flight
+// is cancelled by a newer request, and wouldn't answer at all.
 func TestLateAnswerDoesNotReplaceANewerResult(t *testing.T) {
 	release := make(chan struct{})
 	var releaseOnce sync.Once
@@ -265,7 +266,7 @@ func TestLateAnswerDoesNotReplaceANewerResult(t *testing.T) {
 		return text
 	}
 
-	injectText(screen, "GET slow")
+	injectText(screen, "PUT slow")
 	screen.InjectKey(tcell.KeyCtrlE, 0, tcell.ModCtrl)
 	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
 	screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)

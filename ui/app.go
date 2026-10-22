@@ -143,6 +143,9 @@ type App struct {
 	// execution numbers the requests sent (Ctrl+E): only the answer to the
 	// latest one is displayed.
 	execution int
+	// running is the request in flight whose answer is awaited, nil when
+	// none: what Esc abandons.
+	running *runningRequest
 
 	// queriesLoadFailed is set when this cluster's saved requests exist but
 	// couldn't be read at startup: the editor doesn't hold them, and saving
@@ -469,6 +472,11 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 	}
 
 	switch {
+	case event.Key() == tcell.KeyEscape && a.running != nil:
+		// Only once nothing else above has taken Esc: closing a popup or the
+		// search bar never abandons a request.
+		a.abandonRunning()
+		return nil
 	case isExecuteShortcut(event):
 		if a.focusedIsEditor {
 			a.executeCurrent()
@@ -792,15 +800,43 @@ func (a *App) executeCurrent() {
 	a.send(req.Method, path, body)
 }
 
+// runningRequest is a request sent whose answer is awaited (App.running).
+type runningRequest struct {
+	cancel  context.CancelFunc
+	started time.Time
+	// read tells, as the production guardrails do (esclient.IsRead), whether
+	// the request only reads: what decides whether a newer one cancels it.
+	read bool
+	// abandoned is set by Esc: its answer, even one already on its way, is
+	// not displayed.
+	abandoned bool
+	// status is the version of the status line the request last wrote
+	// (StatusBar.Version): the elapsed time only replaces its own message.
+	status int
+}
+
+// elapsedTick is how often the status bar's elapsed time is updated.
+const elapsedTick = time.Second
+
 // send executes a request ready to go — the one under the cursor, variables
 // substituted, body validated — and displays its result.
 func (a *App) send(method, path string, body []byte) {
+	// A read still in flight is cancelled: its answer would no longer be
+	// displayed, and a heavy search would keep loading the cluster. A write
+	// is left to finish — cut short, no one could tell whether it went
+	// through (a _reindex followed by a _cat/tasks to watch it, typically).
+	if a.running != nil && a.running.read {
+		a.running.cancel()
+	}
 	a.status.SetRunning()
 	a.execution++
 	execution := a.execution
+	ctx, cancel := context.WithTimeout(context.Background(), a.timeout)
+	req := &runningRequest{cancel: cancel, started: time.Now(), read: esclient.IsRead(method, path), status: a.status.Version()}
+	a.running = req
+	go a.showElapsed(ctx, req)
 
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), a.timeout)
 		defer cancel()
 		result, err := a.client.Execute(ctx, method, path, body)
 		// Indenting and colorizing a large response takes time: done here,
@@ -811,9 +847,13 @@ func (a *App) send(method, path string, body []byte) {
 		}
 
 		a.tapp.QueueUpdateDraw(func() {
-			if execution != a.execution {
+			if a.running == req {
+				a.running = nil
+			}
+			if execution != a.execution || req.abandoned {
 				// Another request was sent since: its answer is the one
-				// expected, whichever arrives first.
+				// expected, whichever arrives first. Or this one was
+				// abandoned (Esc), which the status bar already says.
 				return
 			}
 			// A new result: its search starts from the top again.
@@ -827,6 +867,44 @@ func (a *App) send(method, path string, body []byte) {
 			a.result.display(rendered)
 		})
 	}()
+}
+
+// showElapsed updates, every elapsedTick until req ends, how long it has
+// been running — unless the status line has said something else since (a
+// save, an error), which it doesn't cover.
+func (a *App) showElapsed(ctx context.Context, req *runningRequest) {
+	ticker := time.NewTicker(elapsedTick)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			a.tapp.QueueUpdateDraw(func() {
+				if a.running != req || a.status.Version() != req.status {
+					return
+				}
+				a.status.SetRunningFor(time.Since(req.started))
+				req.status = a.status.Version()
+			})
+		}
+	}
+}
+
+// abandonRunning gives up waiting for the request in progress (Esc): its
+// connection is closed, its answer won't be displayed, and the result panel
+// keeps what it shows. A write may have been carried out all the same.
+func (a *App) abandonRunning() {
+	req := a.running
+	req.cancel()
+	req.abandoned = true
+	a.running = nil
+	seconds := int(time.Since(req.started) / time.Second)
+	if req.read {
+		a.status.SetInfo(fmt.Sprintf(a.msgs.InfoRequestAbandonedFmt, seconds))
+	} else {
+		a.status.SetWarning(fmt.Sprintf(a.msgs.WarnWriteAbandonedFmt, seconds))
+	}
 }
 
 // reformatBody implements F4 (SPEC.md §7 backlog #1, Kibana's "auto

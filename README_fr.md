@@ -224,6 +224,7 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 | Action | Touche |
 |---|---|
 | Exécuter la requête sous le curseur | `Ctrl+E` [^entree] |
+| Abandonner la requête en cours | `Echap` |
 | Basculer focus panneau gauche ↔ droit | `Ctrl+←` / `Ctrl+→` [^focus] |
 | Quitter (sauvegarde automatique du panneau gauche) | `Ctrl+C` |
 | Rechercher dans les requêtes / dans le résultat | `Ctrl+F` (selon le panneau focus) |

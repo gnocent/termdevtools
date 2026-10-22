@@ -2,6 +2,14 @@
 
 # Changelog
 
+## Unreleased
+
+### What's new
+
+- **Abandon the request in progress**: `Esc` closes its connection, and the result panel keeps what it showed. For a write, the status bar warns that the cluster may have carried it out anyway.
+- **Live timer**: from the first second on, the status bar counts the seconds of the wait — `request in progress... 12 s — Esc to abandon`.
+- **A newer request cancels a read still in progress**, instead of letting it run until the timeout for an answer that would be ignored: a heavy search stops loading the cluster. A write is left to finish.
+
 ## 0.7.4 (beta) — October 2026
 
 **In one sentence**: a cluster's secret can be read from an environment variable or a file instead of being typed at every connection.

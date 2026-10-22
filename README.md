@@ -5,12 +5,12 @@
 A terminal-mode simulator of Kibana's **DevTools** view, for querying an Elasticsearch or OpenSearch cluster directly from a terminal — Linux (including RHEL 8/9/10), Windows, or macOS — without a browser or a working Kibana. A single binary, with nothing else to install.
 
 > [!IMPORTANT]
-> **What's new in 0.7.4 (beta)**
+> **What's new in 0.7.5 (beta)**
 >
-> - **Secret without retyping**: `secret_env: ES_PW` or `secret_file: ~/.es-prod.secret` on a cluster's entry in `config.yaml`, and the connection form opens with the secret already filled in — `Enter` is enough. The program still writes no secret: see [Configuration](#configuration).
-> - **The connection form fits on 80 columns**, and `Alt+←/→` switches panels on every system, PuTTY included.
+> - **Abandon the request in progress with `Esc`**, and watch the seconds of the wait in the status bar: `request in progress... 12 s — Esc to abandon`. A newer request cancels a read still in flight, so a heavy search stops loading the cluster; a write is left to finish.
+> - **A "New connection" typed with a known cluster's URL keeps the keys written by hand** on its entry (`secret_env`, `secret_file`, `proxy`…).
 >
-> 0.7.3 had brought production guardrails (requests that write confirmed or refused, behind a banner); 0.7.2, `go install github.com/gnocent/termdevtools@latest`; 0.7, proxies (`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, and `proxy:` per cluster in `config.yaml`), API keys the way Kibana gives them, Bearer tokens, and exports in your configuration directory rather than next to the binary.
+> 0.7.4 had brought secrets read from a variable or a file (`secret_env`, `secret_file`); 0.7.3, production guardrails (requests that write confirmed or refused, behind a banner); 0.7.2, `go install github.com/gnocent/termdevtools@latest`; 0.7, proxies (`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, and `proxy:` per cluster in `config.yaml`), API keys the way Kibana gives them, Bearer tokens, and exports in your configuration directory rather than next to the binary.
 >
 > **Before upgrading from 0.6**: if `HTTPS_PROXY` is set on your machine, your clusters will now go through that proxy — see [Upgrading](#upgrading-from-an-earlier-version).
 >

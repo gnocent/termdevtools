@@ -2,7 +2,9 @@
 
 # Journal des versions
 
-## Non publié
+## 0.7.5 (bêta) — octobre 2026
+
+**En une phrase** : une requête en cours peut être abandonnée avec `Echap`, et la barre de statut compte les secondes d'attente.
 
 ### Nouveautés
 
@@ -13,6 +15,24 @@
 ### Corrections
 
 - **Une « nouvelle connexion » saisie avec l'URL d'un cluster connu ne perd plus les clés écrites à la main sur son entrée** (`secret_env`, `secret_file`, `proxy`, `distribution`, `version`) : elles sont conservées, et s'appliquent dès cette connexion — son proxy, son forçage de version. Limite connue de la 0.7.4.
+
+### À savoir avant de mettre à jour depuis la 0.7.4
+
+- **Rien à faire** : sans requête en cours, `Echap` fait ce qu'il faisait avant.
+
+### Vérifications
+
+- `go vet` et `go test ./...` passent, lancés sous Windows : tests unitaires et tests de l'interface sur un écran simulé de 80×24, où une requête est abandonnée, remplacée et chronométrée face à un serveur de test local ; les tests que Windows saute passent sous Linux.
+- Les messages de la barre de statut tiennent sur une ligne de 80 colonnes en français et en anglais ; le plus long, une écriture abandonnée, en prend 70.
+- À partir de cette version, chaque pull request est vérifiée sur GitHub : formatage, `go vet` et tests unitaires, sous Linux, Windows et macOS. Le workflow n'a que des droits de lecture et ses actions sont épinglées sur un commit.
+- `govulncheck` : aucune vulnérabilité connue, ni dans les dépendances ni dans la bibliothèque standard de Go 1.27.3, avec laquelle les binaires sont construits.
+- Les données de référence (recettes, endpoints, colonnes `_cat`) n'ont pas changé depuis la 0.6.
+- L'abandon n'a pas été essayé sur un vrai cluster. Aucun audit externe indépendant n'a été mené.
+
+### Limites connues
+
+- Fermer la connexion n'annule pas ce que le cluster a déjà reçu : une écriture abandonnée a pu être exécutée.
+- Les limites de la 0.7 restent valables.
 
 ## 0.7.4 (bêta) — octobre 2026
 

@@ -5,12 +5,12 @@
 Simulateur en mode terminal de la vue **DevTools** de Kibana, pour interroger un cluster Elasticsearch ou OpenSearch directement depuis un terminal — Linux (dont RHEL 8/9/10), Windows ou macOS — sans navigateur ni Kibana fonctionnel. Un seul binaire, rien d'autre à installer.
 
 > [!IMPORTANT]
-> **Nouveautés de la 0.7.4 (bêta)**
+> **Nouveautés de la 0.7.5 (bêta)**
 >
-> - **Secret sans ressaisie** : `secret_env: ES_PW` ou `secret_file: ~/.es-prod.secret` sur l'entrée d'un cluster dans `config.yaml`, et le formulaire de connexion s'ouvre avec le secret déjà rempli — `Entrée` suffit. Le programme n'écrit toujours aucun secret : voir [Configuration](#configuration).
-> - **Le formulaire de connexion tient sur 80 colonnes**, et `Alt+←/→` change de panneau sur tous les systèmes, PuTTY compris.
+> - **Abandonner la requête en cours avec `Echap`**, et suivre les secondes d'attente dans la barre de statut : `requête en cours... 12 s — Echap pour abandonner`. Une nouvelle requête annule une lecture encore en cours, si bien qu'une recherche lourde cesse de charger le cluster ; une écriture va à son terme.
+> - **Une « nouvelle connexion » saisie avec l'URL d'un cluster connu garde les clés écrites à la main** sur son entrée (`secret_env`, `secret_file`, `proxy`…).
 >
-> La 0.7.3 avait apporté les garde-fous de production (confirmation ou refus des requêtes qui écrivent, avec un bandeau) ; la 0.7.2, `go install github.com/gnocent/termdevtools@latest` ; la 0.7, les proxys (`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, et `proxy:` par cluster dans `config.yaml`), les clés d'API telles que Kibana les donne, les jetons Bearer, et les exports dans votre dossier de configuration plutôt qu'à côté du binaire.
+> La 0.7.4 avait apporté les secrets lus dans une variable ou un fichier (`secret_env`, `secret_file`) ; la 0.7.3, les garde-fous de production (confirmation ou refus des requêtes qui écrivent, avec un bandeau) ; la 0.7.2, `go install github.com/gnocent/termdevtools@latest` ; la 0.7, les proxys (`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, et `proxy:` par cluster dans `config.yaml`), les clés d'API telles que Kibana les donne, les jetons Bearer, et les exports dans votre dossier de configuration plutôt qu'à côté du binaire.
 >
 > **Avant de mettre à jour depuis la 0.6** : si `HTTPS_PROXY` est défini sur votre poste, vos clusters passeront désormais par ce proxy — voir [Mise à jour](#mise-à-jour-depuis-une-version-antérieure).
 >

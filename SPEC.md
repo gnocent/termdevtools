@@ -4,7 +4,7 @@
 
 > Terminal-mode simulator of Kibana's "DevTools" view, for submitting requests to an Elasticsearch or OpenSearch cluster without going through a browser.
 
-Status: this document describes the design as shipped — version 0.7.4 (beta). The version history is in [CHANGELOG.md](CHANGELOG.md), the step-by-step installation in [INSTALL.md](INSTALL.md).
+Status: this document describes the design as shipped — version 0.7.5 (beta). The version history is in [CHANGELOG.md](CHANGELOG.md), the step-by-step installation in [INSTALL.md](INSTALL.md).
 
 ---
 
@@ -218,7 +218,7 @@ What isn't done, by choice or not yet:
 4. ~~**Production guardrails**~~ — delivered in 0.7.3: a per-cluster protection (`none`, `confirm`, `read_only`) chosen in the connection form, confirmation or refusal of the requests that write, a banner with a label (§3.0, §3.1, §5). A protection enforced by a team is moved to "not scheduled" below.
 5. ~~**Secrets without retyping, first tier**~~ — delivered in 0.7.4: `secret_env` and `secret_file` on a cluster's entry, read on opening the connection form (§3.0, §5). An opt-in OS keychain is a separate, later decision (it changes the "no secret ever persisted" promise of §5).
 6. **Watch mode** — re-run the request under the cursor every N seconds and highlight what changed.
-7. ~~**Cancel a running request, live timer**~~ — done, not released yet: `Esc` abandons the request in progress, a newer request cancels a read still in flight, and the status bar counts the seconds of the wait (§3.1, §3.2).
+7. ~~**Cancel a running request, live timer**~~ — delivered in 0.7.5: `Esc` abandons the request in progress, a newer request cancels a read still in flight, and the status bar counts the seconds of the wait (§3.1, §3.2).
 8. **Diff between two runs** of the same request.
 9. **Cluster "top" screen** — health, nodes, unassigned/relocating shards, running tasks, thread-pool rejections, auto-refreshed.
 10. **Dynamic completion** — index, alias, data stream, field, node and repository names; covers the "dynamic auto-completion" bullet above.

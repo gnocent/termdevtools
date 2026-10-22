@@ -2,7 +2,9 @@
 
 # Changelog
 
-## Unreleased
+## 0.7.5 (beta) — October 2026
+
+**In one sentence**: a request in progress can be abandoned with `Esc`, and the status bar counts the seconds of the wait.
 
 ### What's new
 
@@ -13,6 +15,24 @@
 ### Fixes
 
 - **A "New connection" typed with the URL of a known cluster no longer loses the keys written by hand on its entry** (`secret_env`, `secret_file`, `proxy`, `distribution`, `version`): they are kept, and apply to that connection already — its proxy, its override. Known limitation of 0.7.4.
+
+### Before upgrading from 0.7.4
+
+- **Nothing to do**: with no request in progress, `Esc` does what it did before.
+
+### Checks
+
+- `go vet` and `go test ./...` pass, run on Windows: unit tests and tests of the interface on a simulated 80×24 screen, where a request is abandoned, superseded and timed against a local test server; the tests Windows skips pass on Linux.
+- The status bar's messages fit on an 80-column line in English and French; the longest, a write abandoned, takes 70 columns.
+- From this release on, every pull request is checked on GitHub: formatting, `go vet` and the unit tests, on Linux, Windows and macOS. The workflow has read-only rights and its actions are pinned to a commit.
+- `govulncheck`: no known vulnerability, neither in the dependencies nor in the standard library of Go 1.27.3, which the binaries are built with.
+- The reference data (recipes, endpoints, `_cat` columns) has not changed since 0.6.
+- Abandoning was not tried against a real cluster. No independent external audit was carried out.
+
+### Known limits
+
+- Closing the connection doesn't undo what the cluster has already received: a write abandoned may have been carried out.
+- The limits of 0.7 still apply.
 
 ## 0.7.4 (beta) — October 2026
 

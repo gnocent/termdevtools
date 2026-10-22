@@ -1,0 +1,48 @@
+# Checks every pull request, on the result of its merge into main, and every
+# push to main: formatting, go vet and the unit tests, on the three platforms
+# the release binaries are built for. Linux also runs the tests Windows skips
+# (Unix access rights, tools/testclusters.sh).
+#
+# Not run here: the integration tests (-tags integration), which need the
+# real clusters started by tools/testclusters.sh, and govulncheck, which is
+# run before building a release.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # Actions pinned to a commit: a tag can be moved to other code.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Installs the Go of go.mod's toolchain line, the one the release
+      # binaries are built with.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      # On Linux only: Windows checks the files out with CRLF line endings,
+      # which gofmt would report in every file.
+      - name: gofmt
+        if: runner.os == 'Linux'
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "Not formatted with gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - run: go vet ./...
+      - run: go test ./...

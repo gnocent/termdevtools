@@ -3,9 +3,12 @@
 # the release binaries are built for. Linux also runs the tests Windows skips
 # (Unix access rights, tools/testclusters.sh).
 #
+# govulncheck runs as its own job: it can turn red because a vulnerability was
+# published for the Go toolchain or a dependency, not because of the change
+# under review.
+#
 # Not run here: the integration tests (-tags integration), which need the
-# real clusters started by tools/testclusters.sh, and govulncheck, which is
-# run before building a release.
+# real clusters started by tools/testclusters.sh.
 name: CI
 
 on:
@@ -46,3 +49,16 @@ jobs:
           fi
       - run: go vet ./...
       - run: go test ./...
+
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      # Pinned to the version run locally; go run checks it against the
+      # module checksum database.
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...

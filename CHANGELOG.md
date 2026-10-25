@@ -10,6 +10,10 @@
 - **Switching cancels nothing**: a request in progress, read or write, runs to completion; its answer lands in its cluster's panels, and the status bar on screen says it came.
 - **Exiting saves every open connection** (`Ctrl+C`, "Quit", `SIGTERM`/`SIGHUP`), and switching saves the left panel on screen.
 
+### Fixes
+
+- **The confirmation of a write no longer lets the text behind it show through**: its margin, a column on either side, was never drawn, and the text of the editor or of the result showed in it. There since 0.7.3.
+
 ### Before upgrading from 0.7.5
 
 - **Nothing to do**: startup, the other shortcuts and the help bar don't change. One connection per URL: to change the protection or the credentials of an open connection, quit and relaunch, as before.

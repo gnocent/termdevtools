@@ -10,6 +10,10 @@
 - **La bascule n'annule rien** : une requête en cours, lecture comme écriture, va à son terme ; sa réponse arrive dans les panneaux de son cluster, et la barre de statut à l'écran signale son arrivée.
 - **La sortie sauvegarde toutes les connexions ouvertes** (`Ctrl+C`, « Quitter », `SIGTERM`/`SIGHUP`), et la bascule sauvegarde le panneau gauche à l'écran.
 
+### Corrections
+
+- **La fenêtre de confirmation d'une écriture ne laisse plus voir le texte qui est derrière** : sa marge, une colonne de chaque côté, n'était jamais redessinée, et le texte de l'éditeur ou du résultat s'y glissait. Présent depuis la 0.7.3.
+
 ### À savoir avant de mettre à jour depuis la 0.7.5
 
 - **Rien à faire** : le démarrage, les autres raccourcis et la barre d'aide ne changent pas. Une seule connexion par URL : pour changer la protection ou les identifiants d'une connexion ouverte, on quitte et on relance, comme avant.

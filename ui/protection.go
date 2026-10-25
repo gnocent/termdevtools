@@ -144,9 +144,13 @@ func (a *App) confirmWrite(method, path string, body []byte) {
 	if label := bannerLabel(a.label); label != "" {
 		cluster = label + " — " + cluster
 	}
-	// No dynamic colors: the label and the path are shown as typed.
+	// No dynamic colors: the label and the path are shown as typed. Its
+	// margins are its own, not the frame's: a tview.Flex never clears what
+	// it holds, and margins of the frame would let the panels behind show
+	// through.
 	text := tview.NewTextView().SetWordWrap(true).
 		SetText(fmt.Sprintf(a.msgs.ConfirmWriteFmt, cluster, method, confirmPath(path)))
+	text.SetBorderPadding(0, 0, 1, 1)
 	// Not to be clicked into: the keys would go to the text, Escape included.
 	text.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
 		return tview.MouseConsumed, nil
@@ -189,8 +193,7 @@ func (a *App) confirmWrite(method, path string, body []byte) {
 		AddItem(text, confirmTextHeight, 0, false).
 		AddItem(buttons, 0, 1, true)
 	frame.SetBorder(true).SetBorderColor(tcell.ColorRed).
-		SetTitle(a.msgs.ConfirmWriteTitle).SetTitleColor(tcell.ColorRed).
-		SetBorderPadding(0, 0, 1, 1)
+		SetTitle(a.msgs.ConfirmWriteTitle).SetTitleColor(tcell.ColorRed)
 
 	overlay := modalPage{tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(nil, 0, 1, false).

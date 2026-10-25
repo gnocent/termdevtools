@@ -215,6 +215,47 @@ func TestConfirmWriteTextTakesNoClick(t *testing.T) {
 	}
 }
 
+// TestConfirmWriteHidesWhatIsBehind checks that nothing of the panels
+// behind the confirmation shows inside its frame. Its margins, a column on
+// either side, let the editor's text through when the frame drew them.
+func TestConfirmWriteHidesWhatIsBehind(t *testing.T) {
+	_, url := newRecordingServer(t)
+	app, screen := newTestAppWith(t, testAppOptions{clusterURL: url, protection: config.ProtectionConfirm})
+	behind := strings.Repeat(strings.Repeat("X", 30)+"\n", 20)
+	execute(t, app, screen, behind+"DELETE /my-index")
+	if !confirmVisible(app) {
+		t.Fatalf("expected the confirmation, got:\n%s", screenText(screen))
+	}
+
+	_, _, height := screenContents(screen)
+	title := strings.TrimSpace(app.msgs.ConfirmWriteTitle)
+	left, right := -1, -1
+	for row := 0; row < height; row++ {
+		line := []rune(screenRow(screen, row))
+		if left < 0 {
+			if !strings.Contains(string(line), title) {
+				continue
+			}
+			for x, r := range line {
+				switch r {
+				case '╔', '┌':
+					left = x
+				case '╗', '┐':
+					right = x
+				}
+			}
+			continue
+		}
+		if line[left] == '╚' || line[left] == '└' {
+			return
+		}
+		if inside := string(line[left+1 : right]); strings.Contains(inside, "X") {
+			t.Errorf("expected nothing of the editor inside the confirmation, row %d holds %q", row, inside)
+		}
+	}
+	t.Fatalf("expected the confirmation's frame on screen, got:\n%s", screenText(screen))
+}
+
 // TestConfirmPath checks how a long path is shown in the confirmation: its
 // API always, and the first and last names of a long list of indices.
 func TestConfirmPath(t *testing.T) {

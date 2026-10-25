@@ -2,69 +2,42 @@
 
 # TermDevTools
 
-Simulateur en mode terminal de la vue **DevTools** de Kibana, pour interroger un cluster Elasticsearch ou OpenSearch directement depuis un terminal — Linux (dont RHEL 8/9/10), Windows ou macOS — sans navigateur ni Kibana fonctionnel. Un seul binaire, rien d'autre à installer.
+La vue **DevTools** de Kibana dans un terminal, pour interroger un cluster Elasticsearch ou OpenSearch quand Kibana n'est pas là — ou en panne, en pleine investigation. Linux (dont RHEL 8/9/10), Windows ou macOS ; un seul binaire, rien d'autre à installer.
 
 > [!IMPORTANT]
-> **Nouveautés de la 0.7.5 (bêta)**
+> **Nouveautés, version par version** — détail et limites connues dans le [journal des versions](CHANGELOG_fr.md)
 >
-> - **Abandonner la requête en cours avec `Echap`**, et suivre les secondes d'attente dans la barre de statut : `requête en cours... 12 s — Echap pour abandonner`. Une nouvelle requête annule une lecture encore en cours, si bien qu'une recherche lourde cesse de charger le cluster ; une écriture va à son terme.
-> - **Une « nouvelle connexion » saisie avec l'URL d'un cluster connu garde les clés écrites à la main** sur son entrée (`secret_env`, `secret_file`, `proxy`…).
->
-> La 0.7.4 avait apporté les secrets lus dans une variable ou un fichier (`secret_env`, `secret_file`) ; la 0.7.3, les garde-fous de production (confirmation ou refus des requêtes qui écrivent, avec un bandeau) ; la 0.7.2, `go install github.com/gnocent/termdevtools@latest` ; la 0.7, les proxys (`HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, et `proxy:` par cluster dans `config.yaml`), les clés d'API telles que Kibana les donne, les jetons Bearer, et les exports dans votre dossier de configuration plutôt qu'à côté du binaire.
->
-> **Avant de mettre à jour depuis la 0.6** : si `HTTPS_PROXY` est défini sur votre poste, vos clusters passeront désormais par ce proxy — voir [Mise à jour](#mise-à-jour-depuis-une-version-antérieure).
->
-> C'est une **version bêta**, encore peu utilisée. Détail et limites connues : **[journal des versions](CHANGELOG_fr.md)**.
-
-- [Démo](#démo)
-- [Pourquoi](#pourquoi)
-- [Fonctionnalités](#fonctionnalités)
-- [Installation](#installation)
-- [Démarrage rapide](#démarrage-rapide)
-- [Configuration](#configuration)
-- [Recettes et données de référence](#recettes-et-données-de-référence)
-- [Variables réutilisables](#variables-réutilisables)
-- [Raccourcis clavier](#raccourcis-clavier)
-- [Sécurité](#sécurité)
-- [Licence](#licence)
-
-Autres documents : [guide d'installation et de paramétrage](INSTALL_fr.md) · [journal des versions](CHANGELOG_fr.md) · [spécification](SPEC_fr.md).
+> - **0.8.0** — plusieurs clusters dans une session : `Ctrl+O` passe de l'un à l'autre, chacun retrouvé tel qu'on l'a laissé.
+> - **0.7.5** — `Echap` abandonne la requête en cours ; la barre de statut compte les secondes d'attente.
+> - **0.7.4** — le secret d'un cluster se lit dans une variable d'environnement ou un fichier (`secret_env`, `secret_file`).
+> - **0.7.3** — garde-fous de production : les requêtes qui écrivent sont confirmées ou refusées, sous un bandeau.
+> - **0.7.2** — installation par `go install` ; la complétion garde la requête après le curseur.
+> - **0.7.1** — une ligne de requête incomplète n'exécute plus celle du dessus ; correction d'une connexion http sous Linux.
+> - **0.7** — proxys HTTP et SOCKS5, clés d'API telles que Kibana les donne, jetons Bearer.
+> - **0.6** — plus rien d'autre que le binaire ; Elasticsearch et OpenSearch reconnus avec leur version ; catalogue de recettes (`F8`).
 
 ## Démo
 
-<p align="center"><img src="demotermdevtools.gif" alt="Démo animée : connexion à un cluster dont le mot de passe est lu dans une variable d'environnement, exécution d'une requête, complétion d'un endpoint et de colonnes _cat, insertion d'une recette du catalogue, puis une recherche dont le corps est reformaté et dont le résultat est fouillé"></p>
+<p align="center"><img src="demotermdevtools.gif" alt="Démo animée : connexion à un cluster de production dont le mot de passe est lu dans une variable d'environnement, requête, complétion d'un endpoint et de colonnes _cat, recette du catalogue, recherche reformatée puis fouillée, bascule vers un OpenSearch et retour, puis un DELETE sur le cluster de production arrêté par la confirmation"></p>
 
-*Animation enregistrée avec la version 0.5 : le catalogue de recettes (`F8`) et les nouveautés des versions suivantes n'y figurent pas.*
-
-## Pourquoi
-
-Il arrive qu'un cluster Elasticsearch n'ait pas de Kibana disponible, ou que son Kibana soit hors service — typiquement pendant une investigation où c'est justement le moment où on en aurait le plus besoin. Faire l'équivalent en `curl` à la main est possible mais pénible (gestion du TLS, requêtes multi-lignes, mise en forme du JSON de réponse...). TermDevTools reproduit l'essentiel du confort des DevTools de Kibana — éditeur de requêtes, exécution au curseur, réponse JSON formatée — dans un simple binaire terminal.
+> [!NOTE]
+> **Comment ce projet est fait.** Je ne suis pas développeur : j'écris les spécifications ([SPEC_fr.md](SPEC_fr.md)) et je vérifie le résultat ; le code est écrit par [Claude Code](https://claude.com/claude-code), en *vibe coding* pur, avec parfois l'aide de contributeurs. Ce qui compense : environ 400 tests automatiques, dont l'interface pilotée sur un écran simulé ; une CI sous Linux, Windows et macOS à chaque pull request ; chaque recette exécutée sur onze clusters réels ; une revue de sécurité indépendante avant les versions qui touchent aux secrets ou aux protections (0.7.3, 0.7.4, 0.8.0). C'est une **version bêta**, encore peu utilisée : ce qui a été vérifié, et ce qui ne l'a pas été, est dans [Sécurité](#sécurité).
 
 ## Fonctionnalités
 
-- **Interface en deux panneaux** : éditeur de requêtes (avec numéros de ligne et auto-fermeture des `{`/`[`/`"`) à gauche (`MÉTHODE endpoint` + corps JSON optionnel), résultat JSON formaté — rappel de la requête et en-têtes de réponse inclus — à droite.
-- **Exécution au curseur** (`Ctrl+E`) : plusieurs requêtes peuvent cohabiter dans l'éditeur, séparées par des lignes vides ; celle sous le curseur est exécutée.
-- **Catalogue de recettes** (`F8`) : une centaine de requêtes prêtes à l'emploi pour les investigations courantes — santé du cluster, shards non assignés, disque, nœuds, tâches, snapshots, cycle de vie des index, montées de version — filtrées à la frappe, prévisualisées, insérées dans l'éditeur avec `Entrée`. Ajoutez les vôtres ; voir [Recettes et données de référence](#recettes-et-données-de-référence).
-- **S'adapte au cluster** : la distribution et la version sont détectées à la connexion — Elasticsearch 7.17 à 9.x, OpenSearch 2.x et 3.x — et seuls les recettes et endpoints qui existent sur ce cluster sont proposés.
-- **Auto-complétion** (`Tab`) des endpoints (`_cat/*`, `_cluster/*`, `_nodes/*`, gestion d'index, ILM/SLM ou ISM, snapshots, ingest, licence...) et, pour les commandes `_cat/*`, des noms de colonnes des paramètres `h=`/`s=` — demandés au cluster lui-même, donc exacts quelle que soit sa version.
-- **Reformater le JSON** du corps sous le curseur sur place (`F4`) et **copier la requête en commande `curl`** équivalente (`F9`, secrets masqués).
-- **Variables réutilisables `${nom}`** — voir [Variables réutilisables](#variables-réutilisables).
-- **Rien d'autre que le binaire** : recettes, endpoints et colonnes `_cat` y sont intégrés. Vos ajouts sont de simples fichiers texte, rechargés avec `F7`.
-- **Recherche** (`Ctrl+F`) dans l'éditeur comme dans le résultat.
-- **Sauvegarde automatique** des requêtes en cours par cluster et par utilisateur (à la fermeture et via `Ctrl+S`), rechargées à la reconnexion.
-- **Plusieurs clusters dans une session** (`Ctrl+O`) : passer à un autre cluster sans relancer, et revenir au premier tel qu'on l'a laissé — requêtes, curseur, résultat. Une requête en cours continue hors écran ; la barre de statut signale sa réponse.
-- **Export** du résultat affiché vers un fichier horodaté (`Ctrl+S`, panneau droit) et **copie presse-papier** via OSC 52 (`F2`, fonctionne à travers SSH).
-- **Connexion** : Basic Auth, API Key (identifiant et secret, ou sa forme `encoded`), jeton Bearer ou certificat client (mTLS, clé chiffrée ou non), avec ou sans vérification TLS, à travers un proxy HTTP ou SOCKS5 s'il en faut un (voir [Configuration](#configuration)) ; historique des clusters déjà utilisés (sans jamais y stocker de secret — voir [Sécurité](#sécurité)) ; un sélecteur de certificat (`Entrée` sur les champs CA/certificat client) parcourt le dossier configuré plutôt que de taper un nom de fichier de mémoire.
-- **Garde-fous de production**, cluster par cluster : en « confirmation des écritures », une requête qui écrit (`DELETE`, `PUT`, `_bulk`, `_delete_by_query`…) attend votre accord avant de partir ; en « lecture seule », elle est refusée. Un bandeau rouge ou jaune, avec un libellé comme `PROD`, rappelle sur quel cluster vous êtes. C'est un filet contre l'erreur de manipulation, pas une sécurité : voir [Sécurité](#sécurité).
-- **Aide intégrée** (`F1`) : rappel des raccourcis et de l'emplacement des fichiers.
+- **Deux panneaux** : à gauche, les requêtes façon Kibana Console (`MÉTHODE endpoint` + corps JSON), à droite le résultat formaté, avec le rappel de la requête et les en-têtes de réponse.
+- **Exécution au curseur** (`Ctrl+E`) : plusieurs requêtes cohabitent dans l'éditeur, celle sous le curseur part.
+- **Catalogue de recettes** (`F8`) : une centaine de requêtes prêtes à l'emploi pour les investigations courantes, filtrées à la frappe ; ajoutez les vôtres.
+- **S'adapte au cluster** : Elasticsearch 7.17 à 9.x, OpenSearch 2.x et 3.x, détectés à la connexion ; seul ce qui existe sur ce cluster est proposé.
+- **Auto-complétion** (`Tab`) des endpoints et des colonnes `_cat` (`h=`, `s=`), ces dernières demandées au cluster lui-même.
+- **Plusieurs clusters dans une session** (`Ctrl+O`) : une requête en cours continue hors écran, la barre de statut signale sa réponse.
+- **Garde-fous de production**, cluster par cluster : écritures confirmées ou refusées, bandeau avec un libellé comme `PROD`.
+- **Connexion** : Basic Auth, clé d'API, jeton Bearer ou certificat client (mTLS), à travers un proxy HTTP ou SOCKS5 ; secret saisi, ou lu dans une variable ou un fichier, jamais enregistré.
+- **Au quotidien** : variables `${nom}`, reformatage du JSON (`F4`), copie en commande `curl` (`F9`, secrets masqués), recherche (`Ctrl+F`), export (`Ctrl+S`), copie presse-papier à travers SSH (`F2`), sauvegarde automatique des requêtes par cluster.
 
-Détail complet des choix et du comportement : [SPEC_fr.md](SPEC_fr.md).
+Détail de chaque choix : [SPEC_fr.md](SPEC_fr.md).
 
 ## Installation
-
-Le **[guide d'installation et de paramétrage](INSTALL_fr.md)** détaille chaque étape, plateforme par plateforme, jusqu'à la première requête. En résumé :
-
-### Binaires précompilés (recommandé)
 
 Un fichier par plateforme, et rien d'autre, sur la page [Releases](https://github.com/gnocent/termdevtools/releases) :
 
@@ -74,205 +47,82 @@ Un fichier par plateforme, et rien d'autre, sur la page [Releases](https://githu
 | Windows (x86-64) | `termdevtools-windows-amd64.exe` |
 | macOS (Apple Silicon) | `termdevtools-darwin-arm64` |
 
-Sous Linux, par exemple :
-
 ```bash
 sha256sum -c SHA256SUMS --ignore-missing     # vérifie le fichier téléchargé
 chmod +x termdevtools-linux-amd64
 mv termdevtools-linux-amd64 ~/.local/bin/termdevtools
-termdevtools --version
 ```
 
-Le binaire est statique : il n'a besoin d'aucune bibliothèque système et se copie tel quel sur une autre machine, y compris sans accès à Internet. Les binaires ne sont pas signés ; macOS et Windows peuvent le signaler au premier lancement (voir le [guide](INSTALL_fr.md#2-installer-le-binaire)).
+Ou, avec [Go](https://go.dev/) 1.25 ou plus : `go install github.com/gnocent/termdevtools@latest`.
 
-### Depuis les sources
-
-Nécessite [Go](https://go.dev/) 1.25 ou supérieur.
-
-Installation directe avec Go :
-
-```bash
-go install github.com/gnocent/termdevtools@latest
-```
-
-Le binaire est placé dans `GOBIN`, ou dans `$(go env GOPATH)/bin` si `GOBIN` n'est pas défini. Ajoutez ce dossier à votre `PATH` si besoin.
-
-Pour utiliser les scripts d'installation du dépôt :
-
-```bash
-# Linux / macOS
-git clone https://github.com/gnocent/termdevtools.git
-cd termdevtools
-./install.sh
-```
-
-```powershell
-# Windows (PowerShell)
-git clone https://github.com/gnocent/termdevtools.git
-cd termdevtools
-.\install.ps1
-```
-
-Chaque script :
-
-- compile `termdevtools` pour votre OS/architecture courants — le binaire est tout ce qu'il y a à installer ;
-- indique quoi ajouter à votre `PATH` si l'emplacement d'installation n'y est pas encore ;
-- signale, sans y toucher, ce qu'une version antérieure a pu laisser à côté du binaire (voir [Mise à jour depuis une version antérieure](#mise-à-jour-depuis-une-version-antérieure)).
-
-Emplacement par défaut : `~/.local/share/termdevtools` sous Linux/macOS (lié via un symlink dans `~/.local/bin`), `%LOCALAPPDATA%\termdevtools` sous Windows. Personnalisable via la variable d'environnement `TERMDEVTOOLS_INSTALL_DIR` (et `TERMDEVTOOLS_BIN_DIR` sous Linux/macOS pour l'emplacement du symlink) — par exemple pour une installation partagée dans `/opt/termdevtools`.
-
-Pour compiler sans installer : `go build -o termdevtools .`
-
-Le script [`build-release.sh`](build-release.sh) produit dans `dist/` les trois binaires publiés et leur fichier `SHA256SUMS`, en y inscrivant la version (`./build-release.sh v0.7.1`, ou sans argument ce que `git describe` dit du dépôt) — celle que `termdevtools --version` affiche.
-
-### Arborescence d'installation
-
-Seul le binaire est nécessaire. Tous les fichiers ci-dessous sont **facultatifs**, ou créés par le programme lui-même.
-
-| Emplacement | Fichier | Rôle |
-|---|---|---|
-| `~/.config/termdevtools/` | `config.yaml` | **Créé automatiquement** — rien à préparer à la main. Voir [Configuration](#configuration) ci-dessous. |
-| `~/.config/termdevtools/` | `queries_<cluster>.txt` | Vos requêtes pour chaque cluster, sauvegardées par `Ctrl+S` et à la fermeture. |
-| `~/.config/termdevtools/` | `variables_<cluster>.txt` | Vos variables `${nom}` pour chaque cluster — voir [Variables réutilisables](#variables-réutilisables). |
-| `~/.config/termdevtools/` | `recipes/*.txt`, `endpoints.txt` | Vos propres recettes et endpoints, ajoutés à ceux du binaire — voir [Recettes et données de référence](#recettes-et-données-de-référence). |
-| `~/.config/termdevtools/` | `exports/` | Résultats exportés avec `Ctrl+S` depuis le panneau droit. Jusqu'à la 0.6, ce dossier se trouvait à côté du binaire. |
-| à côté du binaire | `recipes/*.txt`, `endpoints.txt` | Idem, partagés par tous les utilisateurs de cette installation. |
-| à côté du binaire | `cheatsheet.txt` | Contenu de départ de l'éditeur propre à cette installation, à la place de celui du binaire. |
-
-Sous Windows, `~` désigne `%USERPROFILE%`. Le programme n'écrit rien à côté du binaire : son dossier peut être en lecture seule.
-
-### Mise à jour depuis une version antérieure
-
-Remplacez le binaire : vos fichiers ne sont pas touchés.
-
-**Depuis la 0.6**
-
-- **Proxy** : la 0.6 ignorait `HTTPS_PROXY` et `HTTP_PROXY`. Si l'une d'elles est définie sur votre poste, un cluster joint en direct jusqu'ici passera par ce proxy. S'il ne le doit pas, ajoutez-le à `NO_PROXY`, ou mettez `proxy: none` sur son entrée dans `config.yaml`. Le message de connexion nomme toujours le proxy emprunté.
-- **Exports** : ils étaient écrits dans un dossier `exports/` à côté du binaire, et le sont désormais dans `~/.config/termdevtools/exports/`. L'ancien dossier n'est ni déplacé ni supprimé.
-
-**Depuis la 0.5**
-
-Les versions jusqu'à la 0.5 étaient livrées avec trois fichiers à côté du binaire. Une fois le binaire remplacé :
-
-- `cat_columns.txt` n'est plus lu (les colonnes sont demandées au cluster) : supprimez-le.
-- `endpoints.txt` est toujours lu, mais comme des *ajouts* à la liste intégrée et non plus un remplacement. Sauf si vous y aviez ajouté vos propres endpoints, supprimez-le — la liste intégrée est plus complète et tient compte de la version du cluster.
-- `cheatsheet.txt` fournit toujours le contenu de départ de l'éditeur pour un cluster auquel on se connecte pour la première fois. Supprimez-le pour obtenir celui du binaire ; ses requêtes se trouvent désormais dans le catalogue de recettes (`F8`).
-
-L'interface démarre désormais en anglais tant qu'aucune langue n'a été choisie : `F3` repasse au français et retient ce choix. Les autres changements de comportement (redirections, identifiants dans l'URL, `F7`) sont listés dans le [journal des versions](CHANGELOG_fr.md).
+Le binaire est statique : il se copie tel quel, y compris sur une machine sans Internet. Il n'est pas signé ; macOS et Windows peuvent le signaler au premier lancement. Plateforme par plateforme, scripts d'installation, installation partagée et mise à jour depuis une version antérieure : le **[guide d'installation](INSTALL_fr.md)**.
 
 ## Démarrage rapide
 
-1. **Lancer l'outil** : `termdevtools` (`termdevtools.exe` sous Windows). L'écran de connexion liste les clusters déjà utilisés, plus une option **« + New connection »**. L'interface démarre en anglais : une fois connecté, `F3` la passe en français et retient ce choix.
-2. **Se connecter** : saisir l'URL du cluster, choisir sa protection s'il compte (production), un type d'authentification (aucune, Basic Auth, API Key, jeton Bearer ou certificat client), puis le secret s'il y en a un. Tout est mémorisé pour la prochaine fois, sauf le secret (voir [Configuration](#configuration) ci-dessous).
-3. **Écrire une requête** dans le panneau de gauche, façon Kibana Console — méthode, endpoint, puis un corps JSON optionnel sur les lignes suivantes :
-   ```
-   GET _cluster/health
-   ```
-   Plusieurs requêtes peuvent cohabiter dans l'éditeur, séparées par des lignes vides ; celle sous le curseur est celle qui s'exécute. À la première connexion à un cluster, l'éditeur contient déjà quelques requêtes valables partout.
-4. **L'exécuter** : `Ctrl+E`. Le résultat JSON formaté apparaît dans le panneau de droite (voir la [démo](#démo) ci-dessus).
-5. **Ou choisir une recette** : `F8` ouvre le catalogue. Tapez quelques mots (`unassigned`, `disk`, `snapshot`... — les recettes sont en anglais), déplacez-vous avec les flèches, `Entrée` insère la recette à la fin de l'éditeur, curseur sur sa requête — `Ctrl+E` l'exécute.
-6. Ensuite : `Tab` ou `F10` complète un endpoint en cours de frappe, `F4` reformate le corps JSON sous le curseur, `F9` copie la requête en commande `curl` équivalente, `Ctrl+S` sauvegarde le travail en cours. Référence complète : [Raccourcis clavier](#raccourcis-clavier).
+1. **Lancer** `termdevtools`. L'écran de connexion liste les clusters déjà utilisés et « + New connection ». L'interface démarre en anglais ; `F3` la passe en français.
+2. **Se connecter** : URL, protection s'il s'agit de production, authentification, secret. Tout est retenu pour la prochaine fois, sauf le secret.
+3. **Écrire une requête** à gauche, par exemple `GET _cluster/health`, et l'**exécuter** avec `Ctrl+E`.
+4. **Ou choisir une recette** : `F8`, quelques mots (`unassigned`, `disk`, `snapshot`…), `Entrée`, puis `Ctrl+E`.
+5. **Passer à un autre cluster** : `Ctrl+O`. Le premier reste ouvert, tel quel.
 
-La version pas à pas, champ par champ, avec la création d'une clé d'API et les formats de certificat acceptés : [guide, §3](INSTALL_fr.md#3-première-connexion).
+Pas à pas, champ par champ : [guide, §3](INSTALL_fr.md#3-première-connexion).
 
 ## Configuration
 
-Aucune configuration n'est nécessaire pour démarrer : un écran de connexion permet de saisir directement l'URL et les identifiants d'un cluster, et `~/.config/termdevtools/config.yaml` est créé automatiquement, chaque paramètre documenté sur place. Un exemple est fourni à titre indicatif dans `config.yaml.example` — **il ne contient jamais de secret** : mots de passe, secrets de clé d'API, jetons et passphrases sont redemandés à chaque connexion, sauf à dire où les lire (ci-dessous), et jamais écrits sur disque (voir [Sécurité](#sécurité)). Chaque paramètre est décrit dans le [guide, §5](INSTALL_fr.md#5-réglages--configyaml).
+Rien à préparer : `~/.config/termdevtools/config.yaml` est créé au premier lancement, chaque réglage documenté sur place, et retient les clusters utilisés — jamais leur secret.
 
-La distribution et la version du cluster sont détectées à chaque connexion et affichées dans la barre de statut (`ES 9.5.4`, `OS 2.19.6`). Quand elles ne peuvent pas l'être — un proxy qui masque la réponse du cluster, ou un OpenSearch en mode compatibilité, qui annonce une fausse version — tout ce qui pourrait s'appliquer est proposé plutôt que masqué ; `distribution:` et `version:` sur l'entrée du cluster dans `config.yaml` permettent alors de les indiquer vous-même.
+- **Secret sans ressaisie** : `secret_env: ES_PW` ou `secret_file: ~/.es-prod.secret` sur l'entrée d'un cluster.
+- **Proxy** : `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`, ou `proxy:` par cluster (`http://…`, `socks5://…`, `none`).
+- **Langue** (`language: fr`, ou `F3`) et **souris** (`mouse: true`, désactivée par défaut).
+- **Vos fichiers**, dans `~/.config/termdevtools/` : requêtes et variables `${nom}` par cluster, vos recettes (`recipes/`) et endpoints, rechargés avec `F7` ; `termdevtools --export-defaults <dossier>` écrit ceux du binaire.
 
-**Proxy.** Un cluster est joint à travers le proxy que désignent les variables d'environnement `HTTPS_PROXY` / `HTTP_PROXY`, sauf si `NO_PROXY` l'exclut ; `localhost` n'y passe jamais. Pour un cluster en particulier, `proxy:` sur son entrée dans `config.yaml` l'emporte : `proxy: http://proxy.example.com:3128`, `proxy: socks5://127.0.0.1:1080` (ce qu'ouvre `ssh -D 1080 bastion`), ou `proxy: none` pour une connexion directe. Le proxy utilisé est toujours affiché, à la connexion et en cas d'échec. Détails et limites dans le [guide, §5](INSTALL_fr.md#5-réglages--configyaml).
-
-**Secret sans ressaisie.** `secret_env: ES_PW` (une variable d'environnement) ou `secret_file: ~/.es-prod.secret` (un fichier, chemin absolu ou en `~/`) sur l'entrée d'un cluster dans `config.yaml` : le formulaire s'ouvre avec le secret déjà rempli et le focus sur le bouton de connexion, `Entrée` suffit. La clé vaut pour le secret que demande l'authentification du cluster, quel qu'il soit. À écrire à la main : le programme ne l'écrit jamais, ni le secret. Le fichier reste sous votre responsabilité — lisible par vous seul (`chmod 600`), sans quoi un avertissement s'affiche. Secret introuvable : le message dit pourquoi, et il se saisit comme d'habitude.
-
-La langue de l'interface (anglais par défaut, ou français) se règle via `language: en` / `language: fr` dans ce même `config.yaml` — ou se change à la volée dans l'appli avec `F3`, qui enregistre le choix pour la prochaine fois.
-
-Le support de la souris (cliquer pour donner le focus à un champ ou sélectionner une entrée de liste) est **désactivé par défaut** — mettre `mouse: true` dans `config.yaml` pour l'activer. Toute interaction souris a un équivalent clavier complet (voir [Raccourcis clavier](#raccourcis-clavier)) ; le laisser désactivé garde la sélection/collage natifs du terminal disponibles, puisque l'activer capte les événements souris pour l'appli à la place (`F2` copie toujours le résultat, avec ou sans souris).
-
-## Recettes et données de référence
-
-Tout ce que TermDevTools suggère — les recettes du catalogue (`F8`), les endpoints et les colonnes `_cat` de l'auto-complétion — est intégré au binaire, chaque entrée étant marquée des clusters auxquels elle s'applique. Une fois connecté, vous ne voyez que ce qui fonctionne sur ce cluster : un Elasticsearch 8 reçoit les recettes ILM, un OpenSearch 2 les recettes ISM. Les recettes sont rédigées en anglais.
-
-**Ajouter les vôtres.** Vos recettes vont dans `~/.config/termdevtools/recipes/`, en simples fichiers texte ; un modèle commenté, `my-recipes.txt`, y est créé au premier lancement. Un fichier de recettes s'écrit comme le contenu de l'éditeur, avec quelques directives en commentaire :
-
-```
-# @group Snapshots
-# @recipe Snapshots nocturnes
-# @tags backup
-# Affiché dans l'aperçu du catalogue.
-GET _snapshot/nightly/_all
-```
-
-- `@group` range les recettes sous un thème — un thème existant les place avec les recettes intégrées de ce thème.
-- `@recipe` démarre une recette. Avec le groupe et le titre d'une recette intégrée, elle la remplace.
-- `@tags` ajoute des mots que le filtre reconnaîtra.
-- `@es >=8.7` ou `@opensearch >=2.4 <3.0` réserve une recette à certains clusters (partout, sans eux).
-
-Vos recettes s'*ajoutent* à celles du binaire, elles ne remplacent jamais le catalogue entier, et sont signalées comme les vôtres dans la liste. `~/.config/termdevtools/endpoints.txt` (un endpoint par ligne, mêmes marques facultatives) étend l'auto-complétion de la même façon. Un dossier `recipes/` et un `endpoints.txt` à côté du binaire font de même pour tous ceux qui partagent cette installation. Après modification de l'un d'eux, `F7` recharge sans redémarrer ; une erreur dans un fichier est signalée dans la barre de statut, avec le fichier et la ligne.
-
-**Lire ce qui est intégré.** `termdevtools --export-defaults <dossier>` écrit les recettes et endpoints intégrés sous forme de fichiers — pour les lire, ou comme point de départ pour les vôtres. Il n'écrase jamais un fichier existant, et refuse les deux dossiers ci-dessus : exportées là, les recettes intégrées seraient relues comme les vôtres et masqueraient celles des versions suivantes.
-
-**Suivre les nouvelles versions.** Les données intégrées couvrent les versions connues à la compilation du binaire ; un cluster plus récent reçoit ce qui valait pour la dernière version connue. Les colonnes `_cat` n'en dépendent pas du tout : elles sont demandées au cluster.
-
-## Variables réutilisables
-
-Référencez un placeholder `${nom}` n'importe où dans l'URL ou le corps JSON d'une requête : il est substitué par une vraie valeur juste avant l'envoi de la requête (`Ctrl+E`) ou la génération d'une commande `curl` (`F9`) — c'est le placeholder lui-même qui est sauvegardé avec vos requêtes, pas la valeur résolue. Une variable non définie bloque l'action avec une erreur claire plutôt que d'envoyer `${nom}` tel quel au cluster.
-
-Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un fichier par cluster et par utilisateur, même principe que la sauvegarde des requêtes (`Ctrl+S`), au format `nom=valeur` (une par ligne, `#` pour les commentaires). Pas d'éditeur intégré pour ça : ouvrez le fichier directement dans votre éditeur de texte habituel, puis appuyez sur `F7` pour prendre en compte le changement sans redémarrer. Le fichier est créé automatiquement, avec un commentaire explicatif, à la première connexion à un cluster donné.
+Chaque réglage et chaque fichier : [guide, §5 et §6](INSTALL_fr.md#5-réglages--configyaml).
 
 ## Raccourcis clavier
 
 | Action | Touche |
 |---|---|
-| Exécuter la requête sous le curseur | `Ctrl+E` [^entree] |
+| Exécuter la requête sous le curseur | `Ctrl+E` |
 | Abandonner la requête en cours | `Echap` |
-| Basculer focus panneau gauche ↔ droit | `Ctrl+←` / `Ctrl+→` [^focus] |
-| Quitter (sauvegarde automatique du panneau gauche de chaque connexion ouverte) | `Ctrl+C` |
 | Ouvrir une autre connexion, revenir à une connexion ouverte | `Ctrl+O` (`Echap` pour revenir) |
-| Rechercher dans les requêtes / dans le résultat | `Ctrl+F` (selon le panneau focus) |
-| Redimensionner le split gauche/droite | `F5` / `F6` [^redim] |
-| Sauvegarder (gauche) / exporter (droite) | `Ctrl+S` (selon le panneau focus) |
-| Ouvrir le catalogue de recettes | `F8` — taper pour filtrer, flèches pour se déplacer, `Entrée` pour insérer, `Echap` pour fermer |
-| Compléter un endpoint / une colonne | `Tab`, `F10` ou `Ctrl+Espace` (panneau gauche) [^tab] |
-| Reformater (indenter) le JSON sous le curseur | `F4` (panneau gauche) |
-| Copier la requête sous le curseur en commande `curl` | `F9` (panneau gauche) — secrets masqués, voir [Sécurité](#sécurité) |
-| Recharger vos fichiers édités à la main (variables, recettes, endpoints) | `F7` — voir [Recettes et données de référence](#recettes-et-données-de-référence) |
+| Changer de panneau | `Ctrl+←` / `Ctrl+→` |
+| Rechercher (dans le panneau actif) | `Ctrl+F` |
+| Sauvegarder (gauche) / exporter (droite) | `Ctrl+S` |
+| Catalogue de recettes | `F8` |
+| Compléter un endpoint ou une colonne | `Tab`, `F10` ou `Ctrl+Espace` |
+| Reformater le JSON sous le curseur | `F4` |
+| Copier la requête en commande `curl` | `F9` |
+| Recharger vos fichiers (variables, recettes, endpoints) | `F7` |
 | Copier le résultat dans le presse-papier | `F2` |
-| Changer la langue de l'interface (fr/en) | `F3` |
-| Aide | `F1` (`Echap` pour fermer) |
+| Redimensionner les panneaux | `F5` / `F6` |
+| Langue de l'interface (fr/en) | `F3` |
+| Aide | `F1` |
+| Quitter (sauvegarde chaque connexion ouverte) | `Ctrl+C` |
 
-[^entree]: `Ctrl+Entrée` fonctionne aussi sur les terminaux qui le rapportent distinctement d'un simple `Entrée` — beaucoup ne le font pas, d'où `Ctrl+E` comme raccourci principal, toujours fiable.
-[^focus]: `Alt+←/→` fonctionne aussi, sur tous les systèmes — pour les terminaux où `Ctrl+←/→` ne passe pas : PuTTY, ou macOS, où le système l'intercepte par défaut (changement d'espace Mission Control) et où `Option` est la touche Alt.
-[^redim]: `Ctrl+Maj+←/→` (`Option`/`Alt` inclus, sur macOS) fonctionne aussi sur les terminaux qui le rapportent distinctement d'une flèche non modifiée — tous ne le font pas, d'où `F5`/`F6` comme raccourcis principaux, toujours fiables.
-[^tab]: Sur certains terminaux (notamment PuTTY), `Tab` est absorbé entièrement — aucun événement clavier n'atteint l'appli. `F10` est une alternative garantie fiable. **PuTTY est globalement déconseillé** : aucun souci sous macOS/Windows 10+ natifs.
+Selon le terminal, certaines combinaisons n'arrivent pas : `Ctrl+Entrée` (utilisez `Ctrl+E`), `Ctrl+←/→` sous macOS et PuTTY (`Alt+←/→`), `Ctrl+Maj+←/→` (`F5`/`F6`), `Tab` sous PuTTY (`F10`). **PuTTY est déconseillé** ; aucun souci avec les terminaux natifs de macOS et de Windows 10+.
 
 ## Sécurité
 
 **Ce que le programme fait, et ne fait pas**
 
-- **Il ne parle qu'au cluster que vous avez choisi** — à travers un proxy seulement si votre environnement ou `config.yaml` en désigne un, et en l'affichant. Aucune télémétrie, aucune recherche de mise à jour, aucune commande externe exécutée.
-- **Aucun secret n'est écrit sur le disque** : mot de passe, secret d'API Key, jeton Bearer et passphrase de clé privée sont redemandés à chaque connexion, ou lus dans la variable ou le fichier que l'entrée du cluster désigne (`secret_env`, `secret_file`) — ce fichier-là est le vôtre, à protéger : qui peut le lire peut se connecter. Seuls l'URL, le type d'authentification et les identifiants non sensibles (nom d'utilisateur, identifiant de clé d'API, chemins de certificats) sont enregistrés dans `config.yaml`.
-- **Une URL contenant des identifiants est refusée** (`https://utilisateur:motdepasse@hôte`) : enregistrée et affichée, elle aurait exposé le mot de passe.
-- **TLS vérifié par défaut**, TLS 1.2 au minimum ; la vérification du certificat serveur ne se désactive qu'explicitement, connexion par connexion.
-- **Les redirections HTTP ne sont jamais suivies** : vos identifiants ne partent pas vers une autre adresse que celle saisie, et une requête n'est pas rejouée ailleurs. Une redirection est affichée telle quelle.
-- **Rien de ce qui est affiché n'est interprété par le terminal** : les caractères de contrôle d'une réponse du cluster, d'un fichier ou d'un message d'erreur n'atteignent jamais l'écran.
-- **Fichiers à vous seul** : permissions `0600` pour les fichiers et `0700` pour les dossiers (sous Linux et macOS), écritures atomiques — une coupure pendant une sauvegarde ne détruit pas le contenu précédent.
-- **`F9` (copie en `curl`)** n'inclut jamais les secrets : ils sont remplacés par un rappel à compléter.
-- **`F2` (presse-papier)** passe par OSC 52 : la donnée va au terminal local, sans presse-papier côté serveur — mais ce mécanisme ne confirme pas le succès de la copie.
+- **Il ne parle qu'au cluster choisi**, à travers un proxy seulement si votre environnement ou `config.yaml` en désigne un, et en l'affichant. Aucune télémétrie, aucune recherche de mise à jour, aucune commande externe.
+- **Aucun secret n'est écrit sur le disque** : il est saisi à chaque connexion, ou lu dans la variable ou le fichier que vous désignez — ce fichier-là est à protéger. Une URL contenant des identifiants est refusée.
+- **TLS vérifié par défaut** (TLS 1.2 au minimum) ; les redirections ne sont jamais suivies.
+- **Rien de ce qui est affiché n'est interprété par le terminal**, quelle que soit la réponse du cluster.
+- **Fichiers à vous seul** (`0600`, dossiers `0700`, sous Linux et macOS), écrits de façon atomique ; `F9` n'inclut jamais les secrets.
 
-**Ce à quoi le programme fait confiance**
+**Ce à quoi il fait confiance**
 
-- **Le dossier du binaire et votre dossier de configuration.** Les recettes, endpoints et contenu de départ qui s'y trouvent sont proposés à l'utilisateur : dans une installation partagée, le dossier du binaire ne doit être modifiable que par des personnes de confiance. Un fichier de recettes ou d'endpoints contenant des caractères de contrôle est refusé.
-- **Le proxy, quand il y en a un.** Pour un cluster en https, il ne voit que l'adresse demandée : le chiffrement et la vérification du certificat se font de bout en bout. Pour un cluster en http, il voit tout, identifiants compris. Ses propres identifiants ne se donnent que par la variable d'environnement ; ils ne sont ni enregistrés, ni affichés, ni envoyés au cluster. Un proxy joint en TLS (`https://`) est refusé.
-- **Vous.** Sur un cluster sans protection, une requête est envoyée telle qu'elle est écrite, sans confirmation — `DELETE` compris. La protection choisie à la connexion (« confirmation des écritures » ou « lecture seule ») vous évite une erreur, mais n'arrête pas qui veut écrire : quiconque lance l'outil peut la retirer, dans le formulaire ou dans `config.yaml`. Pour empêcher vraiment d'écrire, connectez-vous avec un compte sans droit d'écriture sur le cluster.
+- **Le dossier du binaire et votre dossier de configuration** : leurs recettes et endpoints sont proposés tels quels.
+- **Le proxy** : en https, il ne voit que l'adresse ; en http, il voit tout, identifiants compris.
+- **Vous** : sans protection, une requête part telle qu'elle est écrite, `DELETE` compris. La protection évite une erreur, elle n'arrête pas qui veut écrire ; pour l'empêcher vraiment, utilisez un compte sans droit d'écriture.
 
 **Ce qui a été vérifié, et ce qui ne l'a pas été**
 
-- Relecture de sécurité du code et tests automatisés pour chacun des points ci-dessus ; `govulncheck` ne signale aucune vulnérabilité connue, ni dans les dépendances ni dans la bibliothèque standard de la version de Go qui compile les binaires (1.27.3).
-- Chaque requête de chaque recette a été exécutée sur onze clusters réels (Elasticsearch 7.17 à 9.5, OpenSearch 2.0 à 3.9).
-- L'authentification par mot de passe, par clé d'API et par jeton Bearer est vérifiée sur un Elasticsearch réel dont la sécurité est activée, le secret saisi ou lu dans une variable ou un fichier. Le passage par un proxy l'est avec un proxy HTTP et un serveur SOCKS5 de test, pas avec un proxy d'entreprise réel.
-- La protection est vérifiée sur un Elasticsearch et un OpenSearch réels : la suppression d'un index est refusée en lecture seule, n'a pas lieu tant que la confirmation est annulée, et a lieu une fois confirmée.
-- **Aucun audit externe indépendant n'a été réalisé**, et les binaires ne sont pas signés : vérifiez leur somme SHA-256. Voir aussi l'[avertissement](#avertissement--limitation-de-responsabilité) ci-dessous.
+- Relecture de sécurité et tests automatisés de chacun des points ci-dessus ; `govulncheck` ne signale aucune vulnérabilité connue (dépendances et Go 1.27.3, qui compile les binaires).
+- Sur des clusters réels : chaque recette (Elasticsearch 7.17 à 9.5, OpenSearch 2.0 à 3.9), l'authentification par mot de passe, clé d'API et jeton Bearer, la protection ; la bascule entre clusters, par un contributeur, sur des instances de laboratoire.
+- Le proxy n'est vérifié qu'avec des serveurs de test, pas avec un proxy d'entreprise réel.
+- **Aucun audit externe indépendant**, et des binaires non signés : vérifiez leur somme SHA-256. Voir aussi l'[avertissement](#avertissement--limitation-de-responsabilité) ci-dessous.
 
 ## Licence
 

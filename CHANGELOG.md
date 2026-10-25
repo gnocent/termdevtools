@@ -2,7 +2,9 @@
 
 # Changelog
 
-## Unreleased
+## 0.8.0 (beta) — October 2026
+
+**In one sentence**: several clusters can stay open in one session — `Ctrl+O` switches between them, each found again as it was left.
 
 ### What's new
 
@@ -17,6 +19,24 @@
 ### Before upgrading from 0.7.5
 
 - **Nothing to do**: startup, the other shortcuts and the help bar don't change. One connection per URL: to change the protection or the credentials of an open connection, quit and relaunch, as before.
+
+### Checks
+
+- `go vet` and `go test ./...` pass, run on Windows: unit tests and tests of the interface on a simulated 80×24 screen, switching between two local test servers (A → B → A, a request carrying on off screen, every connection saved on exit); the interface's tests pass on Linux too.
+- Tried by a contributor against an OpenSearch 3.9.0 and an Elasticsearch 9.5.4 actually running (lab instances, not production), with targeted race-detector tests; the new demo is recorded against the same two versions.
+- Memory, measured on Windows: a 60 MiB JSON response takes about 450 MiB once displayed; the next request on that connection gives it back.
+- An independent security review of the switch found that a connection attempt left in progress could, once an open cluster was gone back to, take the screen over and open a second connection to that cluster, the keys then going to the one whose protection wasn't the one shown. Fixed before this release, with a test reproducing it.
+- `govulncheck`: no known vulnerability, neither in the dependencies nor in the standard library of Go 1.27.3, which the binaries are built with.
+- The reference data (recipes, endpoints, `_cat` columns) has not changed since 0.6. No independent external audit was carried out.
+
+### Known limits
+
+- One connection per URL: to change the protection or the credentials of an open connection, quit and relaunch.
+- Each open connection keeps its last result in memory, several times its size once displayed; any request on that connection frees it.
+- The notice of an answer received off screen fits on an 80-column line for a URL of up to about 35 characters; beyond that, its end is cut short.
+- The limits of 0.7 still apply.
+
+Thanks to @amineamanzou for the idea, the discussion that shaped it, and the tests (#10).
 
 ## 0.7.5 (beta) — October 2026
 

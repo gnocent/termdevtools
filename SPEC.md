@@ -4,7 +4,7 @@
 
 > Terminal-mode simulator of Kibana's "DevTools" view, for submitting requests to an Elasticsearch or OpenSearch cluster without going through a browser.
 
-Status: this document describes the design as shipped — version 0.7.5 (beta). The version history is in [CHANGELOG.md](CHANGELOG.md), the step-by-step installation in [INSTALL.md](INSTALL.md).
+Status: this document describes the design as shipped — version 0.8.0 (beta). The version history is in [CHANGELOG.md](CHANGELOG.md), the step-by-step installation in [INSTALL.md](INSTALL.md).
 
 ---
 
@@ -233,6 +233,7 @@ What isn't done, by choice or not yet:
 10. **Dynamic completion** — index, alias, data stream, field, node and repository names; covers the "dynamic auto-completion" bullet above.
 11. **Headless mode** — `run -f file --json`, no TUI; only worthwhile once item 5 exists.
 12. **Large-JSON navigation** — folding, jump to path, jq-like filter.
+13. ~~**Several clusters in one session**~~ — delivered in 0.8.0 (issue #10): `Ctrl+O` switches between open connections, each kept with all its state (§3.0). Naming clusters, the second step, will be discussed in an issue of its own.
 
 Not scheduled yet, in decreasing interest: URL-parameter and query-DSL completion; execution history; a protection enforced by a team — a file next to the binary setting, for some clusters, a level the user couldn't lower, the protection being each user's own setting today (§5); ES|QL/SQL tabular rendering; multiple buffers and arbitrary files; tabular view with CSV/Markdown export; multi-cluster comparison; bulk import/export; a configurable export directory, should the user's (§9.1) not be enough; Elastic Cloud's Cloud ID in place of the URL — a mere typing shortcut, the console giving the cluster's URL as well, and one whose decoding could not be checked against any real deployment; **AWS SigV4 request signing**, which is what OpenSearch managed by AWS (Amazon OpenSearch Service, Serverless) requires when it is secured by IAM — left out of item 1 because it is neither small nor self-contained: every request must be signed (canonical request, payload hash, date-scoped key), and credentials come from a chain of sources (environment, shared profile, SSO, instance or container role, with session tokens that expire mid-session) that either pulls in the AWS SDK, at odds with the dependency-free static binary, or has to be re-implemented. A managed domain that accepts Basic Auth (fine-grained access control with an internal user database) should be reachable as any other OpenSearch — not tested.
 

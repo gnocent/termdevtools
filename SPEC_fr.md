@@ -4,7 +4,7 @@
 
 > Simulateur en mode terminal de la vue "DevTools" de Kibana, pour soumettre des requêtes à un cluster Elasticsearch ou OpenSearch sans passer par un navigateur.
 
-Statut : ce document décrit la conception telle qu'elle est livrée — version 0.7.5 (bêta). Le journal des versions est dans [CHANGELOG_fr.md](CHANGELOG_fr.md), l'installation pas à pas dans [INSTALL_fr.md](INSTALL_fr.md).
+Statut : ce document décrit la conception telle qu'elle est livrée — version 0.8.0 (bêta). Le journal des versions est dans [CHANGELOG_fr.md](CHANGELOG_fr.md), l'installation pas à pas dans [INSTALL_fr.md](INSTALL_fr.md).
 
 ---
 
@@ -233,6 +233,7 @@ Ce qui n'est pas fait, par choix ou pas encore :
 10. **Complétion dynamique** — noms d'index, d'alias, de data streams, de champs, de nœuds et de dépôts ; couvre la puce « auto-complétion dynamique » ci-dessus.
 11. **Mode headless** — `run -f fichier --json`, sans TUI ; n'a d'intérêt qu'une fois l'item 5 en place.
 12. **Navigation dans les gros JSON** — pliage, saut à un chemin, filtre façon jq.
+13. ~~**Plusieurs clusters dans une session**~~ — livré en 0.8.0 (issue #10) : `Ctrl+O` passe d'une connexion ouverte à l'autre, chacune gardée avec tout son état (§3.0). Nommer les clusters, la deuxième étape, sera discuté dans une issue dédiée.
 
 Non planifiés à ce stade, par intérêt décroissant : complétion des paramètres d'URL et du DSL ; historique des exécutions ; protection imposée par une équipe — un fichier à côté du binaire fixant pour certains clusters un niveau que l'utilisateur ne pourrait pas abaisser, la protection étant aujourd'hui un réglage de chacun (§5) ; rendu tabulaire ES|QL/SQL ; buffers multiples et fichiers arbitraires ; vue tabulaire avec export CSV/Markdown ; comparaison multi-cluster ; import/export en masse ; dossier d'export configurable, si celui de l'utilisateur (§9.1) ne suffit pas ; Cloud ID d'Elastic Cloud à la place de l'URL — un simple raccourci de saisie, la console donnant aussi l'URL du cluster, et dont le décodage n'a pu être vérifié sur aucun déploiement réel ; **signature des requêtes AWS SigV4**, ce qu'exige OpenSearch managé par AWS (Amazon OpenSearch Service, Serverless) quand il est protégé par IAM — écartée de l'item 1 parce qu'elle n'est ni petite ni isolée : chaque requête doit être signée (requête canonique, empreinte du corps, clé dérivée de la date), et les identifiants proviennent d'une chaîne de sources (environnement, profil partagé, SSO, rôle d'instance ou de conteneur, avec des jetons de session qui expirent en cours de session) qui impose soit le SDK AWS, contraire au binaire statique sans dépendance, soit sa réimplémentation. Un domaine managé qui accepte Basic Auth (contrôle d'accès fin avec base d'utilisateurs interne) devrait être joignable comme n'importe quel OpenSearch — non testé.
 

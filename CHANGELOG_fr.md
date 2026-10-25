@@ -2,7 +2,9 @@
 
 # Journal des versions
 
-## Non publié
+## 0.8.0 (bêta) — octobre 2026
+
+**En une phrase** : plusieurs clusters peuvent rester ouverts dans une session — `Ctrl+O` passe de l'un à l'autre, chacun retrouvé tel qu'on l'a laissé.
 
 ### Nouveautés
 
@@ -17,6 +19,24 @@
 ### À savoir avant de mettre à jour depuis la 0.7.5
 
 - **Rien à faire** : le démarrage, les autres raccourcis et la barre d'aide ne changent pas. Une seule connexion par URL : pour changer la protection ou les identifiants d'une connexion ouverte, on quitte et on relance, comme avant.
+
+### Vérifications
+
+- `go vet` et `go test ./...` passent, lancés sous Windows : tests unitaires et tests de l'interface sur un écran simulé de 80×24, qui bascule entre deux serveurs de test locaux (A → B → A, une requête qui continue hors écran, chaque connexion sauvegardée à la sortie) ; les tests de l'interface passent aussi sous Linux.
+- Essayé par un contributeur sur un OpenSearch 3.9.0 et un Elasticsearch 9.5.4 réellement lancés (instances de laboratoire, pas de production), avec des tests ciblés du détecteur de courses ; la nouvelle démo est enregistrée sur ces deux mêmes versions.
+- Mémoire, mesurée sous Windows : une réponse JSON de 60 Mio occupe environ 450 Mio une fois affichée ; la requête suivante sur cette connexion la rend.
+- Une revue de sécurité indépendante de la bascule a trouvé qu'une tentative de connexion laissée en cours pouvait, après le retour sur un cluster ouvert, prendre l'écran et ouvrir une seconde connexion à ce cluster, les touches allant alors à celle dont la protection n'était pas celle affichée. Corrigé avant cette version, avec un test qui le reproduit.
+- `govulncheck` : aucune vulnérabilité connue, ni dans les dépendances ni dans la bibliothèque standard de Go 1.27.3, avec laquelle les binaires sont construits.
+- Les données de référence (recettes, endpoints, colonnes `_cat`) n'ont pas changé depuis la 0.6. Aucun audit externe indépendant n'a été mené.
+
+### Limites connues
+
+- Une seule connexion par URL : pour changer la protection ou les identifiants d'une connexion ouverte, on quitte et on relance.
+- Chaque connexion ouverte garde son dernier résultat en mémoire, plusieurs fois sa taille une fois affiché ; n'importe quelle requête sur cette connexion le libère.
+- L'avis d'une réponse reçue hors écran tient sur une ligne de 80 colonnes pour une URL d'environ 35 caractères au plus ; au-delà, sa fin est coupée.
+- Les limites de la 0.7 valent toujours.
+
+Merci à @amineamanzou pour l'idée, la discussion qui l'a façonnée, et les tests (#10).
 
 ## 0.7.5 (bêta) — octobre 2026
 

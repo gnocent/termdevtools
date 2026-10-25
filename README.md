@@ -52,6 +52,7 @@ Sometimes an Elasticsearch cluster has no Kibana available, or its Kibana is dow
 - **Nothing but the binary**: recipes, endpoints and `_cat` columns are built in. Your own additions are plain text files, reloaded with `F7`.
 - **Search** (`Ctrl+F`) in the editor as well as in the result.
 - **Automatic save** of in-progress requests per cluster and per user (on exit and via `Ctrl+S`), reloaded on reconnection.
+- **Several clusters in one session** (`Ctrl+O`): switch to another cluster without restarting, and come back to the first one as you left it — requests, cursor, result. A request in progress carries on off screen; the status bar says when its answer comes.
 - **Export** of the displayed result to a timestamped file (`Ctrl+S`, right panel) and **clipboard copy** via OSC 52 (`F2`, works over SSH).
 - **Connection**: Basic Auth, API Key (identifier and secret, or its `encoded` form), Bearer token, or client certificate (mTLS, key encrypted or not), with or without TLS verification, through an HTTP or SOCKS5 proxy if one is needed (see [Configuration](#configuration)); history of previously used clusters (never storing a secret there — see [Security](#security)); a certificate picker (`Enter` on the CA/client cert fields) browses the configured directory instead of typing a filename from memory.
 - **Production guardrails**, cluster by cluster: with "writes need confirmation", a request that writes (`DELETE`, `PUT`, `_bulk`, `_delete_by_query`…) waits for your go-ahead before leaving; with "read-only", it is refused. A red or yellow banner, with a label such as `PROD`, reminds you which cluster you are on. It is a safety net against slips, not security: see [Security](#security).
@@ -226,7 +227,8 @@ Values live in `~/.config/termdevtools/variables_<cluster>.txt` — one per clus
 | Execute the request under the cursor | `Ctrl+E` [^enter] |
 | Abandon the request in progress | `Esc` |
 | Switch focus left ↔ right panel | `Ctrl+←` / `Ctrl+→` [^focus] |
-| Quit (auto-saves the left panel) | `Ctrl+C` |
+| Quit (auto-saves the left panel of every open connection) | `Ctrl+C` |
+| Open another connection, go back to an open one | `Ctrl+O` (`Esc` to go back) |
 | Search in requests / in the result | `Ctrl+F` (depending on focused panel) |
 | Resize the left/right split | `F5` / `F6` [^resize] |
 | Save (left) / export (right) | `Ctrl+S` (depending on focused panel) |

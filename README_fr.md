@@ -52,6 +52,7 @@ Il arrive qu'un cluster Elasticsearch n'ait pas de Kibana disponible, ou que son
 - **Rien d'autre que le binaire** : recettes, endpoints et colonnes `_cat` y sont intégrés. Vos ajouts sont de simples fichiers texte, rechargés avec `F7`.
 - **Recherche** (`Ctrl+F`) dans l'éditeur comme dans le résultat.
 - **Sauvegarde automatique** des requêtes en cours par cluster et par utilisateur (à la fermeture et via `Ctrl+S`), rechargées à la reconnexion.
+- **Plusieurs clusters dans une session** (`Ctrl+O`) : passer à un autre cluster sans relancer, et revenir au premier tel qu'on l'a laissé — requêtes, curseur, résultat. Une requête en cours continue hors écran ; la barre de statut signale sa réponse.
 - **Export** du résultat affiché vers un fichier horodaté (`Ctrl+S`, panneau droit) et **copie presse-papier** via OSC 52 (`F2`, fonctionne à travers SSH).
 - **Connexion** : Basic Auth, API Key (identifiant et secret, ou sa forme `encoded`), jeton Bearer ou certificat client (mTLS, clé chiffrée ou non), avec ou sans vérification TLS, à travers un proxy HTTP ou SOCKS5 s'il en faut un (voir [Configuration](#configuration)) ; historique des clusters déjà utilisés (sans jamais y stocker de secret — voir [Sécurité](#sécurité)) ; un sélecteur de certificat (`Entrée` sur les champs CA/certificat client) parcourt le dossier configuré plutôt que de taper un nom de fichier de mémoire.
 - **Garde-fous de production**, cluster par cluster : en « confirmation des écritures », une requête qui écrit (`DELETE`, `PUT`, `_bulk`, `_delete_by_query`…) attend votre accord avant de partir ; en « lecture seule », elle est refusée. Un bandeau rouge ou jaune, avec un libellé comme `PROD`, rappelle sur quel cluster vous êtes. C'est un filet contre l'erreur de manipulation, pas une sécurité : voir [Sécurité](#sécurité).
@@ -226,7 +227,8 @@ Les valeurs vivent dans `~/.config/termdevtools/variables_<cluster>.txt` — un 
 | Exécuter la requête sous le curseur | `Ctrl+E` [^entree] |
 | Abandonner la requête en cours | `Echap` |
 | Basculer focus panneau gauche ↔ droit | `Ctrl+←` / `Ctrl+→` [^focus] |
-| Quitter (sauvegarde automatique du panneau gauche) | `Ctrl+C` |
+| Quitter (sauvegarde automatique du panneau gauche de chaque connexion ouverte) | `Ctrl+C` |
+| Ouvrir une autre connexion, revenir à une connexion ouverte | `Ctrl+O` (`Echap` pour revenir) |
 | Rechercher dans les requêtes / dans le résultat | `Ctrl+F` (selon le panneau focus) |
 | Redimensionner le split gauche/droite | `F5` / `F6` [^redim] |
 | Sauvegarder (gauche) / exporter (droite) | `Ctrl+S` (selon le panneau focus) |

@@ -9,11 +9,9 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
-	"sync/atomic"
 	"syscall"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/gnocent/termdevtools/config"
@@ -99,50 +97,26 @@ func main() {
 
 	tapp := tview.NewApplication()
 	defer recoverCrash(tapp, userDir, msgs)
-	pages := tview.NewPages()
+	// The connection screen, then one screen per cluster connected to, and
+	// the keyboard shortcuts of all of them — Ctrl+C included, from the
+	// connection screen on.
+	sessions := ui.NewSessions(tapp, cfg, paths)
 
-	// Ctrl+C must be able to quit right from the connection screen, before
-	// App (and its own, more complete SetInputCapture) even exists —
-	// otherwise no exit shortcut is active until the connection succeeds.
-	// App.Start() will replace this minimal handler with its own.
-	tapp.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyCtrlC {
-			tapp.Stop()
-			return nil
-		}
-		return event
-	})
-
-	// Reference to the current App (nil until a connection has succeeded),
-	// so the signal handler below can save in-progress requests even on an
-	// external shutdown of the program.
-	var currentApp atomic.Pointer[ui.App]
-
-	connectPage := ui.BuildConnectPage(tapp, cfg, func(cr ui.ConnectResult) {
-		app := ui.NewApp(tapp, cr, cfg, paths)
-		currentApp.Store(app)
-		pages.AddAndSwitchToPage("main", app.Root(), true)
-		app.Start()
-	})
-	pages.AddPage("connect", connectPage, true, true)
-
-	// Best-effort save of the left panel in addition to explicit Ctrl+S
-	// (SPEC.md §3.2): Ctrl+C is already covered by App.handleGlobalKeys (it's
-	// just a control byte read by the terminal in raw mode, not an OS
-	// signal). SIGTERM/SIGHUP cover external shutdowns (kill, a dropped SSH
-	// session) — SIGKILL, as with any program, remains impossible to
-	// intercept.
+	// Best-effort save of the left panels in addition to explicit Ctrl+S
+	// (SPEC.md §3.2): Ctrl+C is already covered by the sessions' own
+	// shortcuts (it's just a control byte read by the terminal in raw mode,
+	// not an OS signal). SIGTERM/SIGHUP cover external shutdowns (kill, a
+	// dropped SSH session) — SIGKILL, as with any program, remains impossible
+	// to intercept.
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGHUP)
 	go func() {
 		<-sig
-		if app := currentApp.Load(); app != nil {
-			app.SaveQueriesOnSignal()
-		}
+		sessions.SaveOnSignal()
 		tapp.Stop()
 	}()
 
-	tapp.SetRoot(pages, true).EnableMouse(cfg.Mouse)
+	tapp.SetRoot(sessions.Root(), true).EnableMouse(cfg.Mouse)
 	if err := tapp.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, msgs.ErrFatalFmt+"\n", err)
 		os.Exit(1)

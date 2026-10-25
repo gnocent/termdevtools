@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 
 	"github.com/gnocent/termdevtools/refdata"
 )
@@ -71,9 +72,15 @@ func (s *catHelpServer) requestCount() int {
 // alone waits forever once the application has stopped: a test whose
 // application quit when it shouldn't have would hang instead of failing.
 func onUI(app *App, f func()) bool {
+	return onApplication(app.tapp, f)
+}
+
+// onApplication is onUI for an application that isn't an App's — that of
+// the sessions, say.
+func onApplication(tapp *tview.Application, f func()) bool {
 	done := make(chan struct{})
 	go func() {
-		app.tapp.QueueUpdate(f)
+		tapp.QueueUpdate(f)
 		close(done)
 	}()
 	select {

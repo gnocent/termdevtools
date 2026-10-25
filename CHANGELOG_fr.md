@@ -2,6 +2,18 @@
 
 # Journal des versions
 
+## Non publié
+
+### Nouveautés
+
+- **Plusieurs clusters dans une session** (`Ctrl+O`, issue #10) : l'écran de connexion se rouvre en cours de session. Chaque connexion reste ouverte avec tout son état — requêtes, curseur, résultat — jusqu'à la sortie : un cluster déjà ouvert, marqué `connexion ouverte`, ramène à son écran tel qu'on l'a laissé, sans se reconnecter ; un autre passe par le formulaire, comme au démarrage. `Echap` ramène au cluster en cours.
+- **La bascule n'annule rien** : une requête en cours, lecture comme écriture, va à son terme ; sa réponse arrive dans les panneaux de son cluster, et la barre de statut à l'écran signale son arrivée.
+- **La sortie sauvegarde toutes les connexions ouvertes** (`Ctrl+C`, « Quitter », `SIGTERM`/`SIGHUP`), et la bascule sauvegarde le panneau gauche à l'écran.
+
+### À savoir avant de mettre à jour depuis la 0.7.5
+
+- **Rien à faire** : le démarrage, les autres raccourcis et la barre d'aide ne changent pas. Une seule connexion par URL : pour changer la protection ou les identifiants d'une connexion ouverte, on quitte et on relance, comme avant.
+
 ## 0.7.5 (bêta) — octobre 2026
 
 **En une phrase** : une requête en cours peut être abandonnée avec `Echap`, et la barre de statut compte les secondes d'attente.

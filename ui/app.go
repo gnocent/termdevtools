@@ -100,8 +100,10 @@ type App struct {
 	banner     *tview.TextView
 	clusterURL string
 	// confirmVisible is set while a write waits for confirmation
-	// (confirmWrite): every key but Ctrl+C goes to the popup.
+	// (confirmWrite): every key but Ctrl+C goes to the popup, to its
+	// buttons.
 	confirmVisible bool
+	confirmButtons *tview.Form
 
 	editor *Editor
 	result *ResultView
@@ -155,6 +157,10 @@ type App struct {
 	// exitWarned is set once quitting has been refused because the left
 	// panel couldn't be saved: the next Ctrl+C quits regardless.
 	exitWarned bool
+
+	// host holds the other open connections (Sessions), nil for an App
+	// started on its own (Start): it then quits by itself.
+	host *Sessions
 }
 
 // NewApp builds the main screen for an already-established connection.
@@ -408,16 +414,44 @@ func (a *App) Root() tview.Primitive {
 }
 
 // Start wires up the global keyboard shortcuts and gives the editor initial
-// focus. Must be called once Root() is displayed (SetRoot/SwitchToPage).
+// focus, for an App on its own: Sessions hands its own keyboard to
+// handleGlobalKeys. Must be called once Root() is displayed
+// (SetRoot/SwitchToPage).
 func (a *App) Start() {
 	a.tapp.SetInputCapture(a.handleGlobalKeys)
+	a.show()
+}
+
+// show gives the App the screen back as it was left: the focus to the popup
+// still open, or else to the panel that had it, and the interface language,
+// which may have been switched (F3) from another connection since.
+func (a *App) show() {
 	a.tapp.SetAfterDrawFunc(func(screen tcell.Screen) {
 		a.screen = screen
 	})
-	a.focusEditor()
+	if msgs := i18n.For(a.cfg.Language); msgs != a.msgs {
+		a.msgs = msgs
+		a.applyLanguage()
+	}
+	switch {
+	case a.confirmVisible:
+		a.tapp.SetFocus(a.confirmButtons)
+	case a.helpVisible:
+		a.tapp.SetFocus(a.helpView)
+	case a.recipesVisible:
+		a.tapp.SetFocus(a.palette.filter)
+	case a.focusedIsEditor:
+		a.focusEditor()
+	default:
+		a.focusResultPanel()
+	}
 }
 
 func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
+	if event.Key() == tcell.KeyCtrlC && a.host != nil {
+		a.host.quit() // every open connection is saved
+		return nil
+	}
 	if event.Key() == tcell.KeyCtrlC {
 		// The only exit shortcut: Ctrl+Esc turned out to be intercepted by
 		// Windows itself (it opens the Start menu), so it was dropped.
@@ -537,6 +571,9 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case event.Key() == tcell.KeyF8:
 		a.openRecipes()
+		return nil
+	case event.Key() == tcell.KeyCtrlO && a.host != nil:
+		a.host.openSwitch()
 		return nil
 	}
 	return event
@@ -855,6 +892,11 @@ func (a *App) send(method, path string, body []byte) {
 				// expected, whichever arrives first. Or this one was
 				// abandoned (Esc), which the status bar already says.
 				return
+			}
+			// Off screen too, the answer lands in this App's own panels; the
+			// cluster on screen says it came.
+			if a.host != nil {
+				a.host.answered(a)
 			}
 			// A new result: its search starts from the top again.
 			a.resultSearchLine = -1
@@ -1344,21 +1386,32 @@ func (a *App) SaveQueriesOnExit() error {
 const signalSaveTimeout = 2 * time.Second
 
 // SaveQueriesOnSignal is SaveQueriesOnExit for a caller outside the
-// interface's goroutine — the handler of SIGTERM/SIGHUP in main.go. The
-// editor may only be read from that goroutine, so the save is handed to it;
-// if it doesn't get to it in time (stuck rendering something large), the
-// editor is read from here after all: a risk worth taking over losing the
-// session's requests. Best-effort and silent, the program is going away.
+// interface's goroutine (see saveOnSignal).
 func (a *App) SaveQueriesOnSignal() {
+	saveOnSignal(a.tapp, []*App{a})
+}
+
+// saveOnSignal saves the left panel of apps for the handler of SIGTERM/SIGHUP
+// in main.go. An editor may only be read from the interface's goroutine, so
+// the saves are handed to it; if it doesn't get to them in time (stuck
+// rendering something large), the editors are read from here after all: a
+// risk worth taking over losing the session's requests. Best-effort and
+// silent, the program is going away.
+func saveOnSignal(tapp *tview.Application, apps []*App) {
+	saveAll := func() {
+		for _, app := range apps {
+			_ = app.SaveQueriesOnExit()
+		}
+	}
 	done := make(chan struct{})
 	go func() {
-		a.tapp.QueueUpdate(func() { _ = a.SaveQueriesOnExit() })
+		tapp.QueueUpdate(saveAll)
 		close(done)
 	}()
 	select {
 	case <-done:
 	case <-time.After(signalSaveTimeout):
-		_ = a.SaveQueriesOnExit()
+		saveAll()
 	}
 }
 

@@ -121,7 +121,7 @@ func TestScreenshots(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(screenshotsFile), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(screenshotsFile, []byte(capturesPage(captures)), 0o600); err != nil {
+	if err := os.WriteFile(screenshotsFile, []byte(capturesPage("protection par cluster", captures)), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("%d captures written to %s", len(captures), screenshotsFile)
@@ -209,14 +209,15 @@ func cssColor(c tcell.Color, defaultVar string) string {
 	return fmt.Sprintf("#%06x", c.Hex())
 }
 
-func capturesPage(captures []capture) string {
+// capturesPage is the page of captures for a visual review of subject.
+func capturesPage(subject string, captures []capture) string {
 	var b strings.Builder
 	b.WriteString(`<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Recette visuelle — protection</title>
+<title>Recette visuelle — ` + html.EscapeString(subject) + `</title>
 <style>
 body { background: #1b1b1b; color: #e6e6e6; font: 15px/1.5 system-ui, sans-serif; margin: 0 auto; max-width: 860px; padding: 16px; }
 h1 { font-size: 1.4em; } h2 { font-size: 1.1em; margin: 2em 0 .3em; }
@@ -229,7 +230,7 @@ pre { background: var(--bg); }
 </style>
 </head>
 <body class="campbell">
-<h1>Recette visuelle — protection par cluster</h1>
+<h1>Recette visuelle — ` + html.EscapeString(subject) + `</h1>
 <p>`)
 	fmt.Fprintf(&b, "%d captures de l'écran 80×24, environ 10 minutes. ", len(captures))
 	b.WriteString(`Chaque capture est l'écran simulé que pilotent les tests, cellule par cellule : texte, mise en page et couleurs de chaque case sont exactement ceux que l'application dessine. Seul le rendu des 16 couleurs de base dépend du terminal :

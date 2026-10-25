@@ -176,24 +176,36 @@ type connectScreen struct {
 	// press on Connect would open two.
 	attempt   int
 	connected bool
+
+	// sessions holds the connections already open, nil for a screen built
+	// on its own (BuildConnectPage): choosing one of them goes back to it.
+	sessions *Sessions
 }
 
 // BuildConnectPage builds the connection screen. onConnected is called
 // (from the UI thread) once a connection has been successfully established.
 func BuildConnectPage(tapp *tview.Application, cfg *config.Config, onConnected func(ConnectResult)) tview.Primitive {
+	return newConnectScreen(tapp, cfg, onConnected, nil).pages
+}
+
+// newConnectScreen is BuildConnectPage for Sessions, which builds a new
+// screen every time it is opened: its list, language and attempts then start
+// afresh.
+func newConnectScreen(tapp *tview.Application, cfg *config.Config, onConnected func(ConnectResult), sessions *Sessions) *connectScreen {
 	cs := &connectScreen{
-		tapp:    tapp,
-		cfg:     cfg,
-		msgs:    i18n.For(cfg.Language),
-		on:      onConnected,
-		pages:   tview.NewPages(),
-		list:    tview.NewList().ShowSecondaryText(true),
-		message: tview.NewTextView().SetDynamicColors(true).SetWordWrap(true),
+		tapp:     tapp,
+		cfg:      cfg,
+		msgs:     i18n.For(cfg.Language),
+		on:       onConnected,
+		pages:    tview.NewPages(),
+		list:     tview.NewList().ShowSecondaryText(true),
+		message:  tview.NewTextView().SetDynamicColors(true).SetWordWrap(true),
+		sessions: sessions,
 	}
 	cs.list.SetBorder(true).SetTitle(cs.msgs.ConnectListTitle)
 	cs.refreshList()
 	cs.pages.AddPage("list", cs.listLayout(), true, true)
-	return cs.pages
+	return cs
 }
 
 // connectMessageLines is the height of the message under the list and the
@@ -215,10 +227,21 @@ func (cs *connectScreen) refreshList() {
 		if level, _ := config.NormalizeProtection(cl.Protection); level != config.ProtectionNone {
 			secondary += " · " + tview.Escape(bannerText(level, cl.Label, cs.msgs))
 		}
+		if app := cs.sessions.find(cl.URL); app != nil {
+			// Already open: back to it as it was left, nothing asked again.
+			cs.list.AddItem(cl.URL, secondary+" · "+cs.msgs.ConnectOpenMarker, 0, func() { cs.sessions.show(app) })
+			continue
+		}
 		cs.list.AddItem(cl.URL, secondary, 0, func() { cs.openForm(&cl) })
 	}
 	cs.list.AddItem(cs.msgs.NewConnectionLabel, cs.msgs.NewConnectionSecondary, 0, func() { cs.openForm(nil) })
-	cs.list.AddItem(cs.msgs.QuitLabel, "", 0, func() { cs.tapp.Stop() })
+	cs.list.AddItem(cs.msgs.QuitLabel, "", 0, func() {
+		if cs.sessions != nil {
+			cs.sessions.quit() // every open connection is saved
+			return
+		}
+		cs.tapp.Stop()
+	})
 }
 
 func (cs *connectScreen) openForm(existing *config.Cluster) {
@@ -663,6 +686,14 @@ func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecret
 	msgs := cs.msgs
 	if cl.URL == "" {
 		cs.setMessage(msgs.ErrURLRequired, "red")
+		return
+	}
+	// Typed in again, a cluster already open is gone back to as well: one
+	// connection per URL, the URL being what its saved requests are kept by.
+	// What the form held isn't applied, which is said: it was typed for that.
+	if app := cs.sessions.find(cl.URL); app != nil {
+		cs.sessions.show(app)
+		app.status.SetWarning(app.msgs.WarnAlreadyOpen)
 		return
 	}
 	// "https://user:password@host" would work — and put the password in

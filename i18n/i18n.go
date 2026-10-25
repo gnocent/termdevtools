@@ -17,10 +17,14 @@ const (
 // differ between the two.
 type Strings struct {
 	// Connect screen (connect.go)
-	ConnectListTitle           string
-	NewConnectionLabel         string
-	NewConnectionSecondary     string
-	QuitLabel                  string
+	ConnectListTitle       string
+	NewConnectionLabel     string
+	NewConnectionSecondary string
+	QuitLabel              string
+	// added to an open cluster's line in the list (Ctrl+O): choosing it goes back to it
+	ConnectOpenMarker string
+	// an open cluster's URL typed as a new connection: it is gone back to, what the form held not applied
+	WarnAlreadyOpen            string
 	NewConnectionFormTitle     string
 	ConnectFormTitleFmt        string // " Connecting to %s "
 	AuthFieldLabel             string
@@ -178,6 +182,9 @@ type Strings struct {
 	// nothing more to say, a write with what can't be known ("%d" — seconds)
 	InfoRequestAbandonedFmt string
 	WarnWriteAbandonedFmt   string
+	// on screen, when a cluster off screen gets the answer to its request
+	// ("%s" — its URL)
+	InfoAnsweredElsewhereFmt string
 }
 
 var fr = Strings{
@@ -185,6 +192,8 @@ var fr = Strings{
 	NewConnectionLabel:         "+ Nouvelle connexion",
 	NewConnectionSecondary:     "saisir une nouvelle connexion",
 	QuitLabel:                  "Quitter",
+	ConnectOpenMarker:          "connexion ouverte",
+	WarnAlreadyOpen:            "déjà ouverte : reprise telle quelle, réglages du formulaire ignorés",
 	NewConnectionFormTitle:     " Nouvelle connexion ",
 	ConnectFormTitleFmt:        " Connexion à %s ",
 	AuthFieldLabel:             "Authentification",
@@ -320,7 +329,9 @@ doute, préférez Ctrl+E, Alt+←/→, F5/F6 et Tab/F10.[white]
   [aqua]F2[white]               Copier le résultat (panneau droit) dans le presse-papier
   [aqua]F1[white]               Afficher cette aide
   [aqua]F3[white]               Changer la langue de l'interface (fr/en)
-  [aqua]Ctrl+C[white]           Quitter (sauvegarde automatiquement le panneau gauche)
+  [aqua]Ctrl+O[white]           Ouvrir un autre cluster, revenir à un cluster ouvert
+                     (chacun garde ses requêtes et sa requête en cours)
+  [aqua]Ctrl+C[white]           Quitter (sauvegarde chaque panneau gauche)
 
 [yellow]Fichiers[white]
 [gray]Rien n'est requis à côté du binaire : recettes et endpoints y sont
@@ -368,6 +379,7 @@ intégrés. Ces fichiers, tous facultatifs, s'y ajoutent.[white]
 	ErrReadOnlyWriteFmt:      "lecture seule : écriture non envoyée (%s %s) — pour l'autoriser, reconnectez-vous en protection « confirmation des écritures »",
 	InfoRequestAbandonedFmt:  "requête abandonnée après %d s",
 	WarnWriteAbandonedFmt:    "écriture abandonnée après %d s : le cluster a pu l'exécuter quand même",
+	InfoAnsweredElsewhereFmt: "réponse reçue sur %s — Ctrl+O pour y revenir",
 }
 
 var en = Strings{
@@ -375,6 +387,8 @@ var en = Strings{
 	NewConnectionLabel:         "+ New connection",
 	NewConnectionSecondary:     "enter a new connection",
 	QuitLabel:                  "Quit",
+	ConnectOpenMarker:          "open connection",
+	WarnAlreadyOpen:            "already open: taken back as it was, the form's settings ignored",
 	NewConnectionFormTitle:     " New connection ",
 	ConnectFormTitleFmt:        " Connecting to %s ",
 	AuthFieldLabel:             "Authentication",
@@ -510,7 +524,9 @@ Ctrl+E, Alt+←/→, F5/F6, and Tab/F10.[white]
   [aqua]F2[white]               Copy the result (right panel) to the clipboard
   [aqua]F1[white]               Show this help
   [aqua]F3[white]               Switch the interface language (fr/en)
-  [aqua]Ctrl+C[white]           Quit (auto-saves the left panel)
+  [aqua]Ctrl+O[white]           Open another cluster, go back to an open one
+                     (each keeps its requests and its running request)
+  [aqua]Ctrl+C[white]           Quit (auto-saves every left panel)
 
 [yellow]Files[white]
 [gray]Nothing is required next to the binary: recipes and endpoints are
@@ -558,6 +574,7 @@ built in. These files, all optional, add to them.[white]
 	ErrReadOnlyWriteFmt:      "read-only: write not sent (%s %s) — to allow it, connect again with the \"writes need confirmation\" protection",
 	InfoRequestAbandonedFmt:  "request abandoned after %d s",
 	WarnWriteAbandonedFmt:    "write abandoned after %d s: the cluster may have carried it out anyway",
+	InfoAnsweredElsewhereFmt: "answer received on %s — Ctrl+O to go back to it",
 }
 
 // Normalize maps lang ("fr"/"en", case-insensitive, possibly padded with

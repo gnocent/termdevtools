@@ -2,6 +2,18 @@
 
 # Changelog
 
+## Unreleased
+
+### What's new
+
+- **Several clusters in one session** (`Ctrl+O`, issue #10): the connection screen opens again in session. Each connection stays open with all its state — requests, cursor, result — until exit: a cluster already open, marked `open connection`, goes back to its screen as you left it, without connecting again; another one goes through the form, as at startup. `Esc` goes back to the cluster on screen.
+- **Switching cancels nothing**: a request in progress, read or write, runs to completion; its answer lands in its cluster's panels, and the status bar on screen says it came.
+- **Exiting saves every open connection** (`Ctrl+C`, "Quit", `SIGTERM`/`SIGHUP`), and switching saves the left panel on screen.
+
+### Before upgrading from 0.7.5
+
+- **Nothing to do**: startup, the other shortcuts and the help bar don't change. One connection per URL: to change the protection or the credentials of an open connection, quit and relaunch, as before.
+
 ## 0.7.5 (beta) — October 2026
 
 **In one sentence**: a request in progress can be abandoned with `Esc`, and the status bar counts the seconds of the wait.

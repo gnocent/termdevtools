@@ -202,6 +202,7 @@ func (a *App) confirmWrite(method, path string, body []byte) {
 		AddItem(nil, 0, 1, false)}
 
 	a.confirmVisible = true
+	a.confirmButtons = buttons
 	a.pages.AddPage(confirmPageName, overlay, true, true)
 	a.tapp.SetFocus(buttons)
 }

@@ -2,6 +2,10 @@
 
 # TermDevTools
 
+[![CI](https://github.com/gnocent/termdevtools/actions/workflows/ci.yml/badge.svg)](https://github.com/gnocent/termdevtools/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/gnocent/termdevtools?include_prereleases)](https://github.com/gnocent/termdevtools/releases)
+[![License](https://img.shields.io/github/license/gnocent/termdevtools)](LICENSE)
+
 La vue **DevTools** de Kibana dans un terminal, pour interroger un cluster Elasticsearch ou OpenSearch quand Kibana n'est pas là — ou en panne, en pleine investigation. Linux (dont RHEL 8/9/10), Windows ou macOS ; un seul binaire, rien d'autre à installer.
 
 > [!IMPORTANT]

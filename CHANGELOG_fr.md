@@ -2,7 +2,9 @@
 
 # Journal des versions
 
-## Non publié
+## 0.8.1 (bêta) — octobre 2026
+
+**En une phrase** : l'écran d'aide donne la version de TermDevTools et celle du cluster, et `F2` et `F9` copient dans n'importe quel terminal sur Mac.
 
 ### Nouveautés
 
@@ -12,6 +14,22 @@
 ### Corrections
 
 - **Les terminaux où `F2` et `F9` copient** : la documentation y comptait GNOME Terminal ; ni lui ni les autres terminaux basés sur VTE, ni le Terminal de macOS, ne prennent en charge la copie par le terminal (OSC 52). Elle donne maintenant ceux qui le font, et le réglage que `tmux` demande (`set -g set-clipboard on`).
+
+### À savoir avant de mettre à jour depuis la 0.8.0
+
+- **Rien à faire** : les raccourcis, la configuration et les fichiers sauvegardés ne changent pas.
+
+### Vérifications
+
+- `go vet` et `go test ./...` passent sous Windows, Linux et macOS : entre autres, les versions de l'écran d'aide, dessinées sur un écran simulé de 80×24 ; `F2` et `F9` à travers un presse-papier de substitution, et leur repli sur le terminal ; sous macOS, le vrai `pbcopy`, avec un texte accentué sous une locale qui n'est pas UTF-8.
+- Pas essayé à la main : la copie dans une vraie session du Terminal de macOS, ni la copie par le terminal (OSC 52) dans Windows Terminal.
+- `govulncheck` : aucune vulnérabilité connue, ni dans les dépendances ni dans la bibliothèque standard de Go 1.27.3, avec laquelle les binaires sont construits.
+- Pas de revue de sécurité pour cette version : rien ne change dans la connexion, l'authentification ou ce qui est envoyé au cluster. Les données de référence (recettes, endpoints, colonnes `_cat`) n'ont pas changé depuis la 0.6.
+
+### Limites connues
+
+- À travers SSH, depuis un terminal qui ne prend pas en charge la copie par le terminal (dont le Terminal de macOS), `F2` et `F9` ne copient toujours rien : `Ctrl+S` exporte le résultat dans un fichier.
+- Les limites de la 0.8.0 restent valables.
 
 ## 0.8.0 (bêta) — octobre 2026
 

@@ -999,7 +999,7 @@ func (a *App) reformatBody() {
 
 // copyAsCurl implements F9 (SPEC.md §7 backlog #3, "copy as cURL"): copies
 // an equivalent curl command for the request under the cursor to the
-// clipboard (OSC 52, same mechanism as F2/copyResult) — handy to replicate
+// clipboard (copyToClipboard, as F2/copyResult) — handy to replicate
 // a call outside the tool (a script, a colleague, a bug report). See
 // esclient.Client.CurlCommand for why the actual secret (password, API key
 // secret, key passphrase) is replaced with a placeholder rather than
@@ -1015,11 +1015,7 @@ func (a *App) copyAsCurl() {
 		a.status.SetError(err.Error())
 		return
 	}
-	cmd := a.client.CurlCommand(req.Method, path, body)
-	if a.screen != nil {
-		a.screen.SetClipboard([]byte(cmd))
-	}
-	a.status.SetInfo(a.msgs.InfoCurlCopied)
+	a.copyToClipboard(a.client.CurlCommand(req.Method, path, body), a.msgs.InfoCurlCopied)
 }
 
 // resolveRequest applies variable substitution (${name}, SPEC.md §7
@@ -1440,21 +1436,19 @@ func (a *App) exportResult() {
 }
 
 // copyResult implements F2: copies the entire displayed result to the local
-// clipboard via OSC 52 (SPEC.md §3.3) — the only way to copy from this
+// clipboard (copyToClipboard, SPEC.md §3.3) — the only way to copy from this
 // panel when config.Mouse is enabled, since that captures mouse events for
 // the app instead of letting the terminal handle native text selection.
-// Available either way, mouse or not. Best-effort: neither tcell nor OSC 52
-// return confirmation that the copy actually succeeded on the terminal side.
+// Available either way, mouse or not. Best-effort through the terminal:
+// neither tcell nor OSC 52 return confirmation that the copy actually
+// succeeded on the terminal side.
 func (a *App) copyResult() {
 	text := a.result.PlainText()
 	if text == "" {
 		a.status.SetError(a.msgs.ErrNothingToCopy)
 		return
 	}
-	if a.screen != nil {
-		a.screen.SetClipboard([]byte(text))
-	}
-	a.status.SetInfo(a.msgs.InfoCopied)
+	a.copyToClipboard(text, a.msgs.InfoCopied)
 }
 
 // toggleLanguage implements F3: flips the interface language (fr/en),

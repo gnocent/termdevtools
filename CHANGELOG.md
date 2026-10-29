@@ -7,6 +7,7 @@
 ### What's new
 
 - **The help screen (`F1`) gives the versions**: TermDevTools' own, and the connected cluster's (`Elasticsearch 9.5.4`, `OpenSearch 2.19.6`) when detected — the two things a bug report asks for first. The status bar keeps showing the cluster's in short form (`ES 9.5.4`).
+- **`F2` and `F9` copy in any terminal on a Mac**: outside SSH, the copy goes through the system's pasteboard (`pbcopy`) rather than the terminal — macOS Terminal, which doesn't support the terminal's way, included. The status bar then confirms the copy without reservation. Through SSH, nothing changes: the terminal remains the only way to the clipboard of the machine you're at.
 
 ### Fixes
 

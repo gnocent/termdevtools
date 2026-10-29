@@ -139,8 +139,11 @@ type Strings struct {
 	// Reusable variables (${name}, SPEC.md §3.2)
 	ErrUnknownVariablesFmt string // "unknown variable(s): %s"
 
-	// Help popup content (F1)
-	HelpContent string
+	// Help popup content (F1): HelpHeaderFmt, HelpClusterFmt when the
+	// cluster's product is known, then HelpContent
+	HelpHeaderFmt  string // "%s" — TermDevTools' own version
+	HelpClusterFmt string // "%s" — the cluster's product ("Elasticsearch 9.5.4")
+	HelpContent    string
 
 	// Startup errors shown before the UI is up (main.go)
 	ErrConfigLoadFmt             string
@@ -296,9 +299,9 @@ var fr = Strings{
 	InfoRecipeInsertedFmt:   "recette insérée : %s",
 	ErrUnknownVariablesFmt:  "variable(s) inconnue(s) : %s",
 
-	HelpContent: `[yellow]TermDevTools[white] — client Elasticsearch et OpenSearch en mode terminal
-
-[green]Panneau gauche[white] : requêtes "MÉTHODE endpoint" + JSON optionnel
+	HelpHeaderFmt:  "[yellow]TermDevTools %s[white] — client Elasticsearch et OpenSearch en mode terminal",
+	HelpClusterFmt: "Cluster : [green]%s[white]",
+	HelpContent: `[green]Panneau gauche[white] : requêtes "MÉTHODE endpoint" + JSON optionnel
 sur les lignes suivantes. Lignes [gray]#[white] = commentaires.
 
 [green]Panneau droit[white] : résultat de la dernière requête — JSON coloré,
@@ -491,9 +494,9 @@ var en = Strings{
 	InfoRecipeInsertedFmt:   "recipe inserted: %s",
 	ErrUnknownVariablesFmt:  "unknown variable(s): %s",
 
-	HelpContent: `[yellow]TermDevTools[white] — terminal-mode Elasticsearch and OpenSearch client
-
-[green]Left panel[white]: "METHOD endpoint" requests + optional JSON
+	HelpHeaderFmt:  "[yellow]TermDevTools %s[white] — terminal-mode Elasticsearch and OpenSearch client",
+	HelpClusterFmt: "Cluster: [green]%s[white]",
+	HelpContent: `[green]Left panel[white]: "METHOD endpoint" requests + optional JSON
 on the following lines. Lines starting with [gray]#[white] = comments.
 
 [green]Right panel[white]: result of the last request — colorized JSON,

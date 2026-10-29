@@ -94,6 +94,7 @@ func main() {
 	// variables): without it the user's recipes simply have no template.
 	_ = refdata.CreateUserTemplate(userDir)
 	paths := buildPaths(exeDir, userDir, reference)
+	ui.Version = buildVersion()
 
 	tapp := tview.NewApplication()
 	defer recoverCrash(tapp, userDir, msgs)

@@ -2,6 +2,12 @@
 
 # Changelog
 
+## Unreleased
+
+### What's new
+
+- **The help screen (`F1`) gives the versions**: TermDevTools' own, and the connected cluster's (`Elasticsearch 9.5.4`, `OpenSearch 2.19.6`) when detected — the two things a bug report asks for first. The status bar keeps showing the cluster's in short form (`ES 9.5.4`).
+
 ## 0.8.0 (beta) — October 2026
 
 **In one sentence**: several clusters can stay open in one session — `Ctrl+O` switches between them, each found again as it was left.

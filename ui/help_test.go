@@ -69,6 +69,36 @@ func TestHelpOpensAndClosesWithEscape(t *testing.T) {
 	}
 }
 
+// TestHelpShowsVersions checks that the help screen opens on TermDevTools'
+// version and the cluster's product, the latter only when it is known.
+func TestHelpShowsVersions(t *testing.T) {
+	previous := Version
+	Version = "v9.9.9"
+	t.Cleanup(func() { Version = previous })
+
+	_, screen := newTestApp(t) // detected as ES 9.5.4
+	screen.InjectKey(tcell.KeyF1, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+	text := screenText(screen)
+	if !strings.Contains(text, "TermDevTools v9.9.9") {
+		t.Errorf("expected TermDevTools' version on the help screen, got:\n%s", text)
+	}
+	if !strings.Contains(text, "Cluster : Elasticsearch 9.5.4") {
+		t.Errorf("expected the cluster's product on the help screen, got:\n%s", text)
+	}
+
+	_, screen = newTestAppWith(t, testAppOptions{undetected: true})
+	screen.InjectKey(tcell.KeyF1, 0, tcell.ModNone)
+	waitForDraw(t, screen)
+	text = screenText(screen)
+	if !strings.Contains(text, "TermDevTools v9.9.9") {
+		t.Errorf("expected TermDevTools' version on the help screen, got:\n%s", text)
+	}
+	if strings.Contains(text, "Cluster : ") {
+		t.Errorf("expected no cluster line when its product is unknown, got:\n%s", text)
+	}
+}
+
 func TestHelpDoesNotModifyEditorContent(t *testing.T) {
 	app, screen := newTestApp(t)
 

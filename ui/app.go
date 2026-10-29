@@ -28,6 +28,10 @@ const CheatsheetFileName = "cheatsheet.txt"
 // §3.3 and §9.1.
 const ExportsDirName = "exports"
 
+// Version is TermDevTools' own version, shown on the help screen (F1): set by
+// main.go at startup, before any App is created.
+var Version = "dev"
+
 // Paths gathers the file locations resolved by the caller (main.go) — see
 // SPEC.md §9.1 for the detail of each.
 type Paths struct {
@@ -302,7 +306,7 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 
 	a.helpView = tview.NewTextView().SetDynamicColors(true).SetWrap(true)
 	a.helpView.SetBorder(true).SetTitle(msgs.HelpViewTitle)
-	a.helpView.SetText(msgs.HelpContent)
+	a.helpView.SetText(a.helpText())
 
 	// Centered popup, margins around it to let the app show through in the
 	// background (classic tview idiom: nested Flex with nil spacers).
@@ -735,6 +739,17 @@ func (a *App) showHelp() {
 	a.helpVisible = true
 	a.pages.ShowPage("help")
 	a.tapp.SetFocus(a.helpView)
+}
+
+// helpText is the help screen's content: TermDevTools' version and, when
+// known, the cluster's product — what a bug report asks for first — then
+// how it works.
+func (a *App) helpText() string {
+	header := fmt.Sprintf(a.msgs.HelpHeaderFmt, tview.Escape(Version))
+	if name := a.target.Name(); name != "" {
+		header += "\n" + fmt.Sprintf(a.msgs.HelpClusterFmt, name)
+	}
+	return header + "\n\n" + a.msgs.HelpContent
 }
 
 func (a *App) closeHelp() {
@@ -1475,7 +1490,7 @@ func (a *App) applyLanguage() {
 	a.searchBar.SetLabel(a.msgs.SearchLabel)
 	a.updateCompletionTitle()
 	a.helpView.SetTitle(a.msgs.HelpViewTitle)
-	a.helpView.SetText(a.msgs.HelpContent)
+	a.helpView.SetText(a.helpText())
 	a.palette.applyLanguage(a.msgs)
 	if a.banner != nil {
 		a.banner.SetText(bannerText(a.protection, a.label, a.msgs))

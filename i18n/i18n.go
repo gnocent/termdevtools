@@ -114,6 +114,9 @@ type Strings struct {
 	ErrNothingToExport string // result.go's Export()
 	ErrNoBodyToFormat  string // F4 (reformat JSON body, SPEC.md §7 backlog #1): nothing under the cursor to reformat
 	InfoCurlCopied     string // F9 ("copy as cURL", SPEC.md §7 backlog #3)
+	// appended to InfoCopied/InfoCurlCopied when the copy went through the
+	// terminal (OSC 52), which can't confirm it
+	InfoCopiedViaTerminal string
 	// F4: the body can't be re-indented because of "#" lines in or before it
 	ErrFormatCommentsInBody string
 	// Ctrl+C: "%s" — why the left panel wasn't saved; the next Ctrl+C quits anyway
@@ -280,10 +283,11 @@ var fr = Strings{
 	ErrExportFailedFmt:      "échec d'export : %s",
 	InfoExportedFmt:         "résultat exporté dans %s",
 	ErrNothingToCopy:        "aucun résultat à copier",
-	InfoCopied:              "résultat copié (OSC 52 — nécessite un terminal compatible)",
+	InfoCopied:              "résultat copié",
 	ErrNothingToExport:      "aucun résultat à exporter",
 	ErrNoBodyToFormat:       "aucun corps JSON à reformater",
-	InfoCurlCopied:          "commande cURL copiée (OSC 52 — nécessite un terminal compatible)",
+	InfoCurlCopied:          "commande cURL copiée",
+	InfoCopiedViaTerminal:   " (OSC 52 — nécessite un terminal compatible)",
 	ErrFormatCommentsInBody: "reformatage impossible : ligne # dans ou avant le corps JSON",
 	ErrExitSaveFailedFmt:    "non sauvegardé, Ctrl+C pour quitter quand même : %s",
 	ErrSavedRequestsUnread:  "requêtes existantes illisibles au démarrage (Ctrl+S pour les remplacer)",
@@ -475,10 +479,11 @@ var en = Strings{
 	ErrExportFailedFmt:      "export failed: %s",
 	InfoExportedFmt:         "result exported to %s",
 	ErrNothingToCopy:        "nothing to copy",
-	InfoCopied:              "result copied (OSC 52 — requires a compatible terminal)",
+	InfoCopied:              "result copied",
 	ErrNothingToExport:      "nothing to export",
 	ErrNoBodyToFormat:       "no JSON body to reformat",
-	InfoCurlCopied:          "cURL command copied (OSC 52 — requires a compatible terminal)",
+	InfoCurlCopied:          "cURL command copied",
+	InfoCopiedViaTerminal:   " (OSC 52 — requires a compatible terminal)",
 	ErrFormatCommentsInBody: "cannot reformat: # line inside or before the JSON body",
 	ErrExitSaveFailedFmt:    "not saved, Ctrl+C again to quit anyway: %s",
 	ErrSavedRequestsUnread:  "saved requests could not be read at startup (Ctrl+S to replace them)",

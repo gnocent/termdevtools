@@ -355,7 +355,7 @@ Delete the binary and the configuration directory (§5): TermDevTools writes not
 | The status bar says `Cluster` instead of `ES …` or `OS …` | The cluster wasn't recognized: everything is offered, unfiltered. State `distribution` and `version` in `config.yaml` (§5). |
 | `Tab` doesn't complete | Some terminals intercept `Tab`: use `F10`. |
 | `Ctrl+←/→` doesn't switch panel on macOS | The system intercepts it: use `Option+←/→`. |
-| `F2` copies nothing | The copy goes through the terminal (OSC 52): PuTTY doesn't support it, `tmux` and `screen` need to be configured for it. |
+| `F2` or `F9` copies nothing | The copy goes through the terminal (OSC 52). Windows Terminal, WezTerm, kitty, Alacritty and iTerm2 (once enabled in its settings) support it; PuTTY, macOS Terminal, GNOME Terminal and the other VTE-based terminals don't. In `tmux`: `set -g set-clipboard on`; `screen` needs to be configured for it. |
 | A request with a huge answer fails with "response larger than 64 MB" | Narrow it down: `filter_path`, `size`, or `h=` for `_cat` commands. |
 | A proxy is needed to reach the cluster | Set `HTTPS_PROXY`, or `proxy:` on the cluster's entry in `config.yaml` (§5). |
 | The message starts with `Through proxy …` | The attempt went through that proxy. If the cluster is reached without a proxy — which was the case up to 0.6, which ignored `HTTPS_PROXY` — add it to `NO_PROXY`, or set `proxy: none` on its entry in `config.yaml` (§5). |

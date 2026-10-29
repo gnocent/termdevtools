@@ -357,7 +357,7 @@ Les messages sont cités en anglais, tels qu'un premier lancement les affiche, p
 | La barre de statut affiche `Cluster` au lieu de `ES …` ou `OS …` | Le cluster n'a pas été reconnu : tout est proposé sans filtrage. Indiquez `distribution` et `version` dans `config.yaml` (§5). |
 | `Tab` ne complète pas | Certains terminaux interceptent `Tab` : utilisez `F10`. |
 | `Ctrl+←/→` ne change pas de panneau sous macOS | Le système l'intercepte : utilisez `Option+←/→`. |
-| `F2` ne copie rien | La copie passe par le terminal (OSC 52) : PuTTY ne la prend pas en charge, `tmux` et `screen` demandent une configuration. |
+| `F2` ou `F9` ne copie rien | La copie passe par le terminal (OSC 52). Windows Terminal, WezTerm, kitty, Alacritty et iTerm2 (une fois activé dans ses réglages) la prennent en charge ; PuTTY, le Terminal de macOS, GNOME Terminal et les autres terminaux basés sur VTE, non. Dans `tmux` : `set -g set-clipboard on` ; `screen` demande une configuration. |
 | Une requête sur une énorme réponse échoue avec « response larger than 64 MB » | Restreignez-la : `filter_path`, `size`, ou `h=` pour les commandes `_cat`. |
 | Un proxy est nécessaire pour atteindre le cluster | Définissez `HTTPS_PROXY`, ou `proxy:` sur l'entrée du cluster dans `config.yaml` (§5). |
 | Le message commence par `Through proxy …` / `Via le proxy …` | La tentative est passée par ce proxy. Si le cluster se joint sans proxy — c'était le cas jusqu'à la 0.6, qui ignorait `HTTPS_PROXY` — ajoutez-le à `NO_PROXY`, ou mettez `proxy: none` sur son entrée dans `config.yaml` (§5). |

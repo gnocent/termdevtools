@@ -18,6 +18,25 @@ func markShown(t *testing.T, app *App, screen tcell.SimulationScreen, panel tvie
 	return cells[(y+height-1)*screenWidth+x+width-2].Runes[0] == moreBelowMark
 }
 
+// TestMarkHasAFallback checks what a terminal that isn't in UTF-8 shows.
+func TestMarkHasAFallback(t *testing.T) {
+	screen := tcell.NewSimulationScreen("US-ASCII")
+	if err := screen.Init(); err != nil {
+		t.Fatal(err)
+	}
+	defer screen.Fini()
+	panel := tview.NewBox()
+	panel.SetRect(0, 0, 10, 4)
+
+	markMoreBelow(screen, panel)
+	screen.Show()
+
+	cells, width, _ := screen.GetContents()
+	if got := string(cells[3*width+8].Bytes); got != "v" {
+		t.Errorf("expected the fallback, got %q", got)
+	}
+}
+
 // numberedLines gives count lines of text, each of them different.
 func numberedLines(count int) string {
 	var lines []string

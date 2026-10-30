@@ -106,20 +106,30 @@ func (e *Editor) paintRequests(screen tcell.Screen) {
 	x, y, width, height := e.view.GetInnerRect()
 	rowOffset, _ := e.view.GetOffset()
 	text, rowStarts := e.wrappedText, e.wrappedStarts
+	if rowOffset >= len(rowStarts) {
+		return
+	}
+	// The first row shown may be the middle of a wrapped comment. Below it,
+	// lines are only looked at where they start: a line can be very long.
+	first := strings.LastIndexByte(text[:rowStarts[rowOffset]], '\n') + 1
+	comment := strings.HasPrefix(strings.TrimLeft(text[first:], " "), "#")
 	for row := rowOffset; row < rowOffset+height && row < len(rowStarts); row++ {
 		start := rowStarts[row]
-		lineStart := strings.LastIndexByte(text[:start], '\n') + 1
-		line, _, _ := strings.Cut(text[lineStart:], "\n")
-		request := strings.TrimLeft(line, " ")
 		screenRow := y + row - rowOffset
-		if strings.HasPrefix(request, "#") {
+		if start == 0 || text[start-1] == '\n' {
+			line, _, _ := strings.Cut(text[start:], "\n")
+			request := strings.TrimLeft(line, " ")
+			comment = strings.HasPrefix(request, "#")
+			if method, ok := parser.RequestMethod(request); ok {
+				color, column := methodColor(method), len(line)-len(request)
+				paintCells(screen, x+column, screenRow, min(len(method), width-column), func(style tcell.Style) tcell.Style {
+					return style.Foreground(color).Bold(true)
+				})
+			}
+		}
+		if comment {
 			paintCells(screen, x, screenRow, width, func(style tcell.Style) tcell.Style {
 				return style.Foreground(themeMuted)
-			})
-		} else if method, ok := parser.RequestMethod(request); ok && start == lineStart {
-			color := methodColor(method)
-			paintCells(screen, x+len(line)-len(request), screenRow, len(method), func(style tcell.Style) tcell.Style {
-				return style.Foreground(color).Bold(true)
 			})
 		}
 	}

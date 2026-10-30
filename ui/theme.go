@@ -22,7 +22,8 @@ var (
 	themeYellow     = tcell.NewHexColor(0xFEC514)
 	themePink       = tcell.NewHexColor(0xF04E98)
 	themeRed        = tcell.NewHexColor(0xF86B63) // on the dark background
-	themeDanger     = tcell.NewHexColor(0xBD271E) // behind white text
+	themeDanger     = tcell.NewHexColor(0xBD271E) // behind themeWhite
+	themeWhite      = tcell.NewHexColor(0xFFFFFF)
 )
 
 func init() {

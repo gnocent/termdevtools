@@ -67,7 +67,7 @@ func (h *header) protected() bool {
 func (h *header) colors() (background, foreground tcell.Color) {
 	switch h.protection {
 	case config.ProtectionConfirm:
-		return themeDanger, tcell.ColorWhite
+		return themeDanger, themeWhite
 	case config.ProtectionReadOnly:
 		return themeYellow, themeBackground
 	}
@@ -133,7 +133,7 @@ func (h *header) compose(width int) string {
 		lead = ""
 	}
 	room := width - used(lead, "", "") - 1
-	if room >= minHeaderURLWidth {
+	if room >= min(minHeaderURLWidth, uniseg.StringWidth(h.cluster)) {
 		return h.render(lead, cutShort(h.cluster, room), "", width)
 	}
 	return h.render(lead, "", "", width)

@@ -16,6 +16,8 @@ func markMoreBelow(screen tcell.Screen, panel tview.Primitive) {
 		return
 	}
 	style := tcell.StyleDefault.Background(themeBackground).Foreground(themeText).Bold(true)
+	// For a terminal that isn't in UTF-8: over SSH, with LANG=C, say.
+	screen.RegisterRuneFallback(moreBelowMark, "v")
 	screen.SetContent(x+width-2, y+height-1, moreBelowMark, nil, style)
 }
 

@@ -2,6 +2,19 @@
 
 # Changelog
 
+## Unreleased
+
+### What's new
+
+- **A new look**: fixed colors on a dark background of their own, the same whatever the terminal's theme; a terminal without 24-bit colors gets the closest ones it has. The panel with the focus has a thick blue border.
+- **A header**: the first line gives the product, in a badge that tells Elasticsearch from OpenSearch, the URL and the user. On a protected cluster, the whole line takes the red or the yellow of the former banner, which no longer costs a line of the panels.
+- **The status line and the shortcuts on one line**: the message on the left, as many shortcuts as it leaves room for on the right. It no longer shares the line with the URL and the user, and the panels keep their height. At 80 columns, fewer shortcuts show at once, the ones used most first; `F1` still lists them all.
+- **Methods colored in the editor**: `GET` in teal, `POST` and `PUT` in blue, `DELETE` in red, comments dimmed.
+
+### Before upgrading from 0.8.1
+
+- **Nothing to do**: the shortcuts, the configuration and the saved files don't change.
+
 ## 0.8.1 (beta) — October 2026
 
 **In one sentence**: the help screen gives TermDevTools' version and the cluster's, and `F2` and `F9` copy in any terminal on a Mac.

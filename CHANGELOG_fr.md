@@ -2,6 +2,19 @@
 
 # Journal des versions
 
+## Non publié
+
+### Nouveautés
+
+- **Un nouvel habillage** : des couleurs fixes sur un fond sombre qui lui est propre, les mêmes quel que soit le thème du terminal ; un terminal sans couleurs 24 bits reçoit les plus proches qu'il ait. Le panneau qui a le focus a une bordure épaisse et bleue.
+- **Un en-tête** : la première ligne donne le produit, dans un badge qui distingue Elasticsearch d'OpenSearch, l'URL et l'utilisateur. Sur un cluster protégé, toute la ligne prend le rouge ou le jaune de l'ancien bandeau, qui ne coûte plus une ligne aux panneaux.
+- **La ligne de statut et les raccourcis sur une seule ligne** : le message à gauche, autant de raccourcis qu'il laisse de place à droite. Il ne partage plus la ligne avec l'URL et l'utilisateur, et les panneaux gardent leur hauteur. À 80 colonnes, moins de raccourcis s'affichent à la fois, les plus utilisés d'abord ; `F1` les donne toujours tous.
+- **Méthodes colorées dans l'éditeur** : `GET` en sarcelle, `POST` et `PUT` en bleu, `DELETE` en rouge, commentaires atténués.
+
+### À savoir avant de mettre à jour depuis la 0.8.1
+
+- **Rien à faire** : les raccourcis, la configuration et les fichiers sauvegardés ne changent pas.
+
 ## 0.8.1 (bêta) — octobre 2026
 
 **En une phrase** : l'écran d'aide donne la version de TermDevTools et celle du cluster, et `F2` et `F9` copient dans n'importe quel terminal sur Mac.

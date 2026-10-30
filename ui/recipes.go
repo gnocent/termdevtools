@@ -60,7 +60,7 @@ func newRecipePalette(a *App) *recipePalette {
 		AddItem(p.filter, 1, 0, true).
 		AddItem(p.list, 0, 1, false).
 		AddItem(p.preview, 0, 1, false)
-	p.frame.SetBorder(true)
+	p.frame.SetBorder(true).SetBorderColor(themeAccent)
 
 	p.applyLanguage(a.msgs)
 	return p

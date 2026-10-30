@@ -339,8 +339,8 @@ func TestSwitchKeepsEachConnectionAsItWas(t *testing.T) {
 	if got := editorText(appB); got != "" {
 		t.Errorf("expected beta's own (empty) left panel, got %q", got)
 	}
-	if status := statusText(appB); !strings.Contains(status, b.url) {
-		t.Errorf("expected the status bar to name beta, got %q", status)
+	if header := headerText(appB); !strings.Contains(header, b.url) {
+		t.Errorf("expected the header to name beta, got %q", header)
 	}
 
 	h.key(t, tcell.KeyCtrlO)

@@ -16,31 +16,31 @@ func plainText(tagged string) string {
 }
 
 // TestStatusLineGivesWayToTheMessage checks what the status line keeps when
-// it doesn't fit: the message, at the expense of the user, then of the URL,
-// then of the cluster altogether.
+// it doesn't fit: the message, at the expense of the shortcuts, dropped one
+// by one and from the last, each of them whole.
 func TestStatusLineGivesWayToTheMessage(t *testing.T) {
-	sb := NewStatusBar("ES 9.5.4", "https://es-prod.example.test:9200", "svc_devtools", i18n.For(i18n.FR))
+	sb := NewStatusBar(i18n.For(i18n.FR))
 	cases := []struct {
 		message string
 		width   int
 		want    string
 	}{
-		{"prêt", 0, "ES 9.5.4: https://es-prod.example.test:9200  |  Utilisateur: svc_devtools  |  prêt"},
-		{"prêt", 82, "ES 9.5.4: https://es-prod.example.test:9200  |  Utilisateur: svc_devtools  |  prêt"},
-		{"prêt", 81, "ES 9.5.4: https://es-prod.example.test:9200  |  prêt"},
-		{"envoi annulé : rien n'a été envoyé", 82, "ES 9.5.4: https://es-prod.example.test:9200  |  envoi annulé : rien n'a été envoyé"},
-		{"envoi annulé : rien n'a été envoyé", 80, "ES 9.5.4: https://es-prod.example.test:9…  |  envoi annulé : rien n'a été envoyé"},
-		{"envoi annulé : rien n'a été envoyé", 61, "ES 9.5.4: https://es-…  |  envoi annulé : rien n'a été envoyé"},
-		{"envoi annulé : rien n'a été envoyé", 60, "envoi annulé : rien n'a été envoyé"},
+		{"prêt", 40, "prêt            F1 aide  Ctrl+E exécuter"},
+		{"prêt", 80, "prêt            F1 aide  Ctrl+E exécuter  F8 recettes  Ctrl+C quitter  F3 langue"},
+		{"HTTP 200 en 42ms", 78, "HTTP 200 en 42ms         F1 aide  Ctrl+E exécuter  F8 recettes  Ctrl+C quitter"},
+		{"envoi annulé : rien n'a été envoyé", 78, "envoi annulé : rien n'a été envoyé       F1 aide  Ctrl+E exécuter  F8 recettes"},
+		{"envoi annulé : rien n'a été envoyé", 50, "envoi annulé : rien n'a été envoyé         F1 aide"},
+		{"envoi annulé : rien n'a été envoyé", 43, "envoi annulé : rien n'a été envoyé"},
 		{"envoi annulé : rien n'a été envoyé", 20, "envoi annulé : rien…"},
 	}
 	for _, c := range cases {
 		sb.SetInfo(c.message)
-		if got := plainText(sb.compose(c.width)); got != c.want {
+		got := plainText(sb.compose(c.width))
+		if got != c.want {
 			t.Errorf("%q in %d columns: expected\n%q, got\n%q", c.message, c.width, c.want, got)
 		}
-		if got := plainText(sb.compose(c.width)); c.width > 0 && uniseg.StringWidth(got) > c.width {
-			t.Errorf("%q in %d columns: %d columns used", c.message, c.width, uniseg.StringWidth(got))
+		if used := uniseg.StringWidth(got); used > c.width {
+			t.Errorf("%q in %d columns: %d columns used", c.message, c.width, used)
 		}
 	}
 }
@@ -49,9 +49,9 @@ func TestStatusLineGivesWayToTheMessage(t *testing.T) {
 // color once the line is cut short, and that brackets in it aren't taken
 // for color tags.
 func TestStatusLineKeepsColorsAndBrackets(t *testing.T) {
-	sb := NewStatusBar("ES 9.5.4", "https://es-prod.example.test:9200", "svc_devtools", i18n.For(i18n.FR))
+	sb := NewStatusBar(i18n.For(i18n.FR))
 	sb.SetError("[red] HTTP 404 sur /my-index")
-	got := sb.compose(40)
+	got := sb.compose(30)
 	if !strings.HasPrefix(got, "[red]") || plainText(got) != "[red] HTTP 404 sur /my-index" {
 		t.Errorf("expected the message alone, in red and as written, got %q (%q)", got, plainText(got))
 	}

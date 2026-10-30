@@ -44,6 +44,14 @@ func (l *composedLine) Draw(screen tcell.Screen) {
 	l.TextView.Draw(screen)
 }
 
+// MouseHandler ignores the mouse: a click on the line would otherwise give
+// it the focus, which no panel would then have.
+func (l *composedLine) MouseHandler() func(tview.MouseAction, *tcell.EventMouse, func(tview.Primitive)) (bool, tview.Primitive) {
+	return func(tview.MouseAction, *tcell.EventMouse, func(tview.Primitive)) (bool, tview.Primitive) {
+		return false, nil
+	}
+}
+
 // Version changes every time the status line is written: what lets a
 // background operation tell, when it ends, whether the line still shows what
 // it put there or something more recent that it must not cover.
@@ -79,7 +87,8 @@ func (sb *StatusBar) Widget() tview.Primitive {
 // render writes message on the status line.
 func (sb *StatusBar) render(message, color string) {
 	sb.renders++
-	sb.message, sb.color = message, color
+	// One row: what follows a line break would not be displayed.
+	sb.message, sb.color = strings.ReplaceAll(message, "\n", " "), color
 	sb.status.SetText(sb.compose(sb.status.width))
 }
 

@@ -80,6 +80,31 @@ func TestIndentedRequestIsPaintedWhereItIs(t *testing.T) {
 	expectCell(t, app, screen, 2, 1, '#', themeMuted, false)
 }
 
+// TestPaintStaysInsideTheEditor checks that on a panel narrower than a
+// method, what doesn't fit isn't painted over what stands next to the editor.
+func TestPaintStaysInsideTheEditor(t *testing.T) {
+	app, screen := paintedApp(t, "DELETE old")
+	onUI(app, func() {
+		for app.leftWeight > splitMinWeight {
+			app.resizeSplit(-splitStep)
+		}
+	})
+	waitForDraw(t, screen)
+
+	var left, top, width int
+	onUI(app, func() { left, top, width, _ = app.editor.view.GetInnerRect() })
+	if width >= len("DELETE") {
+		t.Fatalf("expected a panel narrower than the method, got %d columns", width)
+	}
+	cells, screenWidth, _ := screenContents(screen)
+	for x := left + width; x < left+len("DELETE"); x++ {
+		foreground, _, attributes := cells[top*screenWidth+x].Style.Decompose()
+		if foreground == themeRed || attributes&tcell.AttrBold != 0 {
+			t.Errorf("column %d: expected nothing painted outside the editor, got %v", x, foreground)
+		}
+	}
+}
+
 // TestSelectionKeepsItsColors checks that the selection, which F-keys and
 // the search act on, is drawn as usual over a method.
 func TestSelectionKeepsItsColors(t *testing.T) {
@@ -101,14 +126,21 @@ func TestPaintFollowsDisplayRows(t *testing.T) {
 		app, screen := paintedApp(t, "# "+strings.Repeat("word ", 20)+"\nGET next")
 		expectCell(t, app, screen, 0, 1, 'w', themeMuted, false)
 		// The request comes after the comment's rows, wherever they end.
-		_, height := wrappedRows(t, app)
-		expectCell(t, app, screen, 0, height-1, 'G', themeTeal, true)
+		rows := uiValue(app, func() int { return len(app.editor.wrappedStarts) })
+		expectCell(t, app, screen, 0, rows-1, 'G', themeTeal, true)
 	})
 
 	t.Run("a wrapped request, on its first row only", func(t *testing.T) {
 		app, screen := paintedApp(t, "GET "+strings.Repeat("a", 60))
 		expectCell(t, app, screen, 0, 0, 'G', themeTeal, true)
 		expectCell(t, app, screen, 0, 1, 'a', themeText, false)
+	})
+
+	t.Run("scrolled into a wrapped comment", func(t *testing.T) {
+		app, screen := paintedApp(t, "# "+strings.Repeat("word ", 20))
+		onUI(app, func() { app.editor.view.SetOffset(1, 0) })
+		waitForDraw(t, screen)
+		expectCell(t, app, screen, 0, 0, 'w', themeMuted, false)
 	})
 
 	t.Run("scrolled", func(t *testing.T) {
@@ -120,12 +152,4 @@ func TestPaintFollowsDisplayRows(t *testing.T) {
 		expectCell(t, app, screen, 0, 5, 'D', themeRed, true)
 		expectCell(t, app, screen, 0, 6, 'G', themeTeal, true)
 	})
-}
-
-// wrappedRows returns the editor's display rows, and how many there are.
-func wrappedRows(t *testing.T, app *App) ([]int, int) {
-	t.Helper()
-	var rows []int
-	onUI(app, func() { rows = app.editor.wrappedStarts })
-	return rows, len(rows)
 }

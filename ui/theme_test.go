@@ -44,7 +44,7 @@ func TestThemeIsReadable(t *testing.T) {
 		{"form field", themeText, themeField, 4.5},
 		{"Elasticsearch badge", themeBackground, themeTeal, 4.5},
 		{"OpenSearch badge", themeBackground, themeAccent, 4.5},
-		{"writes confirmed", tcell.ColorWhite, themeDanger, 4.5},
+		{"writes confirmed", themeWhite, themeDanger, 4.5},
 		{"read-only", themeBackground, themeYellow, 4.5},
 		{"border", themeBorder, themeBackground, 3},
 	}

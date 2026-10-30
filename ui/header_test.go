@@ -12,11 +12,8 @@ import (
 	"github.com/gnocent/termdevtools/refdata"
 )
 
-// es954 and os2196 are the targets of the header's tests.
-var (
-	es954  = es95
-	os2196 = refdata.Target{Distribution: refdata.OpenSearch, Version: refdata.Version{Major: 2, Minor: 19, Patch: 6}, HasVersion: true}
-)
+// os2196 is the OpenSearch of the header's tests.
+var os2196 = refdata.Target{Distribution: refdata.OpenSearch, Version: refdata.Version{Major: 2, Minor: 19, Patch: 6}, HasVersion: true}
 
 // headerText returns what app's header says, whatever its width.
 func headerText(app *App) string {
@@ -28,7 +25,7 @@ func headerText(app *App) string {
 // last it goes too.
 func TestHeaderGivesWayInOrder(t *testing.T) {
 	const url, user = "https://es-prod.example.test:9200", "svc_devtools"
-	h := newHeader(es954, url, user, config.ProtectionNone, "", i18n.For(i18n.FR))
+	h := newHeader(es95, url, user, config.ProtectionNone, "", i18n.For(i18n.FR))
 	cases := []struct {
 		width int
 		want  string
@@ -56,7 +53,7 @@ func TestHeaderGivesWayInOrder(t *testing.T) {
 // TestHeaderKeepsTheProtection checks that a protection, unlike the brand,
 // stays however little room there is.
 func TestHeaderKeepsTheProtection(t *testing.T) {
-	h := newHeader(es954, "https://es-prod.example.test:9200", "svc_devtools", config.ProtectionConfirm, "PROD", i18n.For(i18n.FR))
+	h := newHeader(es95, "https://es-prod.example.test:9200", "svc_devtools", config.ProtectionConfirm, "PROD", i18n.For(i18n.FR))
 	cases := []struct {
 		width int
 		want  string
@@ -68,6 +65,30 @@ func TestHeaderKeepsTheProtection(t *testing.T) {
 	for _, c := range cases {
 		if got := plainText(h.compose(c.width)); got != c.want {
 			t.Errorf("%d columns: expected\n%q, got\n%q", c.width, c.want, got)
+		}
+	}
+}
+
+// TestHeaderKeepsAShortURL checks that the room a URL needs before it is
+// worth cutting doesn't apply to one that fits whole.
+func TestHeaderKeepsAShortURL(t *testing.T) {
+	h := newHeader(es95, "http://es:1", "svc_devtools", config.ProtectionNone, "", i18n.For(i18n.FR))
+	if got, want := plainText(h.compose(22)), " ES 9.5.4  http://es:1"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+// TestHeaderIgnoresTheMouse checks that a click on the header, with the mouse
+// on, leaves the focus where it is, and the same for the status line.
+func TestHeaderIgnoresTheMouse(t *testing.T) {
+	app, screen := newTestAppWith(t, testAppOptions{mouse: true})
+	_, _, height := screenContents(screen)
+	for _, y := range []int{0, height - 1} {
+		screen.InjectMouse(20, y, tcell.Button1, tcell.ModNone)
+		screen.InjectMouse(20, y, tcell.ButtonNone, tcell.ModNone)
+		waitForDraw(t, screen)
+		if got := uiValue(app, func() bool { return app.tapp.GetFocus() == app.editor.Primitive() }); !got {
+			t.Errorf("row %d: expected the focus to stay on the editor", y)
 		}
 	}
 }
@@ -93,10 +114,10 @@ func TestHeaderBadgeTellsDistributionsApart(t *testing.T) {
 		want string
 		bg   tcell.Color
 	}{
-		{"Elasticsearch", testAppOptions{target: es954}, " ES 9.5.4 ", themeTeal},
+		{"Elasticsearch", testAppOptions{target: es95}, " ES 9.5.4 ", themeTeal},
 		{"OpenSearch", testAppOptions{target: os2196}, " OS 2.19.6 ", themeAccent},
 		{"unknown", testAppOptions{undetected: true}, " Cluster ", themeField},
-		{"protected", testAppOptions{target: es954, protection: config.ProtectionConfirm, label: "PROD"}, " ES 9.5.4 ", themeBackground},
+		{"protected", testAppOptions{target: es95, protection: config.ProtectionConfirm, label: "PROD"}, " ES 9.5.4 ", themeBackground},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -45,6 +45,16 @@ func TestStatusLineGivesWayToTheMessage(t *testing.T) {
 	}
 }
 
+// TestStatusLineStaysOnOneRow checks that a message with a line break, an
+// error's text for instance, doesn't push the rest of the line out of sight.
+func TestStatusLineStaysOnOneRow(t *testing.T) {
+	sb := NewStatusBar(i18n.For(i18n.FR))
+	sb.SetError("échec\nde la requête")
+	if got, want := plainText(sb.compose(30)), "échec de la requête"; !strings.HasPrefix(got, want) || strings.Contains(got, "\n") {
+		t.Errorf("expected %q on one row, got %q", want, got)
+	}
+}
+
 // TestStatusLineKeepsColorsAndBrackets checks that the message keeps its
 // color once the line is cut short, and that brackets in it aren't taken
 // for color tags.

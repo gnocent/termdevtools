@@ -11,6 +11,8 @@ La vue **DevTools** de Kibana dans un terminal, pour interroger un cluster Elast
 > [!IMPORTANT]
 > **Nouveautés, version par version** — détail et limites connues dans le [journal des versions](CHANGELOG_fr.md)
 >
+> - **0.9.0** — un nouvel habillage : couleurs fixes, en-tête avec le produit et le cluster, méthodes colorées dans l'éditeur, `▼` quand il reste de quoi défiler.
+> - **0.8.1** — `F1` donne la version de l'outil et celle du cluster ; `F2` et `F9` copient dans n'importe quel terminal sur Mac.
 > - **0.8.0** — plusieurs clusters dans une session : `Ctrl+O` passe de l'un à l'autre, chacun retrouvé tel qu'on l'a laissé.
 > - **0.7.5** — `Echap` abandonne la requête en cours ; la barre de statut compte les secondes d'attente.
 > - **0.7.4** — le secret d'un cluster se lit dans une variable d'environnement ou un fichier (`secret_env`, `secret_file`).
@@ -35,7 +37,8 @@ La vue **DevTools** de Kibana dans un terminal, pour interroger un cluster Elast
 - **S'adapte au cluster** : Elasticsearch 7.17 à 9.x, OpenSearch 2.x et 3.x, détectés à la connexion ; seul ce qui existe sur ce cluster est proposé.
 - **Auto-complétion** (`Tab`) des endpoints et des colonnes `_cat` (`h=`, `s=`), ces dernières demandées au cluster lui-même.
 - **Plusieurs clusters dans une session** (`Ctrl+O`) : une requête en cours continue hors écran, la barre de statut signale sa réponse.
-- **Garde-fous de production**, cluster par cluster : écritures confirmées ou refusées, bandeau avec un libellé comme `PROD`.
+- **Garde-fous de production**, cluster par cluster : écritures confirmées ou refusées, en-tête rouge ou jaune avec un libellé comme `PROD`.
+- **Lisible d'un coup d'œil** : en-tête avec le produit, l'URL et l'utilisateur, couleurs fixes quel que soit le terminal, méthodes colorées (`DELETE` en rouge), `▼` quand il reste de quoi défiler.
 - **Connexion** : Basic Auth, clé d'API, jeton Bearer ou certificat client (mTLS), à travers un proxy HTTP ou SOCKS5 ; secret saisi, ou lu dans une variable ou un fichier, jamais enregistré.
 - **Au quotidien** : variables `${nom}`, reformatage du JSON (`F4`), copie en commande `curl` (`F9`, secrets masqués), recherche (`Ctrl+F`), export (`Ctrl+S`), copie presse-papier à travers SSH (`F2`), sauvegarde automatique des requêtes par cluster.
 

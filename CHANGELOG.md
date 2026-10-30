@@ -2,7 +2,9 @@
 
 # Changelog
 
-## Unreleased
+## 0.9.0 (beta) — October 2026
+
+**In one sentence**: the interface gets a look of its own — fixed colors, a header that says which cluster this is, colored methods — without losing a row on an 80×24 terminal.
 
 ### What's new
 
@@ -14,7 +16,26 @@
 
 ### Before upgrading from 0.8.1
 
-- **Nothing to do**: the shortcuts, the configuration and the saved files don't change.
+- **Nothing to do**: the shortcuts, the configuration and the saved files don't change. The cluster and the user have moved from the bottom line to the top one, and at 80 columns fewer shortcuts show at once.
+
+### Checks
+
+- `go vet` and `go test ./...` pass on Windows, Linux and macOS: among them, contrast and the fallback in 8, 16 and 256 colors, what the header gives up when it doesn't fit, the coloring against selection, wrapping and scrolling, and the `▼` when the text just fits, once wrapped and once scrolled to the end.
+- Tried in a real terminal against an Elasticsearch 9.5.4 and an OpenSearch 3.9.0 actually running (lab instances, not production): the demo is recorded on them. The look was reviewed by hand in Windows Terminal.
+- A review of the changes before this release found, fixed with their tests: on a very narrow panel, the coloring went past the editor, onto the result next to it; with the mouse on, a click on the header left no panel with the focus; a short URL could be dropped from the header although it fit; a message with a line break hid the shortcuts; a very long line was scanned for every row on every frame.
+- Privacy: the header shows nothing the status bar didn't, nothing more is sent to the cluster, and neither the changes nor the binaries hold a local path or address.
+- `govulncheck`: no known vulnerability, neither in the dependencies nor in the standard library of Go 1.27.3, which the binaries are built with.
+- The reference data (recipes, endpoints, `_cat` columns) has not changed since 0.6. No independent external audit was carried out.
+
+### Known limits
+
+- The look is dark whatever the terminal's theme, and there is no other.
+- Not tried by hand in a terminal without 24-bit colors, macOS Terminal among them: the closest colors are worked out by tcell, and only that they stay distinct is tested.
+- In the editor, only methods and comments are colored: `TextArea` draws a single color, and the JSON of a body stays plain.
+- The `▼` covers the editor, the result and the help screen, not the recipe catalog's lists.
+- The limits of 0.8.0 still apply.
+
+The look owes its inspiration, and its palette, to [Kibanaut](https://github.com/bertokhoury/Kibanaut).
 
 ## 0.8.1 (beta) — October 2026
 

@@ -2,7 +2,9 @@
 
 # Journal des versions
 
-## Non publié
+## 0.9.0 (bêta) — octobre 2026
+
+**En une phrase** : l'interface reçoit un habillage à elle — des couleurs fixes, un en-tête qui dit de quel cluster il s'agit, des méthodes colorées — sans perdre une ligne sur un terminal 80×24.
 
 ### Nouveautés
 
@@ -14,7 +16,26 @@
 
 ### À savoir avant de mettre à jour depuis la 0.8.1
 
-- **Rien à faire** : les raccourcis, la configuration et les fichiers sauvegardés ne changent pas.
+- **Rien à faire** : les raccourcis, la configuration et les fichiers sauvegardés ne changent pas. Le cluster et l'utilisateur passent de la ligne du bas à celle du haut, et à 80 colonnes moins de raccourcis s'affichent à la fois.
+
+### Vérifications
+
+- `go vet` et `go test ./...` passent sous Windows, Linux et macOS : entre autres, le contraste et le repli en 8, 16 et 256 couleurs, ce que l'en-tête abandonne quand il ne tient pas, la coloration face à la sélection, au retour à la ligne et au défilement, et le `▼` quand le texte tient pile, une fois replié et une fois défilé jusqu'au bout.
+- Essayé dans un vrai terminal sur un Elasticsearch 9.5.4 et un OpenSearch 3.9.0 réellement lancés (instances de laboratoire, pas de production) : la démo y est enregistrée. L'habillage a été relu à la main dans Windows Terminal.
+- Une relecture des changements avant cette version a trouvé, corrigés avec leurs tests : sur un panneau très étroit, la coloration débordait de l'éditeur, sur le résultat voisin ; souris activée, un clic sur l'en-tête ne laissait le focus à aucun panneau ; une URL courte pouvait disparaître de l'en-tête alors qu'elle tenait ; un message à plusieurs lignes masquait les raccourcis ; une ligne très longue était parcourue pour chaque rangée à chaque affichage.
+- Confidentialité : l'en-tête n'affiche rien de plus que la barre de statut, rien de plus n'est envoyé au cluster, et ni les changements ni les binaires ne contiennent de chemin ou d'adresse locale.
+- `govulncheck` : aucune vulnérabilité connue, ni dans les dépendances ni dans la bibliothèque standard de Go 1.27.3, avec laquelle les binaires sont construits.
+- Les données de référence (recettes, endpoints, colonnes `_cat`) n'ont pas changé depuis la 0.6. Aucun audit externe indépendant n'a été mené.
+
+### Limites connues
+
+- L'habillage est sombre quel que soit le thème du terminal, et il n'y en a pas d'autre.
+- Pas essayé à la main dans un terminal sans couleurs 24 bits, dont le Terminal de macOS : les couleurs les plus proches sont calculées par tcell, et seul le fait qu'elles restent distinctes est testé.
+- Dans l'éditeur, seules les méthodes et les commentaires sont colorés : `TextArea` ne dessine qu'une couleur, et le JSON d'un corps reste uni.
+- Le `▼` couvre l'éditeur, le résultat et l'écran d'aide, pas les listes du catalogue de recettes.
+- Les limites de la 0.8.0 restent valables.
+
+L'habillage doit son inspiration, et sa palette, à [Kibanaut](https://github.com/bertokhoury/Kibanaut).
 
 ## 0.8.1 (bêta) — octobre 2026
 

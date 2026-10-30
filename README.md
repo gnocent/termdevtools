@@ -11,6 +11,8 @@ Kibana's **DevTools** view in a terminal, to query an Elasticsearch or OpenSearc
 > [!IMPORTANT]
 > **What's new, release by release** — details and known limits in the [changelog](CHANGELOG.md)
 >
+> - **0.9.0** — a new look: fixed colors, a header with the product and the cluster, methods colored in the editor, a `▼` when there is more to scroll to.
+> - **0.8.1** — `F1` gives the tool's version and the cluster's; `F2` and `F9` copy in any terminal on a Mac.
 > - **0.8.0** — several clusters in one session: `Ctrl+O` switches between them, each found again as you left it.
 > - **0.7.5** — `Esc` abandons the request in progress; the status bar counts the seconds of the wait.
 > - **0.7.4** — a cluster's secret is read from an environment variable or a file (`secret_env`, `secret_file`).
@@ -35,7 +37,8 @@ Kibana's **DevTools** view in a terminal, to query an Elasticsearch or OpenSearc
 - **Adapts to the cluster**: Elasticsearch 7.17 to 9.x, OpenSearch 2.x and 3.x, detected at connection; only what exists on that cluster is offered.
 - **Auto-completion** (`Tab`) of endpoints and of `_cat` columns (`h=`, `s=`), the latter asked from the cluster itself.
 - **Several clusters in one session** (`Ctrl+O`): a request in progress carries on off screen, the status bar says when its answer comes.
-- **Production guardrails**, cluster by cluster: writes confirmed or refused, a banner with a label such as `PROD`.
+- **Production guardrails**, cluster by cluster: writes confirmed or refused, a red or yellow header with a label such as `PROD`.
+- **Readable at a glance**: a header with the product, the URL and the user, fixed colors whatever the terminal, colored methods (`DELETE` in red), a `▼` when there is more to scroll to.
 - **Connection**: Basic Auth, API key, Bearer token or client certificate (mTLS), through an HTTP or SOCKS5 proxy; the secret typed, or read from a variable or a file, never saved.
 - **Day to day**: `${name}` variables, JSON reformatting (`F4`), copy as a `curl` command (`F9`, secrets redacted), search (`Ctrl+F`), export (`Ctrl+S`), clipboard copy over SSH (`F2`), requests saved automatically per cluster.
 

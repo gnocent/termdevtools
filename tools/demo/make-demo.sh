@@ -149,7 +149,9 @@ EOF
 
 # --- The recording ----------------------------------------------------------
 # VHS has no command for the function keys, nor for Alt with an arrow: their
-# escape sequences are typed instead, fast enough to arrive as one key.
+# escape sequences are typed instead, with no pause and the capture suspended,
+# which would otherwise slow the browser down between two bytes, to arrive as one key:
+# tcell takes an ESC left alone for 50 ms for the Esc key, and the rest for text.
 esc=$(printf '\033')
 f4="${esc}OS" f8="${esc}[19~" end="${esc}[F" pgdn="${esc}[6~"
 alt_left="${esc}[1;3D" alt_right="${esc}[1;3C"
@@ -169,7 +171,7 @@ Set WaitTimeout 20s
 # Fewer frames than VHS's default 50 per second, which a slower machine
 # can't capture in time: playback then runs faster than the pauses below.
 # A busy machine can still cause it: the gif should last about 60 seconds.
-Set Framerate 25
+Set Framerate 20
 
 Hide
 Type "export PATH=$work/bin:\$PATH XDG_CONFIG_HOME=$work/config ES_PW=$password PS1='$ '; clear"
@@ -220,7 +222,9 @@ Wait+Screen /app-logs-2026/
 Sleep 2800ms
 
 # The recipe catalog.
-Type@1ms "$f8"
+Hide
+Type@0ms "$f8"
+Show
 Sleep 1200ms
 Type "disk space"
 Sleep 1800ms
@@ -230,18 +234,24 @@ Ctrl+E
 Sleep 3000ms
 
 # A search, its body reformatted, then searched in the result.
-Type@1ms "$end"
+Hide
+Type@0ms "$end"
+Show
 Enter 2
 Type 'GET app-logs-*/_search'
 Enter
 Type '{"query": {"term": {"level": "ERROR"}}}'
 Sleep 500ms
-Type@1ms "$f4"
+Hide
+Type@0ms "$f4"
+Show
 Sleep 1200ms
 Ctrl+E
 Wait+Screen /"hits"/
 Sleep 1500ms
-Type@1ms "$alt_right"
+Hide
+Type@0ms "$alt_right"
+Show
 Sleep 400ms
 Ctrl+F
 Sleep 300ms
@@ -279,9 +289,13 @@ Wait+Screen /ES 9\.5\.4/
 Sleep 2500ms
 
 # A write on the protected cluster waits for confirmation; Enter cancels.
-Type@1ms "$alt_left"
+Hide
+Type@0ms "$alt_left"
+Show
 Sleep 300ms
-Type@1ms "$pgdn$pgdn$end"
+Hide
+Type@0ms "$pgdn$pgdn$end"
+Show
 Enter 2
 Type "DELETE orders"
 Sleep 600ms

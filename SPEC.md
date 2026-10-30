@@ -4,7 +4,7 @@
 
 > Terminal-mode simulator of Kibana's "DevTools" view, for submitting requests to an Elasticsearch or OpenSearch cluster without going through a browser.
 
-Status: this document describes the design as shipped — version 0.8.1 (beta). The version history is in [CHANGELOG.md](CHANGELOG.md), the step-by-step installation in [INSTALL.md](INSTALL.md).
+Status: this document describes the design as shipped — version 0.9.0 (beta). The version history is in [CHANGELOG.md](CHANGELOG.md), the step-by-step installation in [INSTALL.md](INSTALL.md).
 
 ---
 

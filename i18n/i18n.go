@@ -93,7 +93,6 @@ type Strings struct {
 	SearchLabel     string
 
 	// Status bar (statusbar.go)
-	StatusUserCaption    string // caption in front of the user
 	StatusClusterCaption string // caption in front of the URL when the cluster's product isn't known
 	StatusIdle           string
 	StatusRunning        string
@@ -259,21 +258,20 @@ var fr = Strings{
 	HelpViewTitle:   " Aide (Echap pour fermer) ",
 	SearchLabel:     "Rechercher : ",
 
-	StatusUserCaption:    "Utilisateur",
 	StatusClusterCaption: "Cluster",
 	StatusIdle:           "prêt",
 	StatusRunning:        "requête en cours...",
 	StatusResultFmt:      "HTTP %d en %s",
 	StatusRunningForFmt:  "requête en cours... %d s — Echap pour abandonner",
-	// Deliberate order: the most essential commands (help, language, quit)
-	// come first, so they stay visible even on a narrow terminal where the
-	// end of the line gets cut off (only 1 row is allocated for this bar).
+	// Deliberate order: what is used all the time comes first, what the
+	// status bar shows of it depending on the room its message leaves
+	// (StatusBar.compose): entries are three spaces apart, and never cut.
 	// "Ctrl(/Opt)" flags the shortcuts where Option also works, on macOS,
 	// as an alternative to Ctrl (see HelpContent for why and its limits).
-	ShortcutsHelpBar: "[gray]F1[white] aide   [gray]F3[white] langue   [gray]Ctrl+C[white] quitter   " +
-		"[gray]Ctrl+E[white] exécuter   [gray]F8[white] recettes   [gray]Tab/F10[white] compléter   [gray]Ctrl(/Opt)+←/→[white] changer de panneau   " +
-		"[gray]F5/F6[white] redimensionner   [gray]Ctrl+F[white] rechercher   [gray]Ctrl+S[white] sauvegarder/exporter   " +
-		"[gray]F2[white] copier   [gray]F4[white] reformater le JSON   [gray]F9[white] copier en cURL   [gray]F7[white] recharger vos fichiers",
+	ShortcutsHelpBar: "[aqua]F1[gray] aide   [aqua]Ctrl+E[gray] exécuter   [aqua]F8[gray] recettes   [aqua]Ctrl+C[gray] quitter   " +
+		"[aqua]F3[gray] langue   [aqua]Tab/F10[gray] compléter   [aqua]Ctrl(/Opt)+←/→[gray] changer de panneau   " +
+		"[aqua]F5/F6[gray] redimensionner   [aqua]Ctrl+F[gray] rechercher   [aqua]Ctrl+S[gray] sauvegarder/exporter   " +
+		"[aqua]F2[gray] copier   [aqua]F4[gray] reformater le JSON   [aqua]F9[gray] copier en cURL   [aqua]F7[gray] recharger vos fichiers",
 
 	ErrLoadFailedFmt:        "échec du chargement de %s : %s",
 	ErrNoMatchFound:         "aucune occurrence trouvée",
@@ -303,7 +301,7 @@ var fr = Strings{
 	InfoRecipeInsertedFmt:   "recette insérée : %s",
 	ErrUnknownVariablesFmt:  "variable(s) inconnue(s) : %s",
 
-	HelpHeaderFmt:  "[yellow]TermDevTools %s[white] — client Elasticsearch et OpenSearch en mode terminal",
+	HelpHeaderFmt:  "[aqua]TermDevTools %s[white] — client Elasticsearch et OpenSearch en mode terminal",
 	HelpClusterFmt: "Cluster : [green]%s[white]",
 	HelpContent: `[green]Panneau gauche[white] : requêtes "MÉTHODE endpoint" + JSON optionnel
 sur les lignes suivantes. Lignes [gray]#[white] = commentaires.
@@ -311,7 +309,7 @@ sur les lignes suivantes. Lignes [gray]#[white] = commentaires.
 [green]Panneau droit[white] : résultat de la dernière requête — JSON coloré,
 ou texte brut (ex. réponses _cat/*).
 
-[yellow]Raccourcis clavier[white]
+[green]Raccourcis clavier[white]
 [gray]PuTTY est connu pour mal gérer certains raccourcis : fortement
 déconseillé. Aucun souci sous macOS/Windows 10+ natifs. En cas de
 doute, préférez Ctrl+E, Alt+←/→, F5/F6 et Tab/F10.[white]
@@ -340,7 +338,7 @@ doute, préférez Ctrl+E, Alt+←/→, F5/F6 et Tab/F10.[white]
                      (chacun garde ses requêtes et sa requête en cours)
   [aqua]Ctrl+C[white]           Quitter (sauvegarde chaque panneau gauche)
 
-[yellow]Fichiers[white]
+[green]Fichiers[white]
 [gray]Rien n'est requis à côté du binaire : recettes et endpoints y sont
 intégrés. Ces fichiers, tous facultatifs, s'y ajoutent.[white]
 
@@ -455,21 +453,20 @@ var en = Strings{
 	HelpViewTitle:   " Help (Esc to close) ",
 	SearchLabel:     "Search: ",
 
-	StatusUserCaption:    "User",
 	StatusClusterCaption: "Cluster",
 	StatusIdle:           "ready",
 	StatusRunning:        "request in progress...",
 	StatusResultFmt:      "HTTP %d in %s",
 	StatusRunningForFmt:  "request in progress... %d s — Esc to abandon",
-	// Deliberate order: the most essential commands (help, language, quit)
-	// come first, so they stay visible even on a narrow terminal where the
-	// end of the line gets cut off (only 1 row is allocated for this bar).
+	// Deliberate order: what is used all the time comes first, what the
+	// status bar shows of it depending on the room its message leaves
+	// (StatusBar.compose): entries are three spaces apart, and never cut.
 	// "Ctrl(/Opt)" flags the shortcuts where Option also works, on macOS,
 	// as an alternative to Ctrl (see HelpContent for why and its limits).
-	ShortcutsHelpBar: "[gray]F1[white] help   [gray]F3[white] language   [gray]Ctrl+C[white] quit   " +
-		"[gray]Ctrl+E[white] execute   [gray]F8[white] recipes   [gray]Tab/F10[white] complete   [gray]Ctrl(/Opt)+←/→[white] switch panel   " +
-		"[gray]F5/F6[white] resize   [gray]Ctrl+F[white] search   [gray]Ctrl+S[white] save/export   " +
-		"[gray]F2[white] copy   [gray]F4[white] reformat JSON   [gray]F9[white] copy as cURL   [gray]F7[white] reload your files",
+	ShortcutsHelpBar: "[aqua]F1[gray] help   [aqua]Ctrl+E[gray] execute   [aqua]F8[gray] recipes   [aqua]Ctrl+C[gray] quit   " +
+		"[aqua]F3[gray] language   [aqua]Tab/F10[gray] complete   [aqua]Ctrl(/Opt)+←/→[gray] switch panel   " +
+		"[aqua]F5/F6[gray] resize   [aqua]Ctrl+F[gray] search   [aqua]Ctrl+S[gray] save/export   " +
+		"[aqua]F2[gray] copy   [aqua]F4[gray] reformat JSON   [aqua]F9[gray] copy as cURL   [aqua]F7[gray] reload your files",
 
 	ErrLoadFailedFmt:        "failed to load %s: %s",
 	ErrNoMatchFound:         "no match found",
@@ -499,7 +496,7 @@ var en = Strings{
 	InfoRecipeInsertedFmt:   "recipe inserted: %s",
 	ErrUnknownVariablesFmt:  "unknown variable(s): %s",
 
-	HelpHeaderFmt:  "[yellow]TermDevTools %s[white] — terminal-mode Elasticsearch and OpenSearch client",
+	HelpHeaderFmt:  "[aqua]TermDevTools %s[white] — terminal-mode Elasticsearch and OpenSearch client",
 	HelpClusterFmt: "Cluster: [green]%s[white]",
 	HelpContent: `[green]Left panel[white]: "METHOD endpoint" requests + optional JSON
 on the following lines. Lines starting with [gray]#[white] = comments.
@@ -507,7 +504,7 @@ on the following lines. Lines starting with [gray]#[white] = comments.
 [green]Right panel[white]: result of the last request — colorized JSON,
 or plain text (e.g. _cat/* responses).
 
-[yellow]Keyboard shortcuts[white]
+[green]Keyboard shortcuts[white]
 [gray]PuTTY is known to mishandle some shortcuts: strongly discouraged.
 No issues on native macOS/Windows 10+ terminals. When in doubt, prefer
 Ctrl+E, Alt+←/→, F5/F6, and Tab/F10.[white]
@@ -536,7 +533,7 @@ Ctrl+E, Alt+←/→, F5/F6, and Tab/F10.[white]
                      (each keeps its requests and its running request)
   [aqua]Ctrl+C[white]           Quit (auto-saves every left panel)
 
-[yellow]Files[white]
+[green]Files[white]
 [gray]Nothing is required next to the binary: recipes and endpoints are
 built in. These files, all optional, add to them.[white]
 

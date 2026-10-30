@@ -202,7 +202,7 @@ func newConnectScreen(tapp *tview.Application, cfg *config.Config, onConnected f
 		message:  tview.NewTextView().SetDynamicColors(true).SetWordWrap(true),
 		sessions: sessions,
 	}
-	cs.list.SetBorder(true).SetTitle(cs.msgs.ConnectListTitle)
+	cs.list.SetBorder(true).SetBorderColor(themeAccent).SetTitle(cs.msgs.ConnectListTitle)
 	cs.refreshList()
 	cs.pages.AddPage("list", cs.listLayout(), true, true)
 	return cs
@@ -325,7 +325,7 @@ func (cs *connectScreen) buildForm(existing *config.Cluster, secret string) *hig
 	}
 
 	form := newHighlightForm()
-	form.SetBorder(true).SetTitle(title)
+	form.SetBorder(true).SetBorderColor(themeAccent).SetTitle(title)
 	// Without SetCancelFunc, tview.Form falls back to a default behavior
 	// (return to the first field) that turned out to freeze focus in
 	// practice (e.g. Esc on the authentication dropdown). So we give Esc an
@@ -477,7 +477,7 @@ func (cs *connectScreen) buildForm(existing *config.Cluster, secret string) *hig
 }
 
 // labelMaxLength bounds the label typed in the connection form: a few
-// words on the banner, not a description.
+// words in the header, not a description.
 const labelMaxLength = 30
 
 // certPickerPageName is the tview.Pages key for the certificate-picker
@@ -560,7 +560,7 @@ func (cs *connectScreen) openCertPicker(dir, settingName string, field *tview.In
 	}
 
 	list := tview.NewList().ShowSecondaryText(false)
-	list.SetBorder(true)
+	list.SetBorder(true).SetBorderColor(themeAccent)
 
 	// currentDir tracks whichever directory render last drew — updated only
 	// on success, so a read error while navigating (into a subdirectory, or
@@ -697,7 +697,7 @@ func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecret
 		return
 	}
 	// "https://user:password@host" would work — and put the password in
-	// config.yaml, in the status bar and in every curl command copied: the
+	// config.yaml, in the header and in every curl command copied: the
 	// URL is the one thing about a cluster that is saved and shown as is.
 	if parsed, err := url.Parse(cl.URL); err == nil && parsed.User != nil {
 		cs.setMessage(msgs.ErrURLCredentials, "red")
@@ -705,7 +705,7 @@ func (cs *connectScreen) attemptConnect(cl config.Cluster, secrets connectSecret
 	}
 	if cl.AuthType == config.AuthAPIKey {
 		// A key pasted in its encoded form brings its own identifier: that
-		// is the one saved, and shown in the status bar.
+		// is the one saved, and shown in the header.
 		cl.APIKeyID, secrets.apiKeySecret = esclient.ResolveAPIKey(cl.APIKeyID, secrets.apiKeySecret)
 		if cl.APIKeyID == "" {
 			cs.setMessage(msgs.ErrAPIKeyIDRequired, "red")

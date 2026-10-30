@@ -119,7 +119,7 @@ func checkFormRightBorder(t *testing.T, screen tcell.SimulationScreen) {
 	cells, width, height := screenContents(screen)
 	bottom := height - connectMessageLines - 1 // the form's bottom border
 	for y := 1; y < bottom; y++ {
-		if got := string(cells[y*width+width-1].Runes); got != "║" {
+		if got := string(cells[y*width+width-1].Runes); got != "┃" {
 			t.Errorf("row %d: expected the form's right border, got %q:\n%s", y, got, screenText(screen))
 			return
 		}

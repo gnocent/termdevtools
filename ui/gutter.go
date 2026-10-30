@@ -8,6 +8,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/rivo/uniseg"
+
+	"github.com/gnocent/termdevtools/parser"
 )
 
 // gutterPadding is the blank margin (in columns) added after the line
@@ -41,8 +43,10 @@ type editorLayout struct {
 }
 
 func (l *editorLayout) Draw(screen tcell.Screen) {
+	l.SetBorderColor(panelBorderColor(l.HasFocus()))
 	l.editor.refreshGutter()
 	l.Flex.Draw(screen)
+	l.editor.paintRequests(screen)
 }
 
 // refreshGutter recomputes the gutter's displayed line numbers to match the
@@ -79,6 +83,48 @@ func (e *Editor) refreshGutter() {
 	rowOffset, _ := e.view.GetOffset()
 
 	e.gutter.SetText(gutterText(text, e.wrappedStarts, rowOffset, height, digits))
+}
+
+// paintRequests colors, in the cells TextArea has just drawn, what makes the
+// requests easy to read: the method of each request line, by what it can do,
+// and comments. TextArea itself only draws one color (SPEC.md §3.2), and
+// offers no way around it short of rebuilding an editor; this keeps it, and
+// changes nothing but the color of what it displays. Relies on the same
+// display rows as the gutter (refreshGutter, just before the draw).
+func (e *Editor) paintRequests(screen tcell.Screen) {
+	x, y, width, height := e.view.GetInnerRect()
+	rowOffset, _ := e.view.GetOffset()
+	text, rowStarts := e.wrappedText, e.wrappedStarts
+	for row := rowOffset; row < rowOffset+height && row < len(rowStarts); row++ {
+		start := rowStarts[row]
+		lineStart := strings.LastIndexByte(text[:start], '\n') + 1
+		line, _, _ := strings.Cut(text[lineStart:], "\n")
+		request := strings.TrimLeft(line, " ")
+		screenRow := y + row - rowOffset
+		if strings.HasPrefix(request, "#") {
+			paintCells(screen, x, screenRow, width, func(style tcell.Style) tcell.Style {
+				return style.Foreground(themeMuted)
+			})
+		} else if method, ok := parser.RequestMethod(request); ok && start == lineStart {
+			color := methodColor(method)
+			paintCells(screen, x+len(line)-len(request), screenRow, len(method), func(style tcell.Style) tcell.Style {
+				return style.Foreground(color).Bold(true)
+			})
+		}
+	}
+}
+
+// paintCells applies paint to the cells of a row showing the editor's plain
+// text: not to the selection, or to a search match, which have a background
+// of their own.
+func paintCells(screen tcell.Screen, x, y, cells int, paint func(tcell.Style) tcell.Style) {
+	for end := x + cells; x < end; {
+		mainc, combc, style, width := screen.GetContent(x, y)
+		if _, background, _ := style.Decompose(); background == themeBackground {
+			screen.SetContent(x, y, mainc, combc, paint(style))
+		}
+		x += max(width, 1)
+	}
 }
 
 // gutterText renders the gutter's content for the display rows [rowOffset,

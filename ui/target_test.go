@@ -7,25 +7,25 @@ import (
 	"github.com/gnocent/termdevtools/refdata"
 )
 
-// TestStatusBarShowsDetectedTarget checks that the distribution and version
+// TestHeaderShowsDetectedTarget checks that the distribution and version
 // detected at connection are visible in front of the cluster's URL, in place
 // of the generic "Cluster" caption.
-func TestStatusBarShowsDetectedTarget(t *testing.T) {
+func TestHeaderShowsDetectedTarget(t *testing.T) {
 	_, screen := newTestAppWith(t, testAppOptions{
 		target: refdata.Target{Distribution: refdata.OpenSearch, Version: refdata.Version{Major: 2, Minor: 19, Patch: 6}, HasVersion: true},
 	})
 
-	if text := screenText(screen); !strings.Contains(text, "OS 2.19.6: http://127.0.0.1:1") {
-		t.Errorf("expected the status bar to show the target in front of the URL, got:\n%s", text)
+	if text := screenText(screen); !strings.Contains(text, " OS 2.19.6  http://127.0.0.1:1") {
+		t.Errorf("expected the header to show the target in front of the URL, got:\n%s", text)
 	}
 }
 
-// TestStatusBarWithoutDetectedTarget checks the fallback when detection
-// found nothing: the generic caption.
-func TestStatusBarWithoutDetectedTarget(t *testing.T) {
+// TestHeaderWithoutDetectedTarget checks the fallback when detection found
+// nothing: the generic caption.
+func TestHeaderWithoutDetectedTarget(t *testing.T) {
 	_, screen := newTestAppWith(t, testAppOptions{undetected: true})
 
-	if text := screenText(screen); !strings.Contains(text, "Cluster: http://127.0.0.1:1") {
+	if text := screenText(screen); !strings.Contains(text, " Cluster  http://127.0.0.1:1") {
 		t.Errorf("expected the generic caption in front of the URL, got:\n%s", text)
 	}
 }

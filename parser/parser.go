@@ -135,6 +135,12 @@ func collectBody(lines []string, start int) (body []byte, next int) {
 	return []byte(strings.Join(bodyLines, "\n")), i
 }
 
+// RequestMethod returns the method, in capitals, of a request line.
+func RequestMethod(line string) (method string, ok bool) {
+	method, _, ok = parseRequestLine(line)
+	return method, ok
+}
+
 func parseRequestLine(line string) (method, path string, ok bool) {
 	m := requestLineRe.FindStringSubmatch(line)
 	if m == nil {

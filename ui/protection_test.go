@@ -238,15 +238,15 @@ func TestConfirmWriteHidesWhatIsBehind(t *testing.T) {
 			}
 			for x, r := range line {
 				switch r {
-				case '╔', '┌':
+				case '┏', '┌':
 					left = x
-				case '╗', '┐':
+				case '┓', '┐':
 					right = x
 				}
 			}
 			continue
 		}
-		if line[left] == '╚' || line[left] == '└' {
+		if line[left] == '┗' || line[left] == '└' {
 			return
 		}
 		if inside := string(line[left+1 : right]); strings.Contains(inside, "X") {
@@ -577,37 +577,37 @@ func screenBackground(screen tcell.SimulationScreen, x, y int) tcell.Color {
 	return background
 }
 
-// TestNoBannerWithoutProtection checks that an unprotected cluster's main
-// screen is laid out as before protection levels existed: the panels start
-// on the very first row.
+// TestNoBannerWithoutProtection checks that the header of an unprotected
+// cluster says nothing of a protection, its label included.
 func TestNoBannerWithoutProtection(t *testing.T) {
 	for _, protection := range []string{"", config.ProtectionNone} {
-		app, screen := newTestAppWith(t, testAppOptions{protection: protection, label: "PROD"})
-		if uiValue(app, func() bool { return app.banner != nil }) {
-			t.Errorf("protection %q: expected no banner", protection)
+		_, screen := newTestAppWith(t, testAppOptions{protection: protection, label: "PROD"})
+		if row := screenRow(screen, 0); !strings.Contains(row, "TermDevTools") || strings.Contains(row, "PROD") {
+			t.Errorf("protection %q: expected the plain header on the first row, got %q", protection, row)
 		}
-		if row := screenRow(screen, 0); !strings.Contains(row, "Requêtes") || strings.Contains(row, "PROD") {
-			t.Errorf("protection %q: expected the panels on the first row, got %q", protection, row)
+		if got := screenBackground(screen, 79, 0); got != themeSurface {
+			t.Errorf("protection %q: expected the plain header's background, got %v", protection, got)
 		}
 	}
 }
 
-// TestProtectionBanner checks the banner a protected cluster gets across the
-// top of the main screen: its text, with and without a label, its color, and
-// the panels pushed down by one row.
+// TestProtectionBanner checks what a protected cluster's header says across
+// the top of the main screen: its text, with and without a label, the color
+// of the whole line, and the panels right under it, on the same row as on an
+// unprotected cluster.
 func TestProtectionBanner(t *testing.T) {
 	cases := []struct {
 		protection, label string
 		want              string
 		background        tcell.Color
 	}{
-		{config.ProtectionConfirm, "PROD", "PROD · confirmation des écritures", tcell.ColorRed},
-		{config.ProtectionConfirm, "", "CONFIRMATION DES ÉCRITURES", tcell.ColorRed},
-		{config.ProtectionReadOnly, "PROD", "PROD · lecture seule", tcell.ColorYellow},
-		{config.ProtectionReadOnly, "", "LECTURE SEULE", tcell.ColorYellow},
+		{config.ProtectionConfirm, "PROD", "PROD · confirmation des écritures", themeDanger},
+		{config.ProtectionConfirm, "", "CONFIRMATION DES ÉCRITURES", themeDanger},
+		{config.ProtectionReadOnly, "PROD", "PROD · lecture seule", themeYellow},
+		{config.ProtectionReadOnly, "", "LECTURE SEULE", themeYellow},
 		// The form hands over a level it has already normalized; a label
 		// written by hand may still span lines or hold control characters.
-		{config.ProtectionReadOnly, "PROD\n  eu-west\x1b[31m", "PROD eu-west [31m · lecture seule", tcell.ColorYellow},
+		{config.ProtectionReadOnly, "PROD\n  eu-west\x1b[31m", "PROD eu-west [31m · lecture seule", themeYellow},
 	}
 	for _, c := range cases {
 		_, screen := newTestAppWith(t, testAppOptions{protection: c.protection, label: c.label})
@@ -615,7 +615,7 @@ func TestProtectionBanner(t *testing.T) {
 		if !strings.Contains(row, c.want) {
 			t.Errorf("%s/%q: expected %q on the first row, got %q", c.protection, c.label, c.want, row)
 		}
-		for _, x := range []int{0, 40, 79} {
+		for _, x := range []int{0, 1, 78, 79} {
 			if got := screenBackground(screen, x, 0); got != c.background {
 				t.Errorf("%s/%q: expected background %v at column %d, got %v", c.protection, c.label, c.background, x, got)
 			}

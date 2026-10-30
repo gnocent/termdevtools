@@ -13,29 +13,9 @@ import (
 	"github.com/gnocent/termdevtools/i18n"
 )
 
-// newProtectionBanner builds the line shown across the top of the main
-// screen of a protected cluster (SPEC.md §5): red when writes can still be
-// sent once confirmed, yellow when none can. nil for an unprotected cluster,
-// whose layout stays exactly what it was before protection levels existed.
-func newProtectionBanner(level, label string, msgs *i18n.Strings) *tview.TextView {
-	background, foreground := tcell.ColorRed, tcell.ColorWhite
-	switch level {
-	case config.ProtectionConfirm:
-	case config.ProtectionReadOnly:
-		background, foreground = tcell.ColorYellow, tcell.ColorBlack
-	default:
-		return nil
-	}
-	// No dynamic colors: the label is shown as typed, "[red]" included.
-	banner := tview.NewTextView().SetTextAlign(tview.AlignCenter).SetWrap(false).
-		SetTextStyle(tcell.StyleDefault.Background(background).Foreground(foreground).Bold(true))
-	banner.SetBackgroundColor(background)
-	banner.SetText(bannerText(level, label, msgs))
-	return banner
-}
-
-// bannerText is what the banner says: the cluster's label and its level
-// ("PROD · read-only"), or the level alone, in capitals, without a label.
+// bannerText is what the header says of a protected cluster (SPEC.md §5): its
+// label and its level ("PROD · read-only"), or the level alone, in capitals,
+// without a label.
 func bannerText(level, label string, msgs *i18n.Strings) string {
 	name := msgs.ProtectionConfirmName
 	if level == config.ProtectionReadOnly {
@@ -192,8 +172,8 @@ func (a *App) confirmWrite(method, path string, body []byte) {
 	frame := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(text, confirmTextHeight, 0, false).
 		AddItem(buttons, 0, 1, true)
-	frame.SetBorder(true).SetBorderColor(tcell.ColorRed).
-		SetTitle(a.msgs.ConfirmWriteTitle).SetTitleColor(tcell.ColorRed)
+	frame.SetBorder(true).SetBorderColor(themeRed).
+		SetTitle(a.msgs.ConfirmWriteTitle).SetTitleColor(themeRed)
 
 	overlay := modalPage{tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(nil, 0, 1, false).
@@ -216,7 +196,7 @@ func (a *App) closeConfirm() {
 	a.focusEditor()
 }
 
-// bannerLabel makes a label fit on the banner's single line: a label written
+// bannerLabel makes a label fit on the header's single line: a label written
 // by hand in config.yaml may span several lines, or hold control characters
 // that have no business reaching the terminal.
 func bannerLabel(label string) string {

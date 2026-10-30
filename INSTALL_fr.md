@@ -354,7 +354,7 @@ Les messages sont cités en anglais, tels qu'un premier lancement les affiche, p
 | `The cluster responded HTTP 403` / `Le cluster a répondu HTTP 403` | Le compte n'a pas le droit de lire la racine du cluster (`GET /`) : il lui faut au moins le privilège de supervision (`monitor`). |
 | `The cluster responded HTTP 301` (ou `302`…) suivi d'une adresse | L'URL saisie redirige ailleurs : utilisez l'adresse indiquée. Les redirections ne sont jamais suivies. |
 | `No credentials in the URL…` / `Pas d'identifiants dans l'URL…` | Retirez `utilisateur:motdepasse@` de l'URL et choisissez Basic Auth. |
-| La barre de statut affiche `Cluster` au lieu de `ES …` ou `OS …` | Le cluster n'a pas été reconnu : tout est proposé sans filtrage. Indiquez `distribution` et `version` dans `config.yaml` (§5). |
+| L'en-tête affiche `Cluster` au lieu de `ES …` ou `OS …` | Le cluster n'a pas été reconnu : tout est proposé sans filtrage. Indiquez `distribution` et `version` dans `config.yaml` (§5). |
 | `Tab` ne complète pas | Certains terminaux interceptent `Tab` : utilisez `F10`. |
 | `Ctrl+←/→` ne change pas de panneau sous macOS | Le système l'intercepte : utilisez `Option+←/→`. |
 | `F2` ou `F9` ne copie rien | La copie passe par le terminal (OSC 52) — sauf sur un Mac hors SSH, où elle passe par `pbcopy` et fonctionne dans n'importe quel terminal. Windows Terminal, WezTerm, kitty, Alacritty et iTerm2 (une fois activé dans ses réglages) la prennent en charge ; PuTTY, le Terminal de macOS (à travers SSH), GNOME Terminal et les autres terminaux basés sur VTE, non. Dans `tmux` : `set -g set-clipboard on` ; `screen` demande une configuration. |

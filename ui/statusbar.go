@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -11,27 +12,23 @@ import (
 	"github.com/gnocent/termdevtools/i18n"
 )
 
-// StatusBar displays the current state (cluster, request in progress,
-// result) and a help bar reminding the shortcuts. See SPEC.md §3.1 and §4.
+// StatusBar is the line at the bottom of the main screen: the state of the
+// last operation (request in progress, result, error...) and, in the room
+// that leaves, the shortcuts. See SPEC.md §3.1 and §4.
 type StatusBar struct {
-	// product is the cluster's detected distribution and version in short
-	// form ("ES 9.5.4"), empty when unknown.
-	product string
-	cluster string
-	user    string
-	msgs    *i18n.Strings
+	msgs *i18n.Strings
 
-	status *statusLine
-	help   *tview.TextView
+	status *composedLine
 	// renders counts what was written to the status line, see Version.
 	renders int
-	// message and color are what the status line currently says, at its end.
+	// message and color are what the status line currently says.
 	message, color string
 }
 
-// statusLine is the status line's TextView, its text composed for the width
-// it is drawn at (StatusBar.compose): the width is only known then.
-type statusLine struct {
+// composedLine is a one-line TextView whose text is composed for the width
+// it is drawn at (StatusBar.compose, header.compose): the width is only
+// known then.
+type composedLine struct {
 	*tview.TextView
 	compose func(width int) string
 	// width is the one the current text was composed for; 0 before the
@@ -39,7 +36,7 @@ type statusLine struct {
 	width int
 }
 
-func (l *statusLine) Draw(screen tcell.Screen) {
+func (l *composedLine) Draw(screen tcell.Screen) {
 	if _, _, width, _ := l.GetInnerRect(); width != l.width {
 		l.width = width
 		l.SetText(l.compose(width))
@@ -54,88 +51,82 @@ func (sb *StatusBar) Version() int {
 	return sb.renders
 }
 
-// NewStatusBar creates the status bar for the given cluster/user. product
-// is the cluster's detected distribution and version ("ES 9.5.4"), or empty.
-func NewStatusBar(product, cluster, user string, msgs *i18n.Strings) *StatusBar {
-	sb := &StatusBar{
-		product: product,
-		cluster: cluster,
-		user:    user,
-		msgs:    msgs,
-		help:    tview.NewTextView().SetDynamicColors(true).SetText(msgs.ShortcutsHelpBar),
-	}
-	sb.status = &statusLine{TextView: tview.NewTextView().SetDynamicColors(true), compose: sb.compose}
+// NewStatusBar creates the status bar.
+func NewStatusBar(msgs *i18n.Strings) *StatusBar {
+	sb := &StatusBar{msgs: msgs}
+	view := tview.NewTextView().SetDynamicColors(true).SetWrap(false)
+	view.SetBorderPadding(0, 0, 1, 1)
+	sb.status = &composedLine{TextView: view, compose: sb.compose}
 	sb.SetIdle()
 	return sb
 }
 
-// SetLanguage re-applies the shortcuts help bar in msgs' language. The
-// current status line is left untouched — it stays in the previous
-// language until the next SetIdle/SetRunning/SetInfo/SetResult/SetError
-// call re-renders it (the caller typically issues one right after
-// SetLanguage to confirm the switch immediately).
+// SetLanguage re-applies the shortcuts in msgs' language. The current
+// message is left untouched — it stays in the previous language until the
+// next SetIdle/SetRunning/SetInfo/SetResult/SetError call re-renders it (the
+// caller typically issues one right after SetLanguage to confirm the switch
+// immediately).
 func (sb *StatusBar) SetLanguage(msgs *i18n.Strings) {
 	sb.msgs = msgs
-	sb.help.SetText(msgs.ShortcutsHelpBar)
+	sb.status.SetText(sb.compose(sb.status.width))
 }
 
-// Widget returns the container (status + help) to insert into the layout.
+// Widget returns the line to insert into the layout.
 func (sb *StatusBar) Widget() tview.Primitive {
-	return tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(sb.status, 1, 0, false).
-		AddItem(sb.help, 1, 0, false)
+	return sb.status
 }
 
-// render writes message at the end of the status line.
+// render writes message on the status line.
 func (sb *StatusBar) render(message, color string) {
 	sb.renders++
 	sb.message, sb.color = message, color
 	sb.status.SetText(sb.compose(sb.status.width))
 }
 
-// statusSeparator separates the parts of the status line.
-const statusSeparator = "  |  "
+const (
+	// shortcutsSeparator separates the entries of msgs.ShortcutsHelpBar.
+	shortcutsSeparator = "   "
+	// shortcutsGap is what separates them on the line, where room counts.
+	shortcutsGap = "  "
+	// minStatusGap is the fewest columns between the message and the
+	// shortcuts.
+	minStatusGap = 3
+)
 
-// minStatusURLWidth is the fewest columns a URL cut short keeps on the status
-// line, "…" included: fewer wouldn't say which cluster it is.
-const minStatusURLWidth = 12
-
-// compose builds the status line for width columns: the cluster, the user,
-// then the message — the part that matters most, often the only sign that
-// something happened (a write refused on a read-only cluster). When the
-// whole line doesn't fit, the user goes first, then the URL is cut short,
-// and last the cluster goes too, the message being cut short only when it
-// doesn't fit alone. The detected product, when known, takes the place of
-// the generic "Cluster" caption in front of the URL rather than being added
-// to the line, for the same reason. A width of 0 (not drawn yet) gives the
-// whole line.
+// compose builds the status line for width columns: the message on the left
+// — the part that matters most, often the only sign that something happened
+// (a write refused on a read-only cluster) — and on the right as many
+// shortcuts as the message leaves room for, in the order of the catalog and
+// never one cut in two. The message is only cut short when it doesn't fit
+// alone. A width of 0 (not drawn yet) gives the whole line.
 func (sb *StatusBar) compose(width int) string {
-	caption := sb.product
-	if caption == "" {
-		caption = sb.msgs.StatusClusterCaption
-	}
-	cluster := func(url string) string {
-		return fmt.Sprintf("[white]%s: [green]%s[white]", tview.Escape(caption), tview.Escape(url))
-	}
-	user := fmt.Sprintf("%s: [green]%s[white]", tview.Escape(sb.msgs.StatusUserCaption), tview.Escape(sb.user))
-	message := func(text string) string {
-		return fmt.Sprintf("[%s]%s[white]", sb.color, tview.Escape(text))
-	}
-
-	clusterWidth := uniseg.StringWidth(caption + ": " + sb.cluster)
-	userWidth := uniseg.StringWidth(sb.msgs.StatusUserCaption + ": " + sb.user)
 	messageWidth := uniseg.StringWidth(sb.message)
-	separator := len(statusSeparator)
-	switch {
-	case width <= 0 || clusterWidth+separator+userWidth+separator+messageWidth <= width:
-		return cluster(sb.cluster) + statusSeparator + user + statusSeparator + message(sb.message)
-	case clusterWidth+separator+messageWidth <= width:
-		return cluster(sb.cluster) + statusSeparator + message(sb.message)
+	if width > 0 && messageWidth > width {
+		return fmt.Sprintf("[%s]%s[white]", sb.color, tview.Escape(cutShort(sb.message, width)))
 	}
-	if room := width - separator - messageWidth - uniseg.StringWidth(caption+": "); room >= minStatusURLWidth {
-		return cluster(cutShort(sb.cluster, room)) + statusSeparator + message(sb.message)
+	message := fmt.Sprintf("[%s]%s[white]", sb.color, tview.Escape(sb.message))
+
+	var shortcuts []string
+	columns := 0
+	for _, entry := range strings.Split(sb.msgs.ShortcutsHelpBar, shortcutsSeparator) {
+		needed := tview.TaggedStringWidth(entry)
+		if len(shortcuts) > 0 {
+			needed += len(shortcutsGap)
+		}
+		if width > 0 && messageWidth+minStatusGap+columns+needed > width {
+			break
+		}
+		shortcuts = append(shortcuts, entry)
+		columns += needed
 	}
-	return message(cutShort(sb.message, width))
+	if len(shortcuts) == 0 {
+		return message
+	}
+	gap := minStatusGap
+	if width > 0 {
+		gap = width - messageWidth - columns
+	}
+	return message + strings.Repeat(" ", gap) + strings.Join(shortcuts, shortcutsGap)
 }
 
 // SetIdle displays the default "ready" state.

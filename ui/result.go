@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/gnocent/termdevtools/i18n"
@@ -27,6 +28,7 @@ const searchRegionID = "match"
 // text otherwise (e.g. `_cat` responses). See SPEC.md §3.3.
 type ResultView struct {
 	view          *tview.TextView
+	panel         *resultPanel
 	plain         string // displayed text without color tags, for search and export
 	displayedText string // last text actually sent to SetText (with color tags), for HighlightLine
 	isJSON        bool
@@ -62,12 +64,23 @@ func NewResultView(msgs *i18n.Strings) *ResultView {
 		SetScrollable(true).
 		SetRegions(true)
 	view.SetBorder(true).SetTitle(msgs.ResultTitle)
-	return &ResultView{view: view, msgs: msgs}
+	return &ResultView{view: view, panel: &resultPanel{TextView: view}, msgs: msgs}
+}
+
+// resultPanel wraps the panel's TextView so that its border follows the
+// focus, which a border's color doesn't do by itself.
+type resultPanel struct {
+	*tview.TextView
+}
+
+func (p *resultPanel) Draw(screen tcell.Screen) {
+	p.SetBorderColor(panelBorderColor(p.HasFocus()))
+	p.TextView.Draw(screen)
 }
 
 // Widget returns the tview component to insert into the layout.
 func (r *ResultView) Widget() tview.Primitive {
-	return r.view
+	return r.panel
 }
 
 // Primitive returns the underlying TextView.
@@ -294,16 +307,16 @@ func colorizeJSON(text string) string {
 		switch {
 		case strings.HasPrefix(tok, `"`):
 			if isKeyToken(text, end) {
-				b.WriteString("[#5fafff]")
+				b.WriteString("[aqua]")
 			} else {
-				b.WriteString("[#87d787]")
+				b.WriteString("[green]")
 			}
 			b.WriteString(tview.Escape(tok))
 			b.WriteString("[white]")
 		case len(tok) == 1 && strings.ContainsRune("{}[],:", rune(tok[0])):
 			b.WriteString(tview.Escape(tok))
 		case tok == "true" || tok == "false":
-			b.WriteString("[#d78700]")
+			b.WriteString("[fuchsia]")
 			b.WriteString(tok)
 			b.WriteString("[white]")
 		case tok == "null":
@@ -311,7 +324,7 @@ func colorizeJSON(text string) string {
 			b.WriteString(tok)
 			b.WriteString("[white]")
 		default: // number
-			b.WriteString("[#af87ff]")
+			b.WriteString("[yellow]")
 			b.WriteString(tok)
 			b.WriteString("[white]")
 		}

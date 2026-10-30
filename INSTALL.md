@@ -352,7 +352,7 @@ Delete the binary and the configuration directory (§5): TermDevTools writes not
 | `The cluster responded HTTP 403` | The account isn't allowed to read the cluster's root (`GET /`): it needs at least the monitoring privilege (`monitor`). |
 | `The cluster responded HTTP 301` (or `302`…) followed by an address | The URL entered redirects elsewhere: use the address shown. Redirections are never followed. |
 | `No credentials in the URL…` | Remove `user:password@` from the URL and choose Basic Auth. |
-| The status bar says `Cluster` instead of `ES …` or `OS …` | The cluster wasn't recognized: everything is offered, unfiltered. State `distribution` and `version` in `config.yaml` (§5). |
+| The header says `Cluster` instead of `ES …` or `OS …` | The cluster wasn't recognized: everything is offered, unfiltered. State `distribution` and `version` in `config.yaml` (§5). |
 | `Tab` doesn't complete | Some terminals intercept `Tab`: use `F10`. |
 | `Ctrl+←/→` doesn't switch panel on macOS | The system intercepts it: use `Option+←/→`. |
 | `F2` or `F9` copies nothing | The copy goes through the terminal (OSC 52) — except on a Mac outside SSH, where it goes through `pbcopy` and works in any terminal. Windows Terminal, WezTerm, kitty, Alacritty and iTerm2 (once enabled in its settings) support it; PuTTY, macOS Terminal (through SSH), GNOME Terminal and the other VTE-based terminals don't. In `tmux`: `set -g set-clipboard on`; `screen` needs to be configured for it. |

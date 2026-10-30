@@ -96,12 +96,11 @@ type App struct {
 	// kept to reload them on demand (F7).
 	reference refdata.Sources
 	// protection is the connected cluster's protection level (one of the
-	// config.Protection* values) and label its name on the banner (SPEC.md
-	// §5) — the banner itself nil for an unprotected cluster. clusterURL
-	// names the cluster when a write is to be confirmed.
+	// config.Protection* values) and label its name in the header (SPEC.md
+	// §5). clusterURL names the cluster when a write is to be confirmed.
 	protection string
 	label      string
-	banner     *tview.TextView
+	header     *header
 	clusterURL string
 	// confirmVisible is set while a write waits for confirmation
 	// (confirmWrite): every key but Ctrl+C goes to the popup, to its
@@ -181,7 +180,7 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 		msgs:             msgs,
 		editor:           NewEditor(msgs),
 		result:           NewResultView(msgs),
-		status:           NewStatusBar(cr.Target.Label(), cr.Cluster.URL, cr.DisplayUser, msgs),
+		status:           NewStatusBar(msgs),
 		target:           cr.Target,
 		focusedIsEditor:  true,
 		editorSearchPos:  -1,
@@ -228,7 +227,7 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 	a.searchBar.SetDoneFunc(a.handleSearchDone)
 
 	a.completionList = tview.NewList().ShowSecondaryText(false)
-	a.completionList.SetBorder(true).SetTitle(msgs.CompletionTitle)
+	a.completionList.SetBorder(true).SetBorderColor(themeAccent).SetTitle(msgs.CompletionTitle)
 	a.completionList.SetSelectedFunc(func(_ int, mainText, _ string, _ rune) {
 		if a.completionNoMatch {
 			return
@@ -292,20 +291,18 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 	// restrictive one, and said so.
 	a.protection, _ = config.NormalizeProtection(cr.Cluster.Protection)
 	a.label = cr.Cluster.Label
-	a.banner = newProtectionBanner(a.protection, a.label, msgs)
+	a.header = newHeader(cr.Target, cr.Cluster.URL, cr.DisplayUser, a.protection, a.label, msgs)
 	a.clusterURL = cr.Cluster.URL
 
-	a.root = tview.NewFlex().SetDirection(tview.FlexRow)
-	if a.banner != nil {
-		a.root.AddItem(a.banner, 1, 0, false)
-	}
-	a.root.AddItem(a.mainFlex, 0, 1, true).
+	a.root = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(a.header.Widget(), 1, 0, false).
+		AddItem(a.mainFlex, 0, 1, true).
 		AddItem(a.searchBar, 0, 0, false).
 		AddItem(a.completionList, 0, 0, false).
-		AddItem(a.status.Widget(), 2, 0, false)
+		AddItem(a.status.Widget(), 1, 0, false)
 
 	a.helpView = tview.NewTextView().SetDynamicColors(true).SetWrap(true)
-	a.helpView.SetBorder(true).SetTitle(msgs.HelpViewTitle)
+	a.helpView.SetBorder(true).SetBorderColor(themeAccent).SetTitle(msgs.HelpViewTitle)
 	a.helpView.SetText(a.helpText())
 
 	// Centered popup, margins around it to let the app show through in the
@@ -1486,7 +1483,5 @@ func (a *App) applyLanguage() {
 	a.helpView.SetTitle(a.msgs.HelpViewTitle)
 	a.helpView.SetText(a.helpText())
 	a.palette.applyLanguage(a.msgs)
-	if a.banner != nil {
-		a.banner.SetText(bannerText(a.protection, a.label, a.msgs))
-	}
+	a.header.SetLanguage(a.msgs)
 }

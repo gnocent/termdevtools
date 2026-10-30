@@ -10,6 +10,7 @@
 - **Un en-tête** : la première ligne donne le produit, dans un badge qui distingue Elasticsearch d'OpenSearch, l'URL et l'utilisateur. Sur un cluster protégé, toute la ligne prend le rouge ou le jaune de l'ancien bandeau, qui ne coûte plus une ligne aux panneaux.
 - **La ligne de statut et les raccourcis sur une seule ligne** : le message à gauche, autant de raccourcis qu'il laisse de place à droite. Il ne partage plus la ligne avec l'URL et l'utilisateur, et les panneaux gardent leur hauteur. À 80 colonnes, moins de raccourcis s'affichent à la fois, les plus utilisés d'abord ; `F1` les donne toujours tous.
 - **Méthodes colorées dans l'éditeur** : `GET` en sarcelle, `POST` et `PUT` en bleu, `DELETE` en rouge, commentaires atténués.
+- **Un `▼` signale qu'il y a une suite** : sur la bordure inférieure de l'éditeur, du résultat et de l'écran d'aide, tant qu'il reste de quoi défiler.
 
 ### À savoir avant de mettre à jour depuis la 0.8.1
 

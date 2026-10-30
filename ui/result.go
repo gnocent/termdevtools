@@ -12,7 +12,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/gnocent/termdevtools/i18n"
@@ -28,7 +27,7 @@ const searchRegionID = "match"
 // text otherwise (e.g. `_cat` responses). See SPEC.md §3.3.
 type ResultView struct {
 	view          *tview.TextView
-	panel         *resultPanel
+	panel         *scrollPanel
 	plain         string // displayed text without color tags, for search and export
 	displayedText string // last text actually sent to SetText (with color tags), for HighlightLine
 	isJSON        bool
@@ -64,18 +63,7 @@ func NewResultView(msgs *i18n.Strings) *ResultView {
 		SetScrollable(true).
 		SetRegions(true)
 	view.SetBorder(true).SetTitle(msgs.ResultTitle)
-	return &ResultView{view: view, panel: &resultPanel{TextView: view}, msgs: msgs}
-}
-
-// resultPanel wraps the panel's TextView so that its border follows the
-// focus, which a border's color doesn't do by itself.
-type resultPanel struct {
-	*tview.TextView
-}
-
-func (p *resultPanel) Draw(screen tcell.Screen) {
-	p.SetBorderColor(panelBorderColor(p.HasFocus()))
-	p.TextView.Draw(screen)
+	return &ResultView{view: view, panel: &scrollPanel{TextView: view}, msgs: msgs}
 }
 
 // Widget returns the tview component to insert into the layout.

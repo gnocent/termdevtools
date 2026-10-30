@@ -10,6 +10,7 @@
 - **A header**: the first line gives the product, in a badge that tells Elasticsearch from OpenSearch, the URL and the user. On a protected cluster, the whole line takes the red or the yellow of the former banner, which no longer costs a line of the panels.
 - **The status line and the shortcuts on one line**: the message on the left, as many shortcuts as it leaves room for on the right. It no longer shares the line with the URL and the user, and the panels keep their height. At 80 columns, fewer shortcuts show at once, the ones used most first; `F1` still lists them all.
 - **Methods colored in the editor**: `GET` in teal, `POST` and `PUT` in blue, `DELETE` in red, comments dimmed.
+- **A `▼` says there is more below**: on the bottom border of the editor, of the result and of the help screen, for as long as there is something left to scroll to.
 
 ### Before upgrading from 0.8.1
 

@@ -127,6 +127,7 @@ type App struct {
 
 	pages       *tview.Pages
 	helpView    *tview.TextView
+	helpPanel   *scrollPanel
 	helpVisible bool
 
 	palette        *recipePalette
@@ -302,7 +303,8 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 		AddItem(a.status.Widget(), 1, 0, false)
 
 	a.helpView = tview.NewTextView().SetDynamicColors(true).SetWrap(true)
-	a.helpView.SetBorder(true).SetBorderColor(themeAccent).SetTitle(msgs.HelpViewTitle)
+	a.helpView.SetBorder(true).SetTitle(msgs.HelpViewTitle)
+	a.helpPanel = &scrollPanel{TextView: a.helpView}
 	a.helpView.SetText(a.helpText())
 
 	// Centered popup, margins around it to let the app show through in the
@@ -320,7 +322,7 @@ func NewApp(tapp *tview.Application, cr ConnectResult, cfg *config.Config, paths
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().
 			AddItem(nil, 0, 1, false).
-			AddItem(a.helpView, 76, 0, true).
+			AddItem(a.helpPanel, 76, 0, true).
 			AddItem(nil, 0, 1, false),
 			0, 9, true).
 		AddItem(nil, 0, 1, false)}

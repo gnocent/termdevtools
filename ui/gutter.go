@@ -47,6 +47,9 @@ func (l *editorLayout) Draw(screen tcell.Screen) {
 	l.editor.refreshGutter()
 	l.Flex.Draw(screen)
 	l.editor.paintRequests(screen)
+	if l.editor.moreBelow() {
+		markMoreBelow(screen, l)
+	}
 }
 
 // refreshGutter recomputes the gutter's displayed line numbers to match the
@@ -83,6 +86,14 @@ func (e *Editor) refreshGutter() {
 	rowOffset, _ := e.view.GetOffset()
 
 	e.gutter.SetText(gutterText(text, e.wrappedStarts, rowOffset, height, digits))
+}
+
+// moreBelow tells whether the text goes on below the rows shown, on the
+// display rows of the last refreshGutter.
+func (e *Editor) moreBelow() bool {
+	_, _, _, height := e.view.GetInnerRect()
+	rowOffset, _ := e.view.GetOffset()
+	return rowOffset+height < len(e.wrappedStarts)
 }
 
 // paintRequests colors, in the cells TextArea has just drawn, what makes the

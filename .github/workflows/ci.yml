@@ -7,6 +7,9 @@
 # published for the Go toolchain or a dependency, not because of the change
 # under review.
 #
+# Scheduled and manual runs execute govulncheck only. PRs and pushes keep
+# the existing formatting, vet and test matrix.
+#
 # Not run here: the integration tests (-tags integration), which need the
 # real clusters started by tools/testclusters.sh.
 name: CI
@@ -15,12 +18,16 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "23 6 * * *" # Daily, 06:23 UTC.
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   test:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -52,6 +59,7 @@ jobs:
 
   govulncheck:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

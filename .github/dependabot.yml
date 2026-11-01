@@ -1,0 +1,21 @@
+# Version updates are reviewed before merging. Security alerts and security
+# updates are enabled separately in the repository settings.
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:30"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 2
